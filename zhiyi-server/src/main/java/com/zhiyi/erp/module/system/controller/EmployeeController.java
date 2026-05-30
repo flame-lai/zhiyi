@@ -1,5 +1,6 @@
 package com.zhiyi.erp.module.system.controller;
 
+import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.zhiyi.erp.common.result.R;
 import com.zhiyi.erp.module.system.entity.Employee;
@@ -9,6 +10,8 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.Map;
 
 @Tag(name = "员工管理", description = "员工档案CRUD、状态管理")
 @RestController
@@ -20,11 +23,11 @@ public class EmployeeController {
 
     @Operation(summary = "分页查询员工列表")
     @GetMapping
-    public R<Page<Employee>> list(
+    public R<IPage<Map<String, Object>>> list(
             @Parameter(description = "页码") @RequestParam(defaultValue = "1") Integer page,
             @Parameter(description = "每页数量") @RequestParam(defaultValue = "10") Integer size,
             @Parameter(description = "搜索关键词") @RequestParam(required = false) String keyword) {
-        return R.ok(employeeService.page(new Page<>(page, size), keyword));
+        return R.ok(employeeService.pageWithRoleName(new Page<>(page, size), keyword));
     }
 
     @Operation(summary = "根据ID查询员工详情")

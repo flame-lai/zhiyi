@@ -24,9 +24,17 @@
     >
       <template #bodyCell="{ column, record }">
         <template v-if="column.dataIndex === 'status'">
-          <a-tag :color="record.status === 1 ? 'success' : 'error'">
-            {{ record.status === 1 ? '启用' : '禁用' }}
+          <a-tag :color="record.status === 1 ? 'success' : 'default'">
+            {{ record.status === 1 ? '启用' : '停用' }}
           </a-tag>
+        </template>
+        <template v-if="column.dataIndex === 'loginCode'">
+          <a-space>
+            <span>{{ showLoginCode[record.id] ? record.loginCode : '******' }}</span>
+            <a-button type="link" size="small" @click="toggleLoginCode(record.id)">
+              {{ showLoginCode[record.id] ? '隐藏' : '查看' }}
+            </a-button>
+          </a-space>
         </template>
         <template v-if="column.dataIndex === 'action'">
           <a-space>
@@ -37,7 +45,7 @@
               :style="{ color: record.status === 1 ? '#faad14' : '#52c41a' }"
               @click="handleToggleStatus(record)"
             >
-              {{ record.status === 1 ? '禁用' : '启用' }}
+              {{ record.status === 1 ? '停用' : '启用' }}
             </a-button>
             <a-button type="link" size="small" @click="handleResetLoginCode(record)">重置登录码</a-button>
             <a-popconfirm
@@ -58,16 +66,20 @@
       @ok="handleSubmit"
       :confirmLoading="submitLoading"
       @cancel="handleCancel"
+      width="600px"
     >
       <a-form
         ref="formRef"
         :model="formData"
         :rules="rules"
-        :label-col="{ span: 5 }"
-        :wrapper-col="{ span: 18 }"
+        :label-col="{ span: 6 }"
+        :wrapper-col="{ span: 16 }"
       >
         <a-form-item label="姓名" name="name">
           <a-input v-model:value="formData.name" placeholder="请输入姓名" />
+        </a-form-item>
+        <a-form-item label="手机号" name="phone">
+          <a-input v-model:value="formData.phone" placeholder="请输入手机号" />
         </a-form-item>
         <a-form-item label="角色" name="roleId">
           <a-select v-model:value="formData.roleId" placeholder="请选择角色">
@@ -76,11 +88,20 @@
             </a-select-option>
           </a-select>
         </a-form-item>
+        <a-form-item label="登录账号" name="loginAccount">
+          <a-input v-model:value="formData.loginAccount" placeholder="默认等于工号" />
+        </a-form-item>
+        <a-form-item v-if="!isEdit" label="登录密码" name="loginPassword">
+          <a-input-password v-model:value="formData.loginPassword" placeholder="初始密码，默认123456" />
+        </a-form-item>
         <a-form-item label="状态" name="status">
           <a-select v-model:value="formData.status" placeholder="请选择状态">
             <a-select-option :value="1">启用</a-select-option>
-            <a-select-option :value="0">禁用</a-select-option>
+            <a-select-option :value="0">停用</a-select-option>
           </a-select>
+        </a-form-item>
+        <a-form-item label="备注" name="remark">
+          <a-textarea v-model:value="formData.remark" placeholder="请输入备注" :rows="3" />
         </a-form-item>
       </a-form>
     </a-modal>
@@ -95,11 +116,13 @@ import { employeeApi, roleApi } from '../../api/system'
 
 // 表格列定义
 const columns = [
-  { title: '工号', dataIndex: 'employeeNo', width: 120 },
-  { title: '姓名', dataIndex: 'name', width: 120 },
-  { title: '角色', dataIndex: 'roleName', width: 120 },
+  { title: '工号', dataIndex: 'employeeNo', width: 100 },
+  { title: '姓名', dataIndex: 'name', width: 100 },
+  { title: '手机号', dataIndex: 'phone', width: 130 },
+  { title: '角色', dataIndex: 'roleName', width: 100 },
+  { title: '登录账号', dataIndex: 'loginAccount', width: 120 },
+  { title: '登录码', dataIndex: 'loginCode', width: 180 },
   { title: '状态', dataIndex: 'status', width: 80, align: 'center' as const },
-  { title: '创建时间', dataIndex: 'createTime', width: 180 },
   { title: '操作', dataIndex: 'action', width: 280, fixed: 'right' as const },
 ]
 
@@ -115,6 +138,12 @@ const pagination = reactive({
   showTotal: (total: number) => `共 ${total} 条`,
 })
 
+// 登录码显示控制
+const showLoginCode = ref<Record<number, boolean>>({})
+function toggleLoginCode(id: number) {
+  showLoginCode.value[id] = !showLoginCode.value[id]
+}
+
 // 弹窗相关
 const modalVisible = ref(false)
 const isEdit = ref(false)
@@ -123,13 +152,16 @@ const formRef = ref<FormInstance>()
 const formData = reactive({
   id: undefined as number | undefined,
   name: '',
+  phone: '',
   roleId: undefined as number | undefined,
+  loginAccount: '',
+  loginPassword: '',
   status: 1,
+  remark: '',
 })
 const rules = {
   name: [{ required: true, message: '请输入姓名', trigger: 'blur' }],
   roleId: [{ required: true, message: '请选择角色', trigger: 'change' }],
-  status: [{ required: true, message: '请选择状态', trigger: 'change' }],
 }
 
 // 角色选项
@@ -151,8 +183,8 @@ async function loadData() {
   try {
     const res: any = await employeeApi.list({
       keyword: keyword.value,
-      pageNum: pagination.current,
-      pageSize: pagination.pageSize,
+      page: pagination.current,
+      size: pagination.pageSize,
     })
     tableData.value = res.data?.records || []
     pagination.total = res.data?.total || 0
@@ -189,8 +221,12 @@ function handleEdit(record: any) {
   Object.assign(formData, {
     id: record.id,
     name: record.name,
+    phone: record.phone || '',
     roleId: record.roleId,
+    loginAccount: record.loginAccount || '',
+    loginPassword: '',
     status: record.status,
+    remark: record.remark || '',
   })
   modalVisible.value = true
 }
@@ -231,8 +267,12 @@ function resetForm() {
   Object.assign(formData, {
     id: undefined,
     name: '',
+    phone: '',
     roleId: undefined,
+    loginAccount: '',
+    loginPassword: '',
     status: 1,
+    remark: '',
   })
   formRef.value?.resetFields()
 }
@@ -252,8 +292,9 @@ async function handleToggleStatus(record: any) {
 // 重置登录码
 async function handleResetLoginCode(record: any) {
   try {
-    await employeeApi.resetLoginCode(record.id)
-    message.success('登录码已重置')
+    const res: any = await employeeApi.resetLoginCode(record.id)
+    message.success('登录码已重置: ' + res.data)
+    loadData()
   } catch {
     // handled by interceptor
   }

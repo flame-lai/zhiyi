@@ -1,7 +1,7 @@
 package com.zhiyi.erp.module.system.service;
 
 import cn.hutool.crypto.digest.BCrypt;
-import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.zhiyi.erp.common.exception.BizException;
@@ -12,23 +12,20 @@ import com.zhiyi.erp.module.system.mapper.EmployeeMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import java.util.Map;
 import java.util.UUID;
 
 @Service
 public class EmployeeService extends ServiceImpl<EmployeeMapper, Employee> {
 
     @Autowired
+    private EmployeeMapper employeeMapper;
+
+    @Autowired
     private EmployeeNoGenerator employeeNoGenerator;
 
-    public Page<Employee> page(Page<Employee> page, String keyword) {
-        LambdaQueryWrapper<Employee> wrapper = new LambdaQueryWrapper<>();
-        if (keyword != null && !keyword.isEmpty()) {
-            wrapper.like(Employee::getName, keyword)
-                    .or()
-                    .like(Employee::getEmployeeNo, keyword);
-        }
-        wrapper.orderByDesc(Employee::getCreatedAt);
-        return page(page, wrapper);
+    public IPage<Map<String, Object>> pageWithRoleName(Page<?> page, String keyword) {
+        return employeeMapper.selectPageWithRoleName(page, TenantContext.get(), keyword);
     }
 
     public Employee create(Employee employee) {
