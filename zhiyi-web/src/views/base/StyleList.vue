@@ -27,8 +27,7 @@
         <template v-if="column.key === 'action'">
           <a-space>
             <a @click="openModal(record)">编辑</a>
-            <a @click="openProcessModal(record)">管理工序路由</a>
-            <a @click="openMaterialModal(record)">管理物料清单</a>
+            <a @click="viewDetail(record)">查看详情</a>
             <a-popconfirm
               title="确定删除该款号吗？"
               @confirm="handleDelete(record.id)"
@@ -100,8 +99,8 @@
           <template v-else-if="column.key === 'sortOrder'">
             <a-input-number v-model:value="record.sortOrder" :min="0" style="width: 100%" />
           </template>
-          <template v-else-if="column.key === 'price'">
-            <a-input-number v-model:value="record.price" :min="0" :precision="2" style="width: 100%" />
+          <template v-else-if="column.key === 'refPrice'">
+            <a-input-number v-model:value="record.refPrice" :min="0" :precision="2" style="width: 100%" />
           </template>
           <template v-else-if="column.key === 'action'">
             <a style="color: #ff4d4f" @click="removeProcessRow(index)">删除</a>
@@ -149,8 +148,11 @@
 
 <script setup lang="ts">
 import { ref, reactive, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
 import { styleApi, processApi } from '../../api/base'
+
+const router = useRouter()
 
 let rowKeyCounter = 0
 
@@ -198,7 +200,7 @@ const columns = [
 const processColumns = [
   { title: '工序', key: 'processId', width: 200 },
   { title: '排序', key: 'sortOrder', width: 120 },
-  { title: '单价', key: 'price', width: 120 },
+  { title: '参考工价', key: 'refPrice', width: 120 },
   { title: '操作', key: 'action', width: 80 },
 ]
 
@@ -309,6 +311,10 @@ async function handleDelete(id: number) {
   }
 }
 
+function viewDetail(record: any) {
+  router.push(`/base/styles/${record.id}`)
+}
+
 // 工序路由管理
 async function openProcessModal(record: any) {
   currentStyleId.value = record.id
@@ -329,7 +335,7 @@ function addProcessRow() {
     _key: ++rowKeyCounter,
     processId: undefined,
     sortOrder: 0,
-    price: undefined,
+    refPrice: undefined,
   })
 }
 
@@ -340,10 +346,10 @@ function removeProcessRow(index: number) {
 async function handleSaveProcesses() {
   savingProcesses.value = true
   try {
-    const data = processList.value.map(({ processId, sortOrder, price }: any) => ({
+    const data = processList.value.map(({ processId, sortOrder, refPrice }: any) => ({
       processId,
       sortOrder,
-      price,
+      refPrice,
     }))
     await styleApi.saveProcesses(currentStyleId.value!, data)
     message.success('工序路由保存成功')

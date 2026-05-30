@@ -58,6 +58,12 @@ const routes = [
         meta: { title: '款号管理' },
       },
       {
+        path: 'base/styles/:id',
+        name: 'StyleDetail',
+        component: () => import('../views/base/StyleDetail.vue'),
+        meta: { title: '款号详情' },
+      },
+      {
         path: 'base/customers',
         name: 'Customers',
         component: () => import('../views/base/CustomerList.vue'),
