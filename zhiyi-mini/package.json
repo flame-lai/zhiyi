@@ -1,0 +1,42 @@
+{
+  "name": "zhiyi-mini",
+  "version": "1.0.0",
+  "private": true,
+  "description": "智衣ERP微信小程序",
+  "templateInfo": {
+    "name": "vue3",
+    "typescript": true,
+    "css": "sass"
+  },
+  "scripts": {
+    "build:weapp": "taro build --type weapp",
+    "dev:weapp": "npm run build:weapp -- --watch"
+  },
+  "browserslist": [
+    "last 3 versions",
+    "Android >= 4.1",
+    "ios >= 8"
+  ],
+  "dependencies": {
+    "@tarojs/components": "4.2.0",
+    "@tarojs/helper": "4.2.0",
+    "@tarojs/plugin-framework-vue3": "4.2.0",
+    "@tarojs/plugin-platform-weapp": "4.2.0",
+    "@tarojs/runtime": "4.2.0",
+    "@tarojs/shared": "4.2.0",
+    "@tarojs/taro": "4.2.0",
+    "@vue/babel-plugin-jsx": "^1.5.0",
+    "vue": "^3.4.0"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.8.0",
+    "@babel/runtime": "^7.7.7",
+    "@tarojs/cli": "4.2.0",
+    "@tarojs/webpack5-runner": "4.2.0",
+    "@types/node": "^18.0.0",
+    "babel-preset-taro": "4.2.0",
+    "sass": "^1.60.0",
+    "typescript": "^5.1.0",
+    "webpack": "5.91.0"
+  }
+}
