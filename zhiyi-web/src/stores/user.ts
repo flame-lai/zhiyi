@@ -8,6 +8,7 @@ export const useUserStore = defineStore('user', () => {
   const factoryId = ref<number | null>(null)
   const factoryName = ref('')
   const employeeId = ref<number | null>(null)
+  const userName = ref('')
   const roleId = ref<number | null>(null)
 
   function setToken(t: string) {
@@ -20,6 +21,7 @@ export const useUserStore = defineStore('user', () => {
     factoryId.value = res.data.factoryId
     factoryName.value = res.data.factoryName || ''
     employeeId.value = res.data.employeeId
+    userName.value = res.data.userName || ''
     roleId.value = res.data.roleId
   }
 
@@ -31,11 +33,12 @@ export const useUserStore = defineStore('user', () => {
       factoryId.value = null
       factoryName.value = ''
       employeeId.value = null
+      userName.value = ''
       roleId.value = null
       localStorage.removeItem('satoken')
       router.push('/login')
     }
   }
 
-  return { token, factoryId, factoryName, employeeId, roleId, setToken, fetchUserInfo, logout }
+  return { token, factoryId, factoryName, employeeId, userName, roleId, setToken, fetchUserInfo, logout }
 })

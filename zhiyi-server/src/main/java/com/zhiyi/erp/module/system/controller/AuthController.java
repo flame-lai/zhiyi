@@ -2,7 +2,9 @@ package com.zhiyi.erp.module.system.controller;
 
 import cn.dev33.satoken.stp.StpUtil;
 import com.zhiyi.erp.common.result.R;
+import com.zhiyi.erp.module.system.entity.Employee;
 import com.zhiyi.erp.module.system.entity.Factory;
+import com.zhiyi.erp.module.system.mapper.EmployeeMapper;
 import com.zhiyi.erp.module.system.mapper.FactoryMapper;
 import com.zhiyi.erp.module.system.service.AuthService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -14,6 +16,8 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.Map;
 
+// imports used in getInfo method
+
 @Tag(name = "认证管理", description = "登录、登出、获取用户信息")
 @RestController
 @RequestMapping("/api/system/auth")
@@ -24,6 +28,9 @@ public class AuthController {
 
     @Autowired
     private FactoryMapper factoryMapper;
+
+    @Autowired
+    private EmployeeMapper employeeMapper;
 
     @Data
     public static class LoginByAccountDTO {
@@ -62,12 +69,15 @@ public class AuthController {
     @GetMapping("/info")
     public R<Map<String, Object>> getInfo() {
         Long factoryId = StpUtil.getSession().getLong("factoryId");
+        Long employeeId = StpUtil.getSession().getLong("employeeId");
         Factory factory = factoryMapper.selectById(factoryId);
+        Employee employee = employeeMapper.selectById(employeeId);
 
         Map<String, Object> info = new java.util.HashMap<>();
         info.put("factoryId", factoryId);
         info.put("factoryName", factory != null ? factory.getName() : "");
-        info.put("employeeId", StpUtil.getSession().get("employeeId"));
+        info.put("employeeId", employeeId);
+        info.put("userName", employee != null ? employee.getName() : "");
         info.put("roleId", StpUtil.getSession().get("roleId"));
         return R.ok(info);
     }

@@ -41,7 +41,7 @@
           <a-dropdown>
             <span class="user-info">
               <UserOutlined />
-              <span style="margin-left: 8px">{{ userStore.employeeId || '管理员' }}</span>
+              <span style="margin-left: 8px">{{ userStore.userName || '管理员' }}</span>
             </span>
             <template #overlay>
               <a-menu @click="handleUserMenu">

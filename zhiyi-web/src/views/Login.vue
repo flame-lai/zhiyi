@@ -69,6 +69,7 @@ async function handleAccountLogin() {
     userStore.setToken(res.data.token)
     userStore.factoryName = res.data.factoryName || ''
     userStore.employeeId = res.data.userId
+    userStore.userName = res.data.userName || ''
     message.success('登录成功')
     router.push('/')
   } catch {
@@ -85,6 +86,7 @@ async function handleCodeLogin() {
     userStore.setToken(res.data.token)
     userStore.factoryName = res.data.factoryName || ''
     userStore.employeeId = res.data.userId
+    userStore.userName = res.data.userName || ''
     message.success('登录成功')
     router.push('/')
   } catch {
