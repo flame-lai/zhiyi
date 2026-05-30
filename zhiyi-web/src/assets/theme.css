@@ -1,0 +1,103 @@
+:root {
+  --primary-color: #4A6FA5;
+  --primary-light: #6B8FC4;
+  --primary-dark: #3A5F95;
+  --bg-color: #F5F7FA;
+  --white: #FFFFFF;
+  --text-primary: #333333;
+  --text-secondary: #666666;
+  --text-weak: #999999;
+  --border-color: #E8E8E8;
+  --success-color: #52C41A;
+  --warning-color: #FAAD14;
+  --error-color: #FF4D4F;
+  --info-color: #4A6FA5;
+  --card-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+  --border-radius: 6px;
+}
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  background-color: var(--bg-color);
+  color: var(--text-primary);
+}
+
+/* Ant Design theme overrides */
+.ant-btn-primary {
+  background-color: var(--primary-color) !important;
+  border-color: var(--primary-color) !important;
+}
+
+.ant-btn-primary:hover {
+  background-color: var(--primary-light) !important;
+  border-color: var(--primary-light) !important;
+}
+
+.ant-btn-primary:active {
+  background-color: var(--primary-dark) !important;
+  border-color: var(--primary-dark) !important;
+}
+
+.ant-menu-item-selected {
+  color: var(--primary-color) !important;
+}
+
+.ant-menu-item-selected::after {
+  border-bottom-color: var(--primary-color) !important;
+}
+
+.ant-tabs-tab-active .ant-tabs-tab-btn {
+  color: var(--primary-color) !important;
+}
+
+.ant-tabs-ink-bar {
+  background-color: var(--primary-color) !important;
+}
+
+.ant-checkbox-checked .ant-checkbox-inner {
+  background-color: var(--primary-color) !important;
+  border-color: var(--primary-color) !important;
+}
+
+.ant-radio-checked .ant-radio-inner {
+  border-color: var(--primary-color) !important;
+}
+
+.ant-radio-checked::after {
+  border-color: var(--primary-color) !important;
+}
+
+.ant-radio-inner::after {
+  background-color: var(--primary-color) !important;
+}
+
+.ant-switch-checked {
+  background-color: var(--primary-color) !important;
+}
+
+.ant-pagination-item-active {
+  border-color: var(--primary-color) !important;
+}
+
+.ant-pagination-item-active a {
+  color: var(--primary-color) !important;
+}
+
+.ant-select-focused .ant-select-selector {
+  border-color: var(--primary-color) !important;
+  box-shadow: 0 0 0 2px rgba(74, 111, 165, 0.2) !important;
+}
+
+.ant-picker-focused {
+  border-color: var(--primary-color) !important;
+  box-shadow: 0 0 0 2px rgba(74, 111, 165, 0.2) !important;
+}
+
+/* Card style */
+.card {
+  background: var(--white);
+  box-shadow: var(--card-shadow);
+  border-radius: var(--border-radius);
+  padding: 20px;
+}
