@@ -1,0 +1,17 @@
+- generic [ref=e4]:
+  - generic [ref=e5]:
+    - heading "智衣ERP" [level=1] [ref=e6]
+    - paragraph [ref=e7]: 制衣厂生产管理系统
+  - generic [ref=e8]:
+    - generic [ref=e14]:
+      - img "user" [ref=e16]:
+        - img [ref=e17]
+      - textbox "请输入账号" [ref=e19]
+    - generic [ref=e25]:
+      - img "lock" [ref=e27]:
+        - img [ref=e28]
+      - textbox "请输入密码" [ref=e30]
+      - img "eye-invisible" [ref=e32] [cursor=pointer]:
+        - img [ref=e33]
+    - button "登 录" [ref=e41] [cursor=pointer]:
+      - generic [ref=e42]: 登 录

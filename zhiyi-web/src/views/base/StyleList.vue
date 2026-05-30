@@ -52,14 +52,11 @@
         :label-col="{ span: 6 }"
         :wrapper-col="{ span: 16 }"
       >
-        <a-form-item label="款号" name="styleNo" :rules="[{ required: true, message: '请输入款号' }]">
-          <a-input v-model:value="formData.styleNo" placeholder="请输入款号" />
+        <a-form-item label="款号" name="styleCode" :rules="[{ required: true, message: '请输入款号' }]">
+          <a-input v-model:value="formData.styleCode" placeholder="请输入款号" />
         </a-form-item>
-        <a-form-item label="名称" name="name" :rules="[{ required: true, message: '请输入名称' }]">
-          <a-input v-model:value="formData.name" placeholder="请输入名称" />
-        </a-form-item>
-        <a-form-item label="描述" name="description">
-          <a-textarea v-model:value="formData.description" placeholder="请输入描述" :rows="3" />
+        <a-form-item label="款式名称" name="styleName" :rules="[{ required: true, message: '请输入款式名称' }]">
+          <a-input v-model:value="formData.styleName" placeholder="请输入款式名称" />
         </a-form-item>
       </a-form>
     </a-modal>
@@ -185,16 +182,14 @@ const pagination = reactive({
 })
 
 const formData = reactive({
-  styleNo: '',
-  name: '',
-  description: '',
+  styleCode: '',
+  styleName: '',
 })
 
 const columns = [
-  { title: '款号', dataIndex: 'styleNo', key: 'styleNo' },
-  { title: '名称', dataIndex: 'name', key: 'name' },
-  { title: '描述', dataIndex: 'description', key: 'description', ellipsis: true },
-  { title: '操作', key: 'action', width: 350 },
+  { title: '款号', dataIndex: 'styleCode', key: 'styleCode' },
+  { title: '款式名称', dataIndex: 'styleName', key: 'styleName' },
+  { title: '操作', key: 'action', width: 250 },
 ]
 
 const processColumns = [
@@ -264,14 +259,12 @@ function handleTableChange(pag: any) {
 function openModal(record?: any) {
   if (record) {
     editingId.value = record.id
-    formData.styleNo = record.styleNo || ''
-    formData.name = record.name || ''
-    formData.description = record.description || ''
+    formData.styleCode = record.styleCode || ''
+    formData.styleName = record.styleName || ''
   } else {
     editingId.value = null
-    formData.styleNo = ''
-    formData.name = ''
-    formData.description = ''
+    formData.styleCode = ''
+    formData.styleName = ''
   }
   modalVisible.value = true
 }

@@ -1,14 +1,13 @@
 <template>
-  <a-card :title="`款号详情：${styleInfo.styleNo}`" :loading="loading">
+  <a-card :title="`款号详情：${styleInfo.styleCode}`" :loading="loading">
     <template #extra>
       <a-button @click="router.back()">返回列表</a-button>
     </template>
 
     <!-- 基本信息 -->
     <a-descriptions bordered :column="2" style="margin-bottom: 24px">
-      <a-descriptions-item label="款号">{{ styleInfo.styleNo }}</a-descriptions-item>
-      <a-descriptions-item label="款式名称">{{ styleInfo.name }}</a-descriptions-item>
-      <a-descriptions-item label="描述" :span="2">{{ styleInfo.description || '-' }}</a-descriptions-item>
+      <a-descriptions-item label="款号">{{ styleInfo.styleCode }}</a-descriptions-item>
+      <a-descriptions-item label="款式名称">{{ styleInfo.styleName }}</a-descriptions-item>
     </a-descriptions>
 
     <!-- Tab：工序路由 + 物料清单 -->
@@ -110,9 +109,8 @@ const loading = ref(false)
 const activeTab = ref('process')
 
 const styleInfo = reactive({
-  styleNo: '',
-  name: '',
-  description: '',
+  styleCode: '',
+  styleName: '',
 })
 
 // 工序路由
@@ -149,9 +147,8 @@ async function fetchStyleInfo() {
   try {
     const res: any = await styleApi.getById(styleId)
     const data = res.data || {}
-    styleInfo.styleNo = data.styleNo || ''
-    styleInfo.name = data.name || ''
-    styleInfo.description = data.description || ''
+    styleInfo.styleCode = data.styleCode || ''
+    styleInfo.styleName = data.styleName || ''
   } catch {
     // handled by interceptor
   } finally {
