@@ -15,6 +15,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.UUID;
 
 @Service
 public class RoleService extends ServiceImpl<RoleMapper, Role> {
@@ -27,6 +28,15 @@ public class RoleService extends ServiceImpl<RoleMapper, Role> {
 
     @Autowired
     private EmployeeMapper employeeMapper;
+
+    @Override
+    public boolean save(Role role) {
+        // 自动生成code
+        if (role.getCode() == null || role.getCode().isEmpty()) {
+            role.setCode("ROLE_" + UUID.randomUUID().toString().substring(0, 8));
+        }
+        return super.save(role);
+    }
 
     public List<Role> listAll() {
         return list(new LambdaQueryWrapper<Role>()
