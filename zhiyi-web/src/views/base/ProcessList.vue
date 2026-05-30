@@ -6,11 +6,12 @@
           v-model:value="searchCategory"
           placeholder="按分类筛选"
           allow-clear
+          show-search
           style="width: 200px"
+          :options="categoryOptions.map(c => ({ label: c, value: c }))"
+          :filter-option="(input: string, option: any) => option.label.toLowerCase().includes(input.toLowerCase())"
           @change="handleSearch"
-        >
-          <a-select-option v-for="c in categoryOptions" :key="c" :value="c">{{ c }}</a-select-option>
-        </a-select>
+        />
         <a-button type="primary" @click="handleSearch">查询</a-button>
         <a-button @click="resetSearch">重置</a-button>
       </a-space>
@@ -26,6 +27,12 @@
       @change="handleTableChange"
     >
       <template #bodyCell="{ column, record }">
+        <template v-if="column.key === 'category'">
+          <a-tag v-if="record.category" color="blue">{{ record.category }}</a-tag>
+        </template>
+        <template v-if="column.key === 'refPrice'">
+          <span v-if="record.refPrice">{{ record.refPrice }} 元/件</span>
+        </template>
         <template v-if="column.key === 'action'">
           <a-space>
             <a @click="openModal(record)">编辑</a>
@@ -55,14 +62,24 @@
         <a-form-item label="工序名称" name="name" :rules="[{ required: true, message: '请输入工序名称' }]">
           <a-input v-model:value="formData.name" placeholder="请输入工序名称" />
         </a-form-item>
-        <a-form-item label="分类" name="category">
-          <a-input v-model:value="formData.category" placeholder="请输入分类" />
+        <a-form-item label="分类" name="category" :rules="[{ required: true, message: '请选择或输入分类' }]">
+          <a-select
+            v-model:value="formData.category"
+            placeholder="请选择或输入分类"
+            show-search
+            allow-clear
+            mode="tags"
+            :max-tag-count="1"
+            :options="categoryOptions.map(c => ({ label: c, value: c }))"
+            :filter-option="(input: string, option: any) => option.label.toLowerCase().includes(input.toLowerCase())"
+            @search="handleCategorySearch"
+          />
         </a-form-item>
-        <a-form-item label="单价" name="price">
-          <a-input-number v-model:value="formData.price" :min="0" :precision="2" style="width: 100%" placeholder="请输入单价" />
+        <a-form-item label="参考工价" name="refPrice" :rules="[{ required: true, message: '请输入参考工价' }]">
+          <a-input-number v-model:value="formData.refPrice" :min="0" :precision="2" style="width: 100%" placeholder="请输入参考工价（元/件）" />
         </a-form-item>
-        <a-form-item label="排序" name="sortOrder">
-          <a-input-number v-model:value="formData.sortOrder" :min="0" style="width: 100%" placeholder="请输入排序号" />
+        <a-form-item label="排序" name="sort">
+          <a-input-number v-model:value="formData.sort" :min="0" style="width: 100%" placeholder="请输入排序号" />
         </a-form-item>
       </a-form>
     </a-modal>
@@ -83,6 +100,15 @@ const dataList = ref<any[]>([])
 const categoryOptions = ref<string[]>([])
 const formRef = ref()
 
+async function fetchCategories() {
+  try {
+    const res: any = await processApi.getCategories()
+    categoryOptions.value = res.data || []
+  } catch {
+    // handled by interceptor
+  }
+}
+
 const pagination = reactive({
   current: 1,
   pageSize: 10,
@@ -93,16 +119,16 @@ const pagination = reactive({
 
 const formData = reactive({
   name: '',
-  category: '',
-  price: undefined as number | undefined,
-  sortOrder: 0,
+  category: [] as string[],
+  refPrice: undefined as number | undefined,
+  sort: 0,
 })
 
 const columns = [
   { title: '工序名称', dataIndex: 'name', key: 'name' },
   { title: '分类', dataIndex: 'category', key: 'category' },
-  { title: '单价', dataIndex: 'price', key: 'price' },
-  { title: '排序', dataIndex: 'sortOrder', key: 'sortOrder' },
+  { title: '参考工价', dataIndex: 'refPrice', key: 'refPrice' },
+  { title: '排序', dataIndex: 'sort', key: 'sort' },
   { title: '操作', key: 'action', width: 150 },
 ]
 
@@ -119,9 +145,6 @@ async function fetchData() {
     const res: any = await processApi.list(params)
     dataList.value = res.data?.records || res.data?.list || res.data || []
     pagination.total = res.data?.total || 0
-    // Extract unique categories for filter
-    const cats = new Set(dataList.value.map((d: any) => d.category).filter(Boolean))
-    categoryOptions.value = Array.from(cats) as string[]
   } catch {
     // handled by interceptor
   } finally {
@@ -139,6 +162,12 @@ function resetSearch() {
   handleSearch()
 }
 
+function handleCategorySearch(value: string) {
+  if (value && !categoryOptions.value.includes(value)) {
+    categoryOptions.value = [...categoryOptions.value, value]
+  }
+}
+
 function handleTableChange(pag: any) {
   pagination.current = pag.current
   pagination.pageSize = pag.pageSize
@@ -149,15 +178,15 @@ function openModal(record?: any) {
   if (record) {
     editingId.value = record.id
     formData.name = record.name || ''
-    formData.category = record.category || ''
-    formData.price = record.price
-    formData.sortOrder = record.sortOrder ?? 0
+    formData.category = record.category ? [record.category] : []
+    formData.refPrice = record.refPrice
+    formData.sort = record.sort ?? 0
   } else {
     editingId.value = null
     formData.name = ''
-    formData.category = ''
-    formData.price = undefined
-    formData.sortOrder = 0
+    formData.category = []
+    formData.refPrice = undefined
+    formData.sort = 0
   }
   modalVisible.value = true
 }
@@ -170,7 +199,11 @@ async function handleSubmit() {
   }
   submitting.value = true
   try {
-    const data = { ...formData }
+    // 处理分类字段：mode="tags" 返回数组，取最后一个值
+    const category = Array.isArray(formData.category)
+      ? (formData.category as string[])[formData.category.length - 1] || ''
+      : formData.category
+    const data = { ...formData, category }
     if (editingId.value) {
       await processApi.update(editingId.value, data)
       message.success('编辑成功')
@@ -180,6 +213,7 @@ async function handleSubmit() {
     }
     modalVisible.value = false
     fetchData()
+    fetchCategories()
   } catch {
     // handled by interceptor
   } finally {
@@ -199,6 +233,7 @@ async function handleDelete(id: number) {
 
 onMounted(() => {
   fetchData()
+  fetchCategories()
 })
 </script>
 

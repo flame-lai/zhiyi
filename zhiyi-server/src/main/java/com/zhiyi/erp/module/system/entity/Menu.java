@@ -16,6 +16,7 @@ public class Menu {
     private String component;
     private String icon;
     private Integer type;
+    private String platform;
     private String permission;
     private Integer sort;
     private Integer status;

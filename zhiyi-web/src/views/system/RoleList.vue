@@ -10,8 +10,7 @@
       :columns="columns"
       :data-source="tableData"
       :loading="loading"
-      :pagination="pagination"
-      @change="handleTableChange"
+      :pagination="false"
       row-key="id"
       size="middle"
     >
@@ -19,7 +18,7 @@
         <template v-if="column.dataIndex === 'action'">
           <a-space>
             <a-button type="link" size="small" @click="handleEdit(record)">编辑</a-button>
-            <a-button type="link" size="small" @click="handleAssignMenus(record)">分配菜单</a-button>
+            <a-button type="link" size="small" @click="handleAssignMenus(record)">配置权限</a-button>
             <a-popconfirm
               title="确认删除该角色？"
               @confirm="handleDelete(record)"
@@ -49,31 +48,48 @@
         <a-form-item label="角色名称" name="name">
           <a-input v-model:value="formData.name" placeholder="请输入角色名称" />
         </a-form-item>
-        <a-form-item label="描述" name="description">
-          <a-textarea v-model:value="formData.description" placeholder="请输入描述" :rows="3" />
+        <a-form-item label="角色说明" name="description">
+          <a-textarea v-model:value="formData.description" placeholder="请输入角色说明" :rows="3" />
         </a-form-item>
       </a-form>
     </a-modal>
 
-    <!-- 分配菜单弹窗 -->
+    <!-- 配置权限弹窗 -->
     <a-modal
       v-model:open="menuModalVisible"
-      title="分配菜单"
+      title="配置权限"
       @ok="handleMenuSubmit"
       :confirmLoading="menuSubmitLoading"
       @cancel="menuModalVisible = false"
+      width="600px"
     >
       <a-spin :spinning="menuTreeLoading">
-        <a-tree
-          v-if="menuTreeData.length > 0"
-          v-model:checkedKeys="checkedMenuKeys"
-          :tree-data="menuTreeData"
-          :field-names="{ title: 'name', key: 'id', children: 'children' }"
-          checkable
-          default-expand-all
-          :style="{ maxHeight: '400px', overflow: 'auto' }"
-        />
-        <a-empty v-else description="暂无菜单数据" />
+        <a-tabs v-model:activeKey="activeTab">
+          <a-tab-pane key="web" tab="Web端权限">
+            <a-tree
+              v-if="webMenuTree.length > 0"
+              v-model:checkedKeys="checkedMenuKeys"
+              :tree-data="webMenuTree"
+              :field-names="{ title: 'name', key: 'id', children: 'children' }"
+              checkable
+              default-expand-all
+              :style="{ maxHeight: '400px', overflow: 'auto' }"
+            />
+            <a-empty v-else description="暂无Web端菜单" />
+          </a-tab-pane>
+          <a-tab-pane key="mobile" tab="移动端权限">
+            <a-tree
+              v-if="mobileMenuTree.length > 0"
+              v-model:checkedKeys="checkedMenuKeys"
+              :tree-data="mobileMenuTree"
+              :field-names="{ title: 'name', key: 'id', children: 'children' }"
+              checkable
+              default-expand-all
+              :style="{ maxHeight: '400px', overflow: 'auto' }"
+            />
+            <a-empty v-else description="暂无移动端菜单" />
+          </a-tab-pane>
+        </a-tabs>
       </a-spin>
     </a-modal>
   </a-card>
@@ -88,21 +104,14 @@ import { roleApi, menuApi } from '../../api/system'
 // 表格列定义
 const columns = [
   { title: '角色名称', dataIndex: 'name', width: 180 },
-  { title: '描述', dataIndex: 'description', ellipsis: true },
-  { title: '创建时间', dataIndex: 'createTime', width: 180 },
-  { title: '操作', dataIndex: 'action', width: 220, fixed: 'right' as const },
+  { title: '角色说明', dataIndex: 'description', ellipsis: true },
+  { title: '包含员工数', dataIndex: 'employeeCount', width: 120, align: 'center' as const },
+  { title: '操作', dataIndex: 'action', width: 240, fixed: 'right' as const },
 ]
 
 // 表格数据
 const loading = ref(false)
 const tableData = ref<any[]>([])
-const pagination = reactive({
-  current: 1,
-  pageSize: 10,
-  total: 0,
-  showSizeChanger: true,
-  showTotal: (total: number) => `共 ${total} 条`,
-})
 
 // 表单弹窗
 const formModalVisible = ref(false)
@@ -122,7 +131,9 @@ const rules = {
 const menuModalVisible = ref(false)
 const menuSubmitLoading = ref(false)
 const menuTreeLoading = ref(false)
-const menuTreeData = ref<any[]>([])
+const activeTab = ref('web')
+const webMenuTree = ref<any[]>([])
+const mobileMenuTree = ref<any[]>([])
 const checkedMenuKeys = ref<number[]>([])
 const currentRoleId = ref<number>(0)
 
@@ -131,20 +142,12 @@ async function loadData() {
   loading.value = true
   try {
     const res: any = await roleApi.list()
-    const list = res.data || []
-    tableData.value = list
-    pagination.total = list.length
+    tableData.value = res.data || []
   } catch {
     // handled by interceptor
   } finally {
     loading.value = false
   }
-}
-
-// 表格分页变化
-function handleTableChange(pag: any) {
-  pagination.current = pag.current
-  pagination.pageSize = pag.pageSize
 }
 
 // 新增
@@ -217,10 +220,11 @@ async function handleDelete(record: any) {
   }
 }
 
-// 打开分配菜单弹窗
+// 打开配置权限弹窗
 async function handleAssignMenus(record: any) {
   currentRoleId.value = record.id
   checkedMenuKeys.value = []
+  activeTab.value = 'web'
   menuTreeLoading.value = true
   menuModalVisible.value = true
   try {
@@ -228,8 +232,11 @@ async function handleAssignMenus(record: any) {
       menuApi.tree(),
       roleApi.getRoleMenus(record.id),
     ])
-    menuTreeData.value = menuRes.data || []
-    // roleMenuRes.data 为当前角色已有的菜单 id 列表
+    const allMenus = menuRes.data || []
+    // 按平台分组
+    webMenuTree.value = filterByPlatform(allMenus, 'web')
+    mobileMenuTree.value = filterByPlatform(allMenus, 'mobile')
+    // 当前角色已有的菜单id列表
     checkedMenuKeys.value = roleMenuRes.data || []
   } catch {
     // handled by interceptor
@@ -238,12 +245,22 @@ async function handleAssignMenus(record: any) {
   }
 }
 
+// 按平台过滤菜单树
+function filterByPlatform(tree: any[], platform: string): any[] {
+  return tree
+    .filter((item) => item.platform === platform)
+    .map((item) => ({
+      ...item,
+      children: item.children ? filterByPlatform(item.children, platform) : [],
+    }))
+}
+
 // 提交菜单分配
 async function handleMenuSubmit() {
   menuSubmitLoading.value = true
   try {
     await roleApi.assignMenus(currentRoleId.value, checkedMenuKeys.value as number[])
-    message.success('菜单分配成功')
+    message.success('权限配置成功')
     menuModalVisible.value = false
   } catch {
     // handled by interceptor

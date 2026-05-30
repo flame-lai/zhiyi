@@ -10,6 +10,8 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @Tag(name = "工序管理", description = "工序CRUD、分类管理")
 @RestController
 @RequestMapping("/api/base/processes")
@@ -46,5 +48,11 @@ public class ProcessController {
     public R<Void> delete(@Parameter(description = "工序ID") @PathVariable Long id) {
         processService.removeById(id);
         return R.ok();
+    }
+
+    @Operation(summary = "获取所有分类")
+    @GetMapping("/categories")
+    public R<List<String>> getCategories() {
+        return R.ok(processService.getCategories());
     }
 }

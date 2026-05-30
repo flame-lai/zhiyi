@@ -6,6 +6,7 @@ export const processApi = {
   create: (data: any) => request.post('/base/processes', data),
   update: (id: number, data: any) => request.put(`/base/processes/${id}`, data),
   delete: (id: number) => request.delete(`/base/processes/${id}`),
+  getCategories: () => request.get('/base/processes/categories'),
 }
 
 // 款号管理

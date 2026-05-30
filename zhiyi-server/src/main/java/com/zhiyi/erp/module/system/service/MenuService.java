@@ -40,6 +40,7 @@ public class MenuService extends ServiceImpl<MenuMapper, Menu> {
                     node.put("component", m.getComponent());
                     node.put("icon", m.getIcon());
                     node.put("type", m.getType());
+                    node.put("platform", m.getPlatform());
                     node.put("permission", m.getPermission());
                     node.put("sort", m.getSort());
                     node.put("status", m.getStatus());
@@ -66,5 +67,10 @@ public class MenuService extends ServiceImpl<MenuMapper, Menu> {
         }
         List<Long> menuIds = roleMenus.stream().map(RoleMenu::getMenuId).toList();
         return listByIds(menuIds);
+    }
+
+    public List<Map<String, Object>> getMenuTreeByRoleId(Long roleId) {
+        List<Menu> menus = getMenusByRoleId(roleId);
+        return buildTree(menus, 0L);
     }
 }

@@ -10,6 +10,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
+import java.util.Map;
 
 @Tag(name = "角色管理", description = "角色CRUD、菜单分配")
 @RestController
@@ -21,8 +22,8 @@ public class RoleController {
 
     @Operation(summary = "查询所有角色")
     @GetMapping
-    public R<List<Role>> list() {
-        return R.ok(roleService.listAll());
+    public R<List<Map<String, Object>>> list() {
+        return R.ok(roleService.listWithEmployeeCount());
     }
 
     @Operation(summary = "根据ID查询角色详情")

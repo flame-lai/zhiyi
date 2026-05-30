@@ -19,7 +19,7 @@ export const useMenuStore = defineStore('menu', () => {
 
   async function fetchMenus() {
     if (loaded.value) return
-    const res: any = await menuApi.tree()
+    const res: any = await menuApi.userTree('web')
     menus.value = res.data || []
     loaded.value = true
   }

@@ -71,4 +71,11 @@ public class EmployeeController {
         employeeService.resetPassword(id, newPassword);
         return R.ok();
     }
+
+    @Operation(summary = "删除员工")
+    @DeleteMapping("/{id}")
+    public R<Void> delete(@Parameter(description = "员工ID") @PathVariable Long id) {
+        employeeService.removeById(id);
+        return R.ok();
+    }
 }

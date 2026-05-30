@@ -9,6 +9,7 @@ export const employeeApi = {
   updateStatus: (id: number, status: number) => request.put(`/system/employees/${id}/status`, null, { params: { status } }),
   resetLoginCode: (id: number) => request.post(`/system/employees/${id}/reset-login-code`),
   resetPassword: (id: number, newPassword = '123456') => request.post(`/system/employees/${id}/reset-password`, null, { params: { newPassword } }),
+  delete: (id: number) => request.delete(`/system/employees/${id}`),
 }
 
 // 角色管理
@@ -26,6 +27,7 @@ export const roleApi = {
 export const menuApi = {
   list: () => request.get('/system/menus'),
   tree: () => request.get('/system/menus/tree'),
+  userTree: (platform?: string) => request.get('/system/menus/user-tree', { params: { platform } }),
   getById: (id: number) => request.get(`/system/menus/${id}`),
   create: (data: any) => request.post('/system/menus', data),
   update: (id: number, data: any) => request.put(`/system/menus/${id}`, data),

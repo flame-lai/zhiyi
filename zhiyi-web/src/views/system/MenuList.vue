@@ -16,9 +16,14 @@
       default-expand-all-rows
     >
       <template #bodyCell="{ column, record }">
+        <template v-if="column.dataIndex === 'platform'">
+          <a-tag :color="record.platform === 'web' ? 'blue' : 'green'">
+            {{ record.platform === 'web' ? 'Web端' : '移动端' }}
+          </a-tag>
+        </template>
         <template v-if="column.dataIndex === 'type'">
-          <a-tag :color="record.type === 'directory' ? 'blue' : 'green'">
-            {{ record.type === 'directory' ? '目录' : '菜单' }}
+          <a-tag :color="record.type === 1 ? 'blue' : 'green'">
+            {{ record.type === 1 ? '目录' : '菜单' }}
           </a-tag>
         </template>
         <template v-if="column.dataIndex === 'action'">
@@ -48,13 +53,19 @@
         ref="formRef"
         :model="formData"
         :rules="rules"
-        :label-col="{ span: 5 }"
-        :wrapper-col="{ span: 18 }"
+        :label-col="{ span: 6 }"
+        :wrapper-col="{ span: 16 }"
       >
-        <a-form-item label="类型" name="type">
+        <a-form-item label="所属平台" name="platform">
+          <a-select v-model:value="formData.platform" placeholder="请选择平台">
+            <a-select-option value="web">Web端</a-select-option>
+            <a-select-option value="mobile">移动端</a-select-option>
+          </a-select>
+        </a-form-item>
+        <a-form-item label="菜单类型" name="type">
           <a-select v-model:value="formData.type" placeholder="请选择类型">
-            <a-select-option value="directory">目录</a-select-option>
-            <a-select-option value="menu">菜单</a-select-option>
+            <a-select-option :value="1">目录</a-select-option>
+            <a-select-option :value="2">菜单</a-select-option>
           </a-select>
         </a-form-item>
         <a-form-item label="菜单名称" name="name">
@@ -92,8 +103,9 @@ import { menuApi } from '../../api/system'
 
 // 表格列定义
 const columns = [
-  { title: '菜单名称', dataIndex: 'name', width: 200 },
-  { title: '路由路径', dataIndex: 'path', width: 200 },
+  { title: '菜单名称', dataIndex: 'name', width: 180 },
+  { title: '所属平台', dataIndex: 'platform', width: 100, align: 'center' as const },
+  { title: '路由路径', dataIndex: 'path', width: 180 },
   { title: '图标', dataIndex: 'icon', width: 120 },
   { title: '排序', dataIndex: 'sort', width: 80, align: 'center' as const },
   { title: '类型', dataIndex: 'type', width: 80, align: 'center' as const },
@@ -111,24 +123,36 @@ const submitLoading = ref(false)
 const formRef = ref<FormInstance>()
 const formData = reactive({
   id: undefined as number | undefined,
-  parentId: undefined as number | undefined,
+  parentId: 0 as number,
   name: '',
   path: '',
   icon: '',
   sort: 0,
-  type: 'menu' as 'directory' | 'menu',
+  type: 1 as number,
+  platform: 'web' as string,
 })
 const rules = {
+  platform: [{ required: true, message: '请选择平台', trigger: 'change' }],
   type: [{ required: true, message: '请选择类型', trigger: 'change' }],
   name: [{ required: true, message: '请输入菜单名称', trigger: 'blur' }],
-  path: [{ required: true, message: '请输入路由路径', trigger: 'blur' }],
 }
 
-// 上级菜单树数据（排除当前编辑项及其子级，防止循环引用）
+// 上级菜单树数据（过滤当前平台）
 const parentTreeData = computed(() => {
-  if (!isEdit.value || !formData.id) return tableData.value
-  return filterTreeNode(tableData.value, formData.id)
+  const filtered = filterByPlatform(tableData.value, formData.platform)
+  if (!isEdit.value || !formData.id) return filtered
+  return filterTreeNode(filtered, formData.id)
 })
+
+// 按平台过滤
+function filterByPlatform(tree: any[], platform: string): any[] {
+  return tree
+    .filter((item) => item.platform === platform)
+    .map((item) => ({
+      ...item,
+      children: item.children ? filterByPlatform(item.children, platform) : [],
+    }))
+}
 
 // 过滤掉指定 id 及其子节点
 function filterTreeNode(tree: any[], excludeId: number): any[] {
@@ -157,8 +181,25 @@ async function loadData() {
 function handleAdd(parentId?: number) {
   isEdit.value = false
   resetForm()
-  formData.parentId = parentId
+  if (parentId) {
+    formData.parentId = parentId
+    // 从父菜单继承平台
+    const parent = findMenuById(tableData.value, parentId)
+    if (parent) formData.platform = parent.platform
+  }
   modalVisible.value = true
+}
+
+// 查找菜单
+function findMenuById(tree: any[], id: number): any {
+  for (const item of tree) {
+    if (item.id === id) return item
+    if (item.children) {
+      const found = findMenuById(item.children, id)
+      if (found) return found
+    }
+  }
+  return null
 }
 
 // 编辑
@@ -166,12 +207,13 @@ function handleEdit(record: any) {
   isEdit.value = true
   Object.assign(formData, {
     id: record.id,
-    parentId: record.parentId,
+    parentId: record.parentId || 0,
     name: record.name,
     path: record.path,
     icon: record.icon,
     sort: record.sort,
     type: record.type,
+    platform: record.platform || 'web',
   })
   modalVisible.value = true
 }
@@ -211,12 +253,13 @@ function handleCancel() {
 function resetForm() {
   Object.assign(formData, {
     id: undefined,
-    parentId: undefined,
+    parentId: 0,
     name: '',
     path: '',
     icon: '',
     sort: 0,
-    type: 'menu',
+    type: 1,
+    platform: 'web',
   })
   formRef.value?.resetFields()
 }

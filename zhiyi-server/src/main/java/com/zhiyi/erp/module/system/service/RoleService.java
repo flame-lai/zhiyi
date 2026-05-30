@@ -14,7 +14,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Service
@@ -42,6 +45,27 @@ public class RoleService extends ServiceImpl<RoleMapper, Role> {
         return list(new LambdaQueryWrapper<Role>()
                 .eq(Role::getFactoryId, TenantContext.get())
                 .orderByAsc(Role::getSort));
+    }
+
+    public List<Map<String, Object>> listWithEmployeeCount() {
+        List<Role> roles = listAll();
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (Role role : roles) {
+            Map<String, Object> item = new HashMap<>();
+            item.put("id", role.getId());
+            item.put("name", role.getName());
+            item.put("description", role.getDescription());
+            item.put("code", role.getCode());
+            item.put("sort", role.getSort());
+            item.put("status", role.getStatus());
+            item.put("createdAt", role.getCreatedAt());
+            // 统计该角色下的员工数
+            long count = employeeMapper.selectCount(
+                    new LambdaQueryWrapper<Employee>().eq(Employee::getRoleId, role.getId()));
+            item.put("employeeCount", count);
+            result.add(item);
+        }
+        return result;
     }
 
     @Transactional

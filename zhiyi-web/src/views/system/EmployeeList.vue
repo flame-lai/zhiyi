@@ -28,14 +28,6 @@
             {{ record.status === 1 ? '启用' : '停用' }}
           </a-tag>
         </template>
-        <template v-if="column.dataIndex === 'loginCode'">
-          <a-space>
-            <span>{{ showLoginCode[record.id] ? record.loginCode : '******' }}</span>
-            <a-button type="link" size="small" @click="toggleLoginCode(record.id)">
-              {{ showLoginCode[record.id] ? '隐藏' : '查看' }}
-            </a-button>
-          </a-space>
-        </template>
         <template v-if="column.dataIndex === 'action'">
           <a-space>
             <a-button type="link" size="small" @click="handleEdit(record)">编辑</a-button>
@@ -53,6 +45,13 @@
               @confirm="handleResetPassword(record)"
             >
               <a-button type="link" size="small" danger>重置密码</a-button>
+            </a-popconfirm>
+            <a-popconfirm
+              v-if="record.status === 0"
+              title="确认删除该员工？删除后不可恢复"
+              @confirm="handleDelete(record)"
+            >
+              <a-button type="link" size="small" danger>删除</a-button>
             </a-popconfirm>
           </a-space>
         </template>
@@ -305,6 +304,17 @@ async function handleResetPassword(record: any) {
   try {
     await employeeApi.resetPassword(record.id)
     message.success('密码已重置为 123456')
+  } catch {
+    // handled by interceptor
+  }
+}
+
+// 删除员工
+async function handleDelete(record: any) {
+  try {
+    await employeeApi.delete(record.id)
+    message.success('删除成功')
+    loadData()
   } catch {
     // handled by interceptor
   }

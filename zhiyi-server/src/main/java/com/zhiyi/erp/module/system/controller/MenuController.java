@@ -1,7 +1,10 @@
 package com.zhiyi.erp.module.system.controller;
 
+import cn.dev33.satoken.stp.StpUtil;
 import com.zhiyi.erp.common.result.R;
 import com.zhiyi.erp.module.system.entity.Menu;
+import com.zhiyi.erp.module.system.entity.Role;
+import com.zhiyi.erp.module.system.mapper.RoleMapper;
 import com.zhiyi.erp.module.system.service.MenuService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -20,16 +23,54 @@ public class MenuController {
     @Autowired
     private MenuService menuService;
 
+    @Autowired
+    private RoleMapper roleMapper;
+
     @Operation(summary = "查询所有菜单")
     @GetMapping
     public R<List<Menu>> list() {
         return R.ok(menuService.listAll());
     }
 
-    @Operation(summary = "获取菜单树形结构")
+    @Operation(summary = "获取菜单树形结构（全部）")
     @GetMapping("/tree")
     public R<List<Map<String, Object>>> tree() {
         return R.ok(menuService.getTree());
+    }
+
+    @Operation(summary = "获取当前用户菜单树")
+    @GetMapping("/user-tree")
+    public R<List<Map<String, Object>>> userTree(
+            @Parameter(description = "平台：web/mobile") @RequestParam(required = false) String platform) {
+        Long roleId = StpUtil.getSession().getLong("roleId");
+        Role role = roleMapper.selectById(roleId);
+        List<Map<String, Object>> tree;
+        // 超级管理员返回全部菜单
+        if (role != null && "super_admin".equalsIgnoreCase(role.getCode())) {
+            tree = menuService.getTree();
+        } else {
+            // 其他角色返回已分配的菜单
+            tree = menuService.getMenuTreeByRoleId(roleId);
+        }
+        // 按平台过滤
+        if (platform != null && !platform.isEmpty()) {
+            tree = filterByPlatform(tree, platform);
+        }
+        return R.ok(tree);
+    }
+
+    private List<Map<String, Object>> filterByPlatform(List<Map<String, Object>> tree, String platform) {
+        return tree.stream()
+                .filter(m -> platform.equals(m.get("platform")))
+                .map(m -> {
+                    @SuppressWarnings("unchecked")
+                    List<Map<String, Object>> children = (List<Map<String, Object>>) m.get("children");
+                    if (children != null && !children.isEmpty()) {
+                        m.put("children", filterByPlatform(children, platform));
+                    }
+                    return m;
+                })
+                .toList();
     }
 
     @Operation(summary = "根据ID查询菜单详情")

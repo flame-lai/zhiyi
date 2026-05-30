@@ -33,7 +33,7 @@ public interface EmployeeMapper extends BaseMapper<Employee> {
             "<if test='keyword != null and keyword != \"\"'>" +
             "AND (e.name LIKE CONCAT('%', #{keyword}, '%') OR e.employee_no LIKE CONCAT('%', #{keyword}, '%'))" +
             "</if>" +
-            "ORDER BY e.created_at DESC" +
+            "ORDER BY e.status DESC, e.created_at DESC" +
             "</script>")
     IPage<Map<String, Object>> selectPageWithRoleName(Page<?> page, @Param("factoryId") Long factoryId, @Param("keyword") String keyword);
 }
