@@ -67,6 +67,8 @@ async function handleAccountLogin() {
   try {
     const res: any = await loginByAccount(accountForm.value)
     userStore.setToken(res.data.token)
+    userStore.factoryName = res.data.factoryName || ''
+    userStore.employeeId = res.data.userId
     message.success('登录成功')
     router.push('/')
   } catch {
@@ -81,6 +83,8 @@ async function handleCodeLogin() {
   try {
     const res: any = await loginByCode(codeForm.value)
     userStore.setToken(res.data.token)
+    userStore.factoryName = res.data.factoryName || ''
+    userStore.employeeId = res.data.userId
     message.success('登录成功')
     router.push('/')
   } catch {

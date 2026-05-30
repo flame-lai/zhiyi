@@ -2,6 +2,8 @@ package com.zhiyi.erp.module.system.controller;
 
 import cn.dev33.satoken.stp.StpUtil;
 import com.zhiyi.erp.common.result.R;
+import com.zhiyi.erp.module.system.entity.Factory;
+import com.zhiyi.erp.module.system.mapper.FactoryMapper;
 import com.zhiyi.erp.module.system.service.AuthService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -19,6 +21,9 @@ public class AuthController {
 
     @Autowired
     private AuthService authService;
+
+    @Autowired
+    private FactoryMapper factoryMapper;
 
     @Data
     public static class LoginByAccountDTO {
@@ -56,8 +61,12 @@ public class AuthController {
     @Operation(summary = "获取当前用户信息")
     @GetMapping("/info")
     public R<Map<String, Object>> getInfo() {
+        Long factoryId = StpUtil.getSession().getLong("factoryId");
+        Factory factory = factoryMapper.selectById(factoryId);
+
         Map<String, Object> info = new java.util.HashMap<>();
-        info.put("factoryId", StpUtil.getSession().get("factoryId"));
+        info.put("factoryId", factoryId);
+        info.put("factoryName", factory != null ? factory.getName() : "");
         info.put("employeeId", StpUtil.getSession().get("employeeId"));
         info.put("roleId", StpUtil.getSession().get("roleId"));
         return R.ok(info);

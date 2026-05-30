@@ -6,6 +6,7 @@ import router from '../router'
 export const useUserStore = defineStore('user', () => {
   const token = ref(localStorage.getItem('satoken') || '')
   const factoryId = ref<number | null>(null)
+  const factoryName = ref('')
   const employeeId = ref<number | null>(null)
   const roleId = ref<number | null>(null)
 
@@ -17,6 +18,7 @@ export const useUserStore = defineStore('user', () => {
   async function fetchUserInfo() {
     const res: any = await getUserInfo()
     factoryId.value = res.data.factoryId
+    factoryName.value = res.data.factoryName || ''
     employeeId.value = res.data.employeeId
     roleId.value = res.data.roleId
   }
@@ -27,6 +29,7 @@ export const useUserStore = defineStore('user', () => {
     } finally {
       token.value = ''
       factoryId.value = null
+      factoryName.value = ''
       employeeId.value = null
       roleId.value = null
       localStorage.removeItem('satoken')
@@ -34,5 +37,5 @@ export const useUserStore = defineStore('user', () => {
     }
   }
 
-  return { token, factoryId, employeeId, roleId, setToken, fetchUserInfo, logout }
+  return { token, factoryId, factoryName, employeeId, roleId, setToken, fetchUserInfo, logout }
 })

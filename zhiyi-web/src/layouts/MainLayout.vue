@@ -6,57 +6,26 @@
         <span v-if="!collapsed">智衣ERP</span>
         <span v-else>ZY</span>
       </div>
-      <a-menu v-model:selectedKeys="selectedKeys" mode="inline" @click="handleMenuClick">
-        <a-menu-item key="dashboard">
-          <template #icon><DashboardOutlined /></template>
-          生产看板
-        </a-menu-item>
-
-        <a-sub-menu key="system">
-          <template #icon><SettingOutlined /></template>
-          <template #title>系统管理</template>
-          <a-menu-item key="system/employees">员工档案</a-menu-item>
-          <a-menu-item key="system/roles">角色管理</a-menu-item>
-          <a-menu-item key="system/menus">菜单管理</a-menu-item>
-        </a-sub-menu>
-
-        <a-sub-menu key="base">
-          <template #icon><AppstoreOutlined /></template>
-          <template #title>基础配置</template>
-          <a-menu-item key="base/processes">工序库</a-menu-item>
-          <a-menu-item key="base/styles">款号管理</a-menu-item>
-          <a-menu-item key="base/customers">客户档案</a-menu-item>
-          <a-menu-item key="base/suppliers">供应商档案</a-menu-item>
-        </a-sub-menu>
-
-        <a-sub-menu key="order">
-          <template #icon><FileTextOutlined /></template>
-          <template #title>订单管理</template>
-          <a-menu-item key="order/list">订单列表</a-menu-item>
-          <a-menu-item key="order/shipments">出货管理</a-menu-item>
-        </a-sub-menu>
-
-        <a-sub-menu key="cutting">
-          <template #icon><ScissorOutlined /></template>
-          <template #title>裁床管理</template>
-          <a-menu-item key="cutting/plans">裁床计划</a-menu-item>
-          <a-menu-item key="cutting/bundles">扎号管理</a-menu-item>
-        </a-sub-menu>
-
-        <a-sub-menu key="admin">
-          <template #icon><AlertOutlined /></template>
-          <template #title>管理后台</template>
-          <a-menu-item key="admin/anomalies">异常预警</a-menu-item>
-          <a-menu-item key="admin/timed-wages">计时工资</a-menu-item>
-          <a-menu-item key="admin/wages">工资管理</a-menu-item>
-        </a-sub-menu>
-
-        <a-sub-menu key="finance">
-          <template #icon><AccountBookOutlined /></template>
-          <template #title>财务管理</template>
-          <a-menu-item key="finance/payments">收支管理</a-menu-item>
-          <a-menu-item key="finance/profit">利润分析</a-menu-item>
-        </a-sub-menu>
+      <a-menu v-model:selectedKeys="selectedKeys" v-model:openKeys="openKeys" mode="inline" @click="handleMenuClick">
+        <template v-for="menu in menuStore.menus" :key="menu.code">
+          <!-- 一级菜单（目录）有子菜单 -->
+          <a-sub-menu v-if="menu.type === 1 && menu.children && menu.children.length > 0" :key="menu.code">
+            <template #icon>
+              <component :is="iconMap[menu.icon || ''] || 'span'" />
+            </template>
+            <template #title>{{ menu.name }}</template>
+            <a-menu-item v-for="child in menu.children" :key="child.path">
+              {{ child.name }}
+            </a-menu-item>
+          </a-sub-menu>
+          <!-- 一级菜单（直接页面） -->
+          <a-menu-item v-else :key="menu.path">
+            <template #icon>
+              <component :is="iconMap[menu.icon || ''] || 'span'" />
+            </template>
+            {{ menu.name }}
+          </a-menu-item>
+        </template>
       </a-menu>
     </a-layout-sider>
 
@@ -68,6 +37,7 @@
           <span class="page-title">{{ currentTitle }}</span>
         </div>
         <div class="header-right">
+          <span v-if="userStore.factoryName" class="factory-name">{{ userStore.factoryName }}</span>
           <a-dropdown>
             <span class="user-info">
               <UserOutlined />
@@ -93,9 +63,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted, markRaw } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useUserStore } from '../stores/user'
+import { useMenuStore } from '../stores/menu'
 import {
   DashboardOutlined,
   SettingOutlined,
@@ -110,11 +81,31 @@ import {
   LogoutOutlined,
 } from '@ant-design/icons-vue'
 
+// 图标映射
+const iconMap: Record<string, any> = {
+  DashboardOutlined: markRaw(DashboardOutlined),
+  SettingOutlined: markRaw(SettingOutlined),
+  AppstoreOutlined: markRaw(AppstoreOutlined),
+  FileTextOutlined: markRaw(FileTextOutlined),
+  ScissorOutlined: markRaw(ScissorOutlined),
+  AlertOutlined: markRaw(AlertOutlined),
+  AccountBookOutlined: markRaw(AccountBookOutlined),
+}
+
 const router = useRouter()
 const route = useRoute()
 const userStore = useUserStore()
+const menuStore = useMenuStore()
 const collapsed = ref(false)
-const selectedKeys = ref<string[]>(['dashboard'])
+const selectedKeys = ref<string[]>([])
+const openKeys = ref<string[]>([])
+
+onMounted(async () => {
+  await userStore.fetchUserInfo()
+  await menuStore.fetchMenus()
+  // 根据当前路由设置展开的菜单
+  updateOpenKeys()
+})
 
 const currentTitle = computed(() => {
   return (route.meta?.title as string) || '智衣ERP'
@@ -122,19 +113,38 @@ const currentTitle = computed(() => {
 
 watch(
   () => route.path,
-  (path) => {
-    const key = path.replace(/^\//, '')
-    selectedKeys.value = [key]
-  },
-  { immediate: true }
+  () => {
+    updateOpenKeys()
+  }
 )
 
+function updateOpenKeys() {
+  const path = route.path
+  // 找到当前路径所属的父菜单
+  for (const menu of menuStore.menus) {
+    if (menu.children) {
+      const found = menu.children.find((c: any) => c.path === path)
+      if (found) {
+        selectedKeys.value = [path]
+        openKeys.value = [menu.code]
+        return
+      }
+    }
+    if (menu.path === path) {
+      selectedKeys.value = [path]
+      return
+    }
+  }
+  selectedKeys.value = [path]
+}
+
 function handleMenuClick({ key }: { key: string }) {
-  router.push(`/${key}`)
+  router.push(key)
 }
 
 function handleUserMenu({ key }: { key: string }) {
   if (key === 'logout') {
+    menuStore.clearMenus()
     userStore.logout()
   }
 }
@@ -192,6 +202,16 @@ function handleUserMenu({ key }: { key: string }) {
 .header-right {
   display: flex;
   align-items: center;
+  gap: 16px;
+}
+
+.factory-name {
+  font-size: 14px;
+  color: #4A6FA5;
+  font-weight: 500;
+  padding: 4px 12px;
+  background: rgba(74, 111, 165, 0.1);
+  border-radius: 4px;
 }
 
 .user-info {
