@@ -32,8 +32,10 @@ public class MybatisPlusConfig {
 
             @Override
             public boolean ignoreTable(String tableName) {
-                // factory表和menu表不做租户过滤
-                return "factory".equals(tableName) || "menu".equals(tableName) || "role_menu".equals(tableName);
+                // 这些表不做租户过滤
+                return "factory".equals(tableName) || "menu".equals(tableName) || "role_menu".equals(tableName)
+                        || "style_process".equals(tableName) || "style_material".equals(tableName)
+                        || "order_process".equals(tableName) || "order_material".equals(tableName);
             }
         }));
         // 分页插件
