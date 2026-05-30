@@ -11,6 +11,7 @@ public class Role {
     private Long id;
     private Long factoryId;
     private String name;
+    private String description;
     private String code;
     private Integer sort;
     private Integer status;
