@@ -32,10 +32,8 @@ public class SupplierService extends ServiceImpl<SupplierMapper, Supplier> {
     }
 
     private String generateCode() {
-        // 查询当前最大编号
-        Long factoryId = TenantContext.get();
+        // 查询当前最大编号（租户拦截器会自动添加factory_id条件）
         LambdaQueryWrapper<Supplier> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(Supplier::getFactoryId, factoryId);
         wrapper.likeRight(Supplier::getSupplierCode, "S");
         wrapper.orderByDesc(Supplier::getSupplierCode);
         wrapper.last("LIMIT 1");

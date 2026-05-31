@@ -57,10 +57,8 @@ public class MaterialService extends ServiceImpl<MaterialMapper, Material> {
     }
 
     private String generateCode() {
-        // 查询当前最大编号
-        Long factoryId = TenantContext.get();
+        // 查询当前最大编号（租户拦截器会自动添加factory_id条件）
         LambdaQueryWrapper<Material> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(Material::getFactoryId, factoryId);
         wrapper.likeRight(Material::getMaterialCode, "M");
         wrapper.orderByDesc(Material::getMaterialCode);
         wrapper.last("LIMIT 1");

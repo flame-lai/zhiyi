@@ -32,10 +32,8 @@ public class CustomerService extends ServiceImpl<CustomerMapper, Customer> {
     }
 
     private String generateCode() {
-        // 查询当前最大编号
-        Long factoryId = TenantContext.get();
+        // 查询当前最大编号（租户拦截器会自动添加factory_id条件）
         LambdaQueryWrapper<Customer> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(Customer::getFactoryId, factoryId);
         wrapper.likeRight(Customer::getCustomerCode, "C");
         wrapper.orderByDesc(Customer::getCustomerCode);
         wrapper.last("LIMIT 1");
