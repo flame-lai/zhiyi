@@ -350,12 +350,15 @@ const handleSubmit = async () => {
     if (editingId.value) {
       await orderApi.update(editingId.value, data)
       message.success('编辑成功')
+      modalVisible.value = false
+      loadData()
     } else {
-      await orderApi.create({ order: data, items: [] })
+      const res = await orderApi.create({ order: data, items: [] })
       message.success('创建成功')
+      modalVisible.value = false
+      // 跳转到详情页，方便立即添加明细
+      router.push(`/order/detail/${res.data}`)
     }
-    modalVisible.value = false
-    loadData()
   } catch (error) {
     console.error('表单验证失败:', error)
   }
