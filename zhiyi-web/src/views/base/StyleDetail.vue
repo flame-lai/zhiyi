@@ -67,7 +67,19 @@
         >
           <template #bodyCell="{ column, record, index }">
             <template v-if="column.key === 'materialName'">
-              <a-input v-model:value="record.materialName" placeholder="物料名称" />
+              <a-select
+                v-model:value="record.materialName"
+                placeholder="选择或输入物料"
+                style="width: 100%"
+                show-search
+                allow-custom-input
+                :filter-option="filterMaterialOption"
+                @change="(val: string) => onMaterialChange(record, val)"
+              >
+                <a-select-option v-for="m in allMaterials" :key="m.id" :value="m.materialName">
+                  {{ m.materialName }} ({{ m.type === 1 ? '原料' : '辅料' }})
+                </a-select-option>
+              </a-select>
             </template>
             <template v-else-if="column.key === 'type'">
               <a-radio-group v-model:value="record.type">
@@ -98,7 +110,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { message } from 'ant-design-vue'
-import { styleApi, processApi } from '../../api/base'
+import { styleApi, processApi, materialApi } from '../../api/base'
 
 const router = useRouter()
 const route = useRoute()
@@ -122,6 +134,7 @@ const allProcesses = ref<any[]>([])
 // 物料清单
 const savingMaterials = ref(false)
 const materialList = ref<any[]>([])
+const allMaterials = ref<any[]>([])
 
 const processColumns = [
   { title: '工序', key: 'processId', width: 200 },
@@ -141,6 +154,18 @@ const materialColumns = [
 function filterProcessOption(input: string, option: any) {
   const proc = allProcesses.value.find((p: any) => p.id === option.value)
   return proc?.name?.toLowerCase().includes(input.toLowerCase()) ?? false
+}
+
+function filterMaterialOption(input: string, option: any) {
+  return option.value?.toLowerCase().includes(input.toLowerCase()) ?? false
+}
+
+function onMaterialChange(record: any, materialName: string) {
+  const material = allMaterials.value.find((m: any) => m.materialName === materialName)
+  if (material) {
+    record.type = material.type
+    record.unit = material.unit
+  }
 }
 
 async function fetchStyleInfo() {
@@ -185,6 +210,15 @@ async function fetchAllProcesses() {
   try {
     const res: any = await processApi.list({ page: 1, pageSize: 9999 })
     allProcesses.value = res.data?.records || res.data?.list || res.data || []
+  } catch {
+    // handled by interceptor
+  }
+}
+
+async function fetchAllMaterials() {
+  try {
+    const res: any = await materialApi.list({ page: 1, size: 9999 })
+    allMaterials.value = res.data?.records || []
   } catch {
     // handled by interceptor
   }
@@ -266,5 +300,6 @@ onMounted(() => {
   fetchProcesses()
   fetchMaterials()
   fetchAllProcesses()
+  fetchAllMaterials()
 })
 </script>
