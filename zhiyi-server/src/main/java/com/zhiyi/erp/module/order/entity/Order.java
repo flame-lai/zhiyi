@@ -14,6 +14,7 @@ public class Order {
     private Long factoryId;
     private String orderNo;
     private Long customerId;
+    private Long styleId;
     private BigDecimal totalAmount;
     private LocalDate deliveryDate;
     private Integer status;

@@ -40,7 +40,20 @@ public class OrderController {
     @Operation(summary = "创建订单")
     @PostMapping
     public R<Long> create(@RequestBody CreateOrderDTO dto) {
-        return R.ok(orderService.createOrder(dto.getOrder(), dto.getItems()));
+        return R.ok(orderService.createOrder(dto.getOrder(), dto.getColorSizes()));
+    }
+
+    @Operation(summary = "查询订单颜色尺码明细")
+    @GetMapping("/{id}/color-sizes")
+    public R<List<OrderColorSize>> getColorSizes(@Parameter(description = "订单ID") @PathVariable Long id) {
+        return R.ok(orderService.getOrderColorSizes(id));
+    }
+
+    @Operation(summary = "保存订单颜色尺码明细")
+    @PostMapping("/{id}/color-sizes")
+    public R<Void> saveColorSizes(@Parameter(description = "订单ID") @PathVariable Long id, @RequestBody List<OrderColorSize> colorSizes) {
+        orderService.saveOrderColorSizes(id, colorSizes);
+        return R.ok();
     }
 
     @Operation(summary = "更新订单")
@@ -99,10 +112,10 @@ public class OrderController {
 
     public static class CreateOrderDTO {
         private Order order;
-        private List<OrderItem> items;
+        private List<OrderColorSize> colorSizes;
         public Order getOrder() { return order; }
         public void setOrder(Order order) { this.order = order; }
-        public List<OrderItem> getItems() { return items; }
-        public void setItems(List<OrderItem> items) { this.items = items; }
+        public List<OrderColorSize> getColorSizes() { return colorSizes; }
+        public void setColorSizes(List<OrderColorSize> colorSizes) { this.colorSizes = colorSizes; }
     }
 }

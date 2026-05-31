@@ -5,6 +5,7 @@
       <a-descriptions :column="{ xs: 1, sm: 2, md: 3 }">
         <a-descriptions-item label="订单号">{{ orderInfo.orderNo }}</a-descriptions-item>
         <a-descriptions-item label="客户">{{ orderInfo.customerName }}</a-descriptions-item>
+        <a-descriptions-item label="款号">{{ orderInfo.styleCode }}</a-descriptions-item>
         <a-descriptions-item label="订单金额">{{ orderInfo.totalAmount }} 元</a-descriptions-item>
         <a-descriptions-item label="总件数">{{ orderInfo.totalQty }} 件</a-descriptions-item>
         <a-descriptions-item label="状态">
@@ -19,24 +20,44 @@
     <!-- 选项卡 -->
     <a-card>
       <a-tabs v-model:activeKey="activeTab">
-        <!-- 订单明细 -->
-        <a-tab-pane key="items" tab="订单明细">
+        <!-- 颜色尺码明细 -->
+        <a-tab-pane key="colorSizes" tab="颜色尺码明细">
           <div style="margin-bottom: 16px">
-            <a-button type="primary" @click="showAddItemModal">添加明细</a-button>
+            <a-button type="primary" @click="handleSaveColorSizes" :loading="colorSizesSaving">
+              保存
+            </a-button>
+            <a-button style="margin-left: 8px" @click="addColorRow">添加颜色</a-button>
+            <a-button style="margin-left: 8px" @click="addSizeColumn">添加尺码</a-button>
           </div>
           <a-table
-            :columns="itemColumns"
-            :data-source="items"
-            :loading="itemsLoading"
+            :columns="matrixColumns"
+            :data-source="matrixData"
+            :loading="colorSizesLoading"
             :pagination="false"
-            row-key="id"
+            size="small"
+            bordered
           >
-            <template #bodyCell="{ column, record }">
-              <template v-if="column.dataIndex === 'styleCode'">
-                {{ record.styleCode || record.styleId }}
+            <template #bodyCell="{ column, record, index }">
+              <template v-if="column.dataIndex === 'color'">
+                <a-input v-model:value="record.color" placeholder="颜色" size="small" />
+              </template>
+              <template v-else-if="column.dataIndex === 'action'">
+                <a-button type="link" size="small" danger @click="removeColorRow(index)">删除</a-button>
+              </template>
+              <template v-else>
+                <a-input-number
+                  v-model:value="record[column.dataIndex]"
+                  :min="0"
+                  size="small"
+                  style="width: 80px"
+                  placeholder="数量"
+                />
               </template>
             </template>
           </a-table>
+          <div style="margin-top: 8px; text-align: right;">
+            总件数：<strong>{{ totalQty }}</strong>
+          </div>
         </a-tab-pane>
 
         <!-- 工序定价 -->
@@ -146,6 +167,29 @@
           <div style="margin-bottom: 16px">
             <a-button type="primary" @click="showAddShipmentModal">新增出货</a-button>
           </div>
+          <!-- 出货进度 -->
+          <div style="margin-bottom: 16px; padding: 16px; background: #f5f5f5; border-radius: 4px;">
+            <a-row :gutter="16">
+              <a-col :span="6">
+                <div style="color: #666;">订单总件数</div>
+                <div style="font-size: 24px; font-weight: bold;">{{ orderInfo.totalQty }}</div>
+              </a-col>
+              <a-col :span="6">
+                <div style="color: #666;">已出货数量</div>
+                <div style="font-size: 24px; font-weight: bold;">{{ shippedQty }}</div>
+              </a-col>
+              <a-col :span="6">
+                <div style="color: #666;">出货进度</div>
+                <a-progress :percent="shipmentProgress" style="margin-top: 8px;" />
+              </a-col>
+              <a-col :span="6">
+                <div style="color: #666;">状态</div>
+                <a-tag :color="shipmentStatus === '已出齐' ? 'success' : shipmentStatus === '部分出货' ? 'warning' : 'default'">
+                  {{ shipmentStatus }}
+                </a-tag>
+              </a-col>
+            </a-row>
+          </div>
           <a-table
             :columns="shipmentColumns"
             :data-source="shipments"
@@ -162,38 +206,6 @@
       <a-button @click="handleBack">返回列表</a-button>
     </div>
 
-    <!-- 添加明细弹窗 -->
-    <a-modal
-      v-model:open="itemModalVisible"
-      title="添加订单明细"
-      @ok="handleAddItem"
-      @cancel="itemModalVisible = false"
-    >
-      <a-form :model="itemForm" :label-col="{ span: 6 }" :wrapper-col="{ span: 16 }">
-        <a-form-item label="款号" required>
-          <a-select
-            v-model:value="itemForm.styleId"
-            placeholder="选择款号"
-            show-search
-            :filter-option="filterStyleOption"
-          >
-            <a-select-option v-for="s in allStyles" :key="s.id" :value="s.id">
-              {{ s.styleCode }} - {{ s.styleName }}
-            </a-select-option>
-          </a-select>
-        </a-form-item>
-        <a-form-item label="颜色" required>
-          <a-input v-model:value="itemForm.color" placeholder="请输入颜色" />
-        </a-form-item>
-        <a-form-item label="尺码" required>
-          <a-input v-model:value="itemForm.size" placeholder="请输入尺码" />
-        </a-form-item>
-        <a-form-item label="数量" required>
-          <a-input-number v-model:value="itemForm.qty" :min="1" placeholder="请输入数量" style="width: 100%" />
-        </a-form-item>
-      </a-form>
-    </a-modal>
-
     <!-- 新增出货弹窗 -->
     <a-modal
       v-model:open="shipmentModalVisible"
@@ -202,16 +214,6 @@
       @cancel="shipmentModalVisible = false"
     >
       <a-form :model="shipmentForm" :label-col="{ span: 6 }" :wrapper-col="{ span: 16 }">
-        <a-form-item label="订单明细" required>
-          <a-select
-            v-model:value="shipmentForm.orderItemId"
-            placeholder="选择订单明细"
-          >
-            <a-select-option v-for="item in items" :key="item.id" :value="item.id">
-              {{ item.styleCode || item.styleId }} - {{ item.color }} - {{ item.size }}
-            </a-select-option>
-          </a-select>
-        </a-form-item>
         <a-form-item label="出货日期" required>
           <a-date-picker
             v-model:value="shipmentForm.shipmentDate"
@@ -232,11 +234,11 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
 import { orderApi, shipmentApi } from '../../api/order'
-import { processApi, materialApi, styleApi } from '../../api/base'
+import { processApi, materialApi } from '../../api/base'
 
 const route = useRoute()
 const router = useRouter()
@@ -247,6 +249,8 @@ const orderInfo = ref({
   id: '',
   orderNo: '',
   customerName: '',
+  styleCode: '',
+  styleName: '',
   totalAmount: 0,
   totalQty: 0,
   status: 0,
@@ -275,27 +279,35 @@ const statusTextMap = {
 }
 
 // 当前选项卡
-const activeTab = ref('items')
+const activeTab = ref('colorSizes')
 
-// 订单明细
-const items = ref([])
-const itemsLoading = ref(false)
-const itemColumns = [
-  { title: '款号', dataIndex: 'styleCode', width: 150 },
-  { title: '颜色', dataIndex: 'color', width: 100 },
-  { title: '尺码', dataIndex: 'size', width: 100 },
-  { title: '数量', dataIndex: 'qty', width: 100, align: 'right' }
-]
+// 颜色尺码矩阵
+const colorSizes = ref([])
+const colorSizesLoading = ref(false)
+const colorSizesSaving = ref(false)
+const sizeColumns = ref([])
+const matrixData = ref([])
 
-// 添加明细弹窗
-const itemModalVisible = ref(false)
-const itemForm = reactive({
-  styleId: undefined,
-  color: '',
-  size: '',
-  qty: 1
+const matrixColumns = computed(() => {
+  const cols = [
+    { title: '颜色', dataIndex: 'color', width: 120, fixed: 'left' }
+  ]
+  sizeColumns.value.forEach(size => {
+    cols.push({ title: size, dataIndex: size, width: 100, align: 'center' })
+  })
+  cols.push({ title: '操作', dataIndex: 'action', width: 80, fixed: 'right' })
+  return cols
 })
-const allStyles = ref([])
+
+const totalQty = computed(() => {
+  let total = 0
+  matrixData.value.forEach(row => {
+    sizeColumns.value.forEach(size => {
+      total += row[size] || 0
+    })
+  })
+  return total
+})
 
 // 工序定价
 const processes = ref([])
@@ -326,40 +338,129 @@ const shipments = ref([])
 const shipmentsLoading = ref(false)
 const shipmentModalVisible = ref(false)
 const shipmentForm = reactive({
-  orderItemId: undefined,
   shipmentDate: '',
   qty: 1,
   remark: ''
 })
 const shipmentColumns = [
   { title: '出货日期', dataIndex: 'shipmentDate', width: 120 },
-  { title: '款号', dataIndex: 'styleCode', width: 120 },
-  { title: '颜色', dataIndex: 'color', width: 100 },
-  { title: '尺码', dataIndex: 'size', width: 100 },
   { title: '出货数量', dataIndex: 'qty', width: 100, align: 'right' },
-  { title: '备注', dataIndex: 'remark', width: 150 }
+  { title: '备注', dataIndex: 'remark', width: 200 }
 ]
+
+// 出货统计
+const shippedQty = computed(() => {
+  return shipments.value.reduce((sum, s) => sum + (s.qty || 0), 0)
+})
+
+const shipmentProgress = computed(() => {
+  if (!orderInfo.value.totalQty) return 0
+  return Math.round((shippedQty.value / orderInfo.value.totalQty) * 100)
+})
+
+const shipmentStatus = computed(() => {
+  if (shippedQty.value >= orderInfo.value.totalQty) return '已出齐'
+  if (shippedQty.value > 0) return '部分出货'
+  return '未出货'
+})
 
 // 加载订单信息
 const loadOrderInfo = async () => {
   try {
     const res = await orderApi.getById(id)
     Object.assign(orderInfo.value, res.data)
+    // 获取客户名称
+    // 注意：这里需要一个获取客户详情的接口，暂时先不处理
   } catch (error) {
     console.error('加载订单信息失败:', error)
   }
 }
 
-// 加载订单明细
-const loadItems = async () => {
-  itemsLoading.value = true
+// 加载颜色尺码
+const loadColorSizes = async () => {
+  colorSizesLoading.value = true
   try {
-    const res = await orderApi.getItems(id)
-    items.value = res.data || []
+    const res = await orderApi.getColorSizes(id)
+    colorSizes.value = res.data || []
+    // 转换为矩阵格式
+    convertToMatrix(colorSizes.value)
   } catch (error) {
-    console.error('加载订单明细失败:', error)
+    console.error('加载颜色尺码失败:', error)
   } finally {
-    itemsLoading.value = false
+    colorSizesLoading.value = false
+  }
+}
+
+// 转换为矩阵格式
+const convertToMatrix = (data) => {
+  const colors = new Set()
+  const sizes = new Set()
+  data.forEach(item => {
+    colors.add(item.color)
+    sizes.add(item.size)
+  })
+  sizeColumns.value = Array.from(sizes)
+  const matrix = []
+  colors.forEach(color => {
+    const row = { color }
+    data.filter(item => item.color === color).forEach(item => {
+      row[item.size] = item.qty
+    })
+    matrix.push(row)
+  })
+  matrixData.value = matrix
+}
+
+// 添加颜色行
+const addColorRow = () => {
+  const newRow = { color: '' }
+  sizeColumns.value.forEach(size => {
+    newRow[size] = 0
+  })
+  matrixData.value.push(newRow)
+}
+
+// 添加尺码列
+const addSizeColumn = () => {
+  const size = prompt('请输入尺码名称（如 S、M、L、XL）：')
+  if (size && !sizeColumns.value.includes(size)) {
+    sizeColumns.value.push(size)
+    matrixData.value.forEach(row => {
+      row[size] = 0
+    })
+  }
+}
+
+// 删除颜色行
+const removeColorRow = (index) => {
+  matrixData.value.splice(index, 1)
+}
+
+// 保存颜色尺码
+const handleSaveColorSizes = async () => {
+  colorSizesSaving.value = true
+  try {
+    const data = []
+    matrixData.value.forEach(row => {
+      if (row.color) {
+        sizeColumns.value.forEach(size => {
+          if (row[size] > 0) {
+            data.push({
+              color: row.color,
+              size: size,
+              qty: row[size]
+            })
+          }
+        })
+      }
+    })
+    await orderApi.saveColorSizes(id, data)
+    message.success('颜色尺码保存成功')
+    loadOrderInfo() // 刷新总件数
+  } catch (error) {
+    console.error('保存颜色尺码失败:', error)
+  } finally {
+    colorSizesSaving.value = false
   }
 }
 
@@ -419,16 +520,6 @@ const loadAllMaterials = async () => {
     allMaterials.value = res.data?.records || []
   } catch (error) {
     console.error('加载物料列表失败:', error)
-  }
-}
-
-// 加载所有款号
-const loadAllStyles = async () => {
-  try {
-    const res = await styleApi.list({ page: 1, size: 9999 })
-    allStyles.value = res.data?.records || []
-  } catch (error) {
-    console.error('加载款号列表失败:', error)
   }
 }
 
@@ -505,36 +596,9 @@ const onMaterialChange = (record, materialName) => {
   }
 }
 
-// 显示添加明细弹窗
-const showAddItemModal = () => {
-  itemModalVisible.value = true
-  itemForm.styleId = undefined
-  itemForm.color = ''
-  itemForm.size = ''
-  itemForm.qty = 1
-}
-
-// 添加明细
-const handleAddItem = async () => {
-  if (!itemForm.styleId || !itemForm.color || !itemForm.size || !itemForm.qty) {
-    message.error('请填写完整信息')
-    return
-  }
-  try {
-    // 这里需要调用添加明细的API
-    message.success('添加成功')
-    itemModalVisible.value = false
-    loadItems()
-    loadOrderInfo()
-  } catch (error) {
-    console.error('添加明细失败:', error)
-  }
-}
-
 // 显示新增出货弹窗
 const showAddShipmentModal = () => {
   shipmentModalVisible.value = true
-  shipmentForm.orderItemId = undefined
   shipmentForm.shipmentDate = ''
   shipmentForm.qty = 1
   shipmentForm.remark = ''
@@ -542,7 +606,7 @@ const showAddShipmentModal = () => {
 
 // 新增出货
 const handleAddShipment = async () => {
-  if (!shipmentForm.orderItemId || !shipmentForm.shipmentDate || !shipmentForm.qty) {
+  if (!shipmentForm.shipmentDate || !shipmentForm.qty) {
     message.error('请填写完整信息')
     return
   }
@@ -571,12 +635,6 @@ const filterMaterialOption = (input, option) => {
   return option.value?.toLowerCase().includes(input.toLowerCase()) ?? false
 }
 
-// 款号搜索过滤
-const filterStyleOption = (input, option) => {
-  const style = allStyles.value.find(s => s.id === option.value)
-  return (style?.styleCode + style?.styleName)?.toLowerCase().includes(input.toLowerCase()) ?? false
-}
-
 // 返回列表
 const handleBack = () => {
   router.push('/order/list')
@@ -585,12 +643,11 @@ const handleBack = () => {
 // 初始化
 onMounted(() => {
   loadOrderInfo()
-  loadItems()
+  loadColorSizes()
   loadProcesses()
   loadMaterials()
   loadShipments()
   loadAllProcesses()
   loadAllMaterials()
-  loadAllStyles()
 })
 </script>

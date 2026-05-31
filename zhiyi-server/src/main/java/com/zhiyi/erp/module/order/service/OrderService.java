@@ -32,6 +32,8 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
     @Autowired
     private OrderMaterialMapper orderMaterialMapper;
     @Autowired
+    private OrderColorSizeMapper orderColorSizeMapper;
+    @Autowired
     private StyleService styleService;
     @Autowired
     private CustomerMapper customerMapper;
@@ -64,6 +66,7 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
             map.put("id", order.getId());
             map.put("orderNo", order.getOrderNo());
             map.put("customerId", order.getCustomerId());
+            map.put("styleId", order.getStyleId());
             map.put("totalAmount", order.getTotalAmount());
             map.put("deliveryDate", order.getDeliveryDate());
             map.put("status", order.getStatus());
@@ -74,21 +77,18 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
             Customer customer = customerMapper.selectById(order.getCustomerId());
             map.put("customerName", customer != null ? customer.getName() : "");
 
-            // 获取订单明细
-            List<OrderItem> items = orderItemMapper.selectList(
-                    new LambdaQueryWrapper<OrderItem>().eq(OrderItem::getOrderId, order.getId()));
+            // 获取款号
+            Style style = styleMapper.selectById(order.getStyleId());
+            map.put("styleCode", style != null ? style.getStyleCode() : "");
+            map.put("styleName", style != null ? style.getStyleName() : "");
 
-            // 款号明细（去重）
-            Set<String> styleNames = new LinkedHashSet<>();
+            // 获取颜色尺码汇总数量
+            List<OrderColorSize> colorSizes = orderColorSizeMapper.selectList(
+                    new LambdaQueryWrapper<OrderColorSize>().eq(OrderColorSize::getOrderId, order.getId()));
             int totalQty = 0;
-            for (OrderItem item : items) {
-                Style style = styleMapper.selectById(item.getStyleId());
-                if (style != null) {
-                    styleNames.add(style.getStyleCode());
-                }
-                totalQty += item.getQty() != null ? item.getQty() : 0;
+            for (OrderColorSize cs : colorSizes) {
+                totalQty += cs.getQty() != null ? cs.getQty() : 0;
             }
-            map.put("styleNames", String.join(", ", styleNames));
             map.put("totalQty", totalQty);
 
             records.add(map);
@@ -100,30 +100,36 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
     }
 
     @Transactional
-    public Long createOrder(Order order, List<OrderItem> items) {
+    public Long createOrder(Order order, List<OrderColorSize> colorSizes) {
         order.setOrderNo(OrderNoGenerator.generate());
         order.setFactoryId(TenantContext.get());
         order.setStatus(0);
         save(order);
 
-        for (OrderItem item : items) {
-            item.setOrderId(order.getId());
-            orderItemMapper.insert(item);
+        // 保存颜色尺码明细
+        int totalQty = 0;
+        if (colorSizes != null) {
+            for (OrderColorSize cs : colorSizes) {
+                cs.setOrderId(order.getId());
+                orderColorSizeMapper.insert(cs);
+                totalQty += cs.getQty() != null ? cs.getQty() : 0;
+            }
+        }
 
-            // 从款号模板带出工序
-            List<StyleProcess> styleProcesses = styleService.getStyleProcesses(item.getStyleId());
+        // 从款号模板带出工序
+        if (order.getStyleId() != null) {
+            List<StyleProcess> styleProcesses = styleService.getStyleProcesses(order.getStyleId());
             for (StyleProcess sp : styleProcesses) {
                 OrderProcess op = new OrderProcess();
                 op.setOrderId(order.getId());
-                op.setOrderItemId(item.getId());
                 op.setProcessId(sp.getProcessId());
                 op.setProcessPrice(sp.getRefPrice());
                 op.setSort(sp.getSort());
                 orderProcessMapper.insert(op);
             }
 
-            // 从款号模板带出物料清单
-            List<StyleMaterial> styleMaterials = styleService.getStyleMaterials(item.getStyleId());
+            // 从款号模板带出物料清单，总用量 = 单件用量 × 总数量
+            List<StyleMaterial> styleMaterials = styleService.getStyleMaterials(order.getStyleId());
             for (StyleMaterial sm : styleMaterials) {
                 OrderMaterial om = new OrderMaterial();
                 om.setOrderId(order.getId());
@@ -131,15 +137,31 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
                 om.setType(sm.getType());
                 om.setUnitQty(sm.getUnitQty());
                 om.setUnit(sm.getUnit());
-                // 总用量 = 单件用量 × 数量
-                if (sm.getUnitQty() != null && item.getQty() != null) {
-                    om.setTotalQty(sm.getUnitQty().multiply(new java.math.BigDecimal(item.getQty())));
+                if (sm.getUnitQty() != null && totalQty > 0) {
+                    om.setTotalQty(sm.getUnitQty().multiply(new java.math.BigDecimal(totalQty)));
                 }
                 orderMaterialMapper.insert(om);
             }
         }
 
         return order.getId();
+    }
+
+    public List<OrderColorSize> getOrderColorSizes(Long orderId) {
+        return orderColorSizeMapper.selectList(
+                new LambdaQueryWrapper<OrderColorSize>().eq(OrderColorSize::getOrderId, orderId));
+    }
+
+    @Transactional
+    public void saveOrderColorSizes(Long orderId, List<OrderColorSize> colorSizes) {
+        orderColorSizeMapper.delete(
+                new LambdaQueryWrapper<OrderColorSize>().eq(OrderColorSize::getOrderId, orderId));
+        if (colorSizes != null) {
+            for (OrderColorSize cs : colorSizes) {
+                cs.setOrderId(orderId);
+                orderColorSizeMapper.insert(cs);
+            }
+        }
     }
 
     public List<OrderItem> getOrderItems(Long orderId) {

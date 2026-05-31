@@ -87,7 +87,7 @@
     <a-modal
       v-model:open="modalVisible"
       :title="editingId ? '编辑订单' : '新增订单'"
-      :width="600"
+      :width="800"
       @ok="handleSubmit"
       @cancel="handleCancel"
     >
@@ -114,6 +114,22 @@
             </a-select-option>
           </a-select>
         </a-form-item>
+        <a-form-item label="款号" name="styleId" v-if="!editingId">
+          <a-select
+            v-model:value="formData.styleId"
+            placeholder="请选择款号"
+            show-search
+            :filter-option="filterOption"
+          >
+            <a-select-option
+              v-for="item in styleList"
+              :key="item.id"
+              :value="item.id"
+            >
+              {{ item.styleCode }} - {{ item.styleName }}
+            </a-select-option>
+          </a-select>
+        </a-form-item>
         <a-form-item label="订单金额" name="totalAmount">
           <a-input-number
             v-model:value="formData.totalAmount"
@@ -135,17 +151,54 @@
           <a-textarea v-model:value="formData.remark" placeholder="请输入备注" :rows="2" />
         </a-form-item>
       </a-form>
+
+      <!-- 颜色尺码矩阵 -->
+      <div v-if="!editingId" style="margin-top: 16px;">
+        <div style="margin-bottom: 8px; font-weight: bold;">颜色尺码明细</div>
+        <div style="margin-bottom: 8px;">
+          <a-button size="small" @click="addColorRow">添加颜色</a-button>
+          <a-button size="small" style="margin-left: 8px" @click="addSizeColumn">添加尺码</a-button>
+        </div>
+        <a-table
+          :columns="matrixColumns"
+          :data-source="matrixData"
+          :pagination="false"
+          size="small"
+          bordered
+        >
+          <template #bodyCell="{ column, record, index }">
+            <template v-if="column.dataIndex === 'color'">
+              <a-input v-model:value="record.color" placeholder="颜色" size="small" />
+            </template>
+            <template v-else-if="column.dataIndex === 'action'">
+              <a-button type="link" size="small" danger @click="removeColorRow(index)">删除</a-button>
+            </template>
+            <template v-else>
+              <a-input-number
+                v-model:value="record[column.dataIndex]"
+                :min="0"
+                size="small"
+                style="width: 80px"
+                placeholder="数量"
+              />
+            </template>
+          </template>
+        </a-table>
+        <div style="margin-top: 8px; text-align: right;">
+          总件数：<strong>{{ totalQty }}</strong>
+        </div>
+      </div>
     </a-modal>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, onActivated } from 'vue'
+import { ref, reactive, computed, onMounted, onActivated } from 'vue'
 import { useRouter } from 'vue-router'
 import { message, Modal } from 'ant-design-vue'
 import dayjs from 'dayjs'
 import { orderApi } from '../../api/order'
-import { customerApi } from '../../api/base'
+import { customerApi, styleApi } from '../../api/base'
 
 const router = useRouter()
 
@@ -193,7 +246,7 @@ const statusTextMap = {
 const columns = [
   { title: '订单号', dataIndex: 'orderNo', width: 150 },
   { title: '客户', dataIndex: 'customerName', width: 120 },
-  { title: '款号明细', dataIndex: 'styleNames', width: 180 },
+  { title: '款号', dataIndex: 'styleCode', width: 120 },
   { title: '总件数', dataIndex: 'totalQty', width: 90, align: 'right' },
   { title: '订单金额', dataIndex: 'totalAmount', width: 110, align: 'right' },
   { title: '状态', dataIndex: 'status', width: 90, align: 'center' },
@@ -206,17 +259,70 @@ const columns = [
 const modalVisible = ref(false)
 const formRef = ref(null)
 const customerList = ref([])
+const styleList = ref([])
 const editingId = ref(null)
 
 const formData = reactive({
   customerId: undefined,
+  styleId: undefined,
   totalAmount: undefined,
   deliveryDate: '',
   remark: ''
 })
 
 const rules = {
-  customerId: [{ required: true, message: '请选择客户' }]
+  customerId: [{ required: true, message: '请选择客户' }],
+  styleId: [{ required: true, message: '请选择款号' }]
+}
+
+// 颜色尺码矩阵
+const sizeColumns = ref([])
+const matrixData = ref([])
+
+const matrixColumns = computed(() => {
+  const cols = [
+    { title: '颜色', dataIndex: 'color', width: 120, fixed: 'left' }
+  ]
+  sizeColumns.value.forEach(size => {
+    cols.push({ title: size, dataIndex: size, width: 100, align: 'center' })
+  })
+  cols.push({ title: '操作', dataIndex: 'action', width: 80, fixed: 'right' })
+  return cols
+})
+
+const totalQty = computed(() => {
+  let total = 0
+  matrixData.value.forEach(row => {
+    sizeColumns.value.forEach(size => {
+      total += row[size] || 0
+    })
+  })
+  return total
+})
+
+// 添加颜色行
+const addColorRow = () => {
+  const newRow = { color: '' }
+  sizeColumns.value.forEach(size => {
+    newRow[size] = 0
+  })
+  matrixData.value.push(newRow)
+}
+
+// 添加尺码列
+const addSizeColumn = () => {
+  const size = prompt('请输入尺码名称（如 S、M、L、XL）：')
+  if (size && !sizeColumns.value.includes(size)) {
+    sizeColumns.value.push(size)
+    matrixData.value.forEach(row => {
+      row[size] = 0
+    })
+  }
+}
+
+// 删除颜色行
+const removeColorRow = (index) => {
+  matrixData.value.splice(index, 1)
 }
 
 // 加载订单列表
@@ -251,6 +357,16 @@ const loadCustomers = async () => {
     customerList.value = res.data?.records || []
   } catch (error) {
     console.error('加载客户列表失败:', error)
+  }
+}
+
+// 加载款号列表
+const loadStyles = async () => {
+  try {
+    const res = await styleApi.list({ page: 1, size: 9999 })
+    styleList.value = res.data?.records || []
+  } catch (error) {
+    console.error('加载款号列表失败:', error)
   }
 }
 
@@ -300,7 +416,6 @@ const handleView = (record) => {
 
 // 编辑
 const handleEdit = (record) => {
-  // 打开编辑弹窗，预填数据
   editingId.value = record.id
   formData.customerId = record.customerId
   formData.totalAmount = record.totalAmount
@@ -341,22 +456,55 @@ const handleSettle = async (record) => {
 const handleSubmit = async () => {
   try {
     await formRef.value.validateFields()
-    const data = {
-      customerId: formData.customerId,
-      totalAmount: formData.totalAmount,
-      deliveryDate: formData.deliveryDate,
-      remark: formData.remark
-    }
+
     if (editingId.value) {
+      // 编辑模式
+      const data = {
+        customerId: formData.customerId,
+        totalAmount: formData.totalAmount,
+        deliveryDate: formData.deliveryDate,
+        remark: formData.remark
+      }
       await orderApi.update(editingId.value, data)
       message.success('编辑成功')
       modalVisible.value = false
       loadData()
     } else {
-      const res = await orderApi.create({ order: data, items: [] })
+      // 新增模式
+      // 构建颜色尺码数据
+      const colorSizes = []
+      matrixData.value.forEach(row => {
+        if (row.color) {
+          sizeColumns.value.forEach(size => {
+            if (row[size] > 0) {
+              colorSizes.push({
+                color: row.color,
+                size: size,
+                qty: row[size]
+              })
+            }
+          })
+        }
+      })
+
+      if (colorSizes.length === 0) {
+        message.warning('请至少添加一个颜色尺码明细')
+        return
+      }
+
+      const data = {
+        order: {
+          customerId: formData.customerId,
+          styleId: formData.styleId,
+          totalAmount: formData.totalAmount,
+          deliveryDate: formData.deliveryDate,
+          remark: formData.remark
+        },
+        colorSizes: colorSizes
+      }
+      const res = await orderApi.create(data)
       message.success('创建成功')
       modalVisible.value = false
-      // 跳转到详情页，方便立即添加明细
       router.push(`/order/detail/${res.data}`)
     }
   } catch (error) {
@@ -374,9 +522,12 @@ const handleCancel = () => {
 const resetForm = () => {
   editingId.value = null
   formData.customerId = undefined
+  formData.styleId = undefined
   formData.totalAmount = undefined
   formData.deliveryDate = ''
   formData.remark = ''
+  sizeColumns.value = []
+  matrixData.value = []
   if (formRef.value) {
     formRef.value.resetFields()
   }
@@ -391,6 +542,7 @@ const filterOption = (input, option) => {
 onMounted(() => {
   loadData()
   loadCustomers()
+  loadStyles()
 })
 
 // 页面被 keep-alive 缓存后，再次进入时刷新数据
