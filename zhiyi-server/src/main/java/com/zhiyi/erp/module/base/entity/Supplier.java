@@ -14,6 +14,7 @@ public class Supplier {
     private String name;
     private String contact;
     private String phone;
+    private String address;
     private String remark;
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createdAt;
