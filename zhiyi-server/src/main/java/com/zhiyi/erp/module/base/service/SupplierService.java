@@ -19,4 +19,37 @@ public class SupplierService extends ServiceImpl<SupplierMapper, Supplier> {
         wrapper.orderByDesc(Supplier::getCreatedAt);
         return page(page, wrapper);
     }
+
+    @Override
+    public boolean save(Supplier entity) {
+        // 自动生成供应商编号
+        if (entity.getSupplierCode() == null || entity.getSupplierCode().isEmpty()) {
+            entity.setSupplierCode(generateCode());
+        }
+        // 设置工厂ID
+        entity.setFactoryId(TenantContext.get());
+        return super.save(entity);
+    }
+
+    private String generateCode() {
+        // 查询当前最大编号
+        LambdaQueryWrapper<Supplier> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(Supplier::getFactoryId, TenantContext.get());
+        wrapper.orderByDesc(Supplier::getSupplierCode);
+        wrapper.last("LIMIT 1");
+        Supplier last = getOne(wrapper);
+
+        int nextNum = 1;
+        if (last != null && last.getSupplierCode() != null) {
+            String lastCode = last.getSupplierCode();
+            if (lastCode.startsWith("S") && lastCode.length() == 4) {
+                try {
+                    nextNum = Integer.parseInt(lastCode.substring(1)) + 1;
+                } catch (NumberFormatException e) {
+                    // ignore
+                }
+            }
+        }
+        return String.format("S%03d", nextNum);
+    }
 }
