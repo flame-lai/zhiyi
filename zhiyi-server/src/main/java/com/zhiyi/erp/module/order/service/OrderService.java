@@ -29,7 +29,7 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
     @Autowired
     private StyleService styleService;
 
-    public Page<Order> page(Page<Order> page, String keyword, Integer status) {
+    public Page<Order> page(Page<Order> page, String keyword, Integer status, String startDate, String endDate) {
         LambdaQueryWrapper<Order> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(Order::getFactoryId, TenantContext.get());
         if (keyword != null && !keyword.isEmpty()) {
@@ -37,6 +37,12 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
         }
         if (status != null) {
             wrapper.eq(Order::getStatus, status);
+        }
+        if (startDate != null && !startDate.isEmpty()) {
+            wrapper.ge(Order::getCreatedAt, startDate + " 00:00:00");
+        }
+        if (endDate != null && !endDate.isEmpty()) {
+            wrapper.le(Order::getCreatedAt, endDate + " 23:59:59");
         }
         wrapper.orderByDesc(Order::getCreatedAt);
         return page(page, wrapper);

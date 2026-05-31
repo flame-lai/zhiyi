@@ -24,6 +24,13 @@
           <a-select-option :value="5">已出货</a-select-option>
           <a-select-option :value="6">已结算</a-select-option>
         </a-select>
+        <a-range-picker
+          v-model:value="searchForm.dateRange"
+          format="YYYY-MM-DD"
+          style="width: 240px"
+          :placeholder="['开始日期', '结束日期']"
+        />
+        <a-button @click="handleThisMonth">本月</a-button>
         <a-button type="primary" @click="handleSearch">查询</a-button>
         <a-button @click="handleReset">重置</a-button>
         <a-button type="primary" @click="handleAdd">新增订单</a-button>
@@ -128,6 +135,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { message, Modal } from 'ant-design-vue'
+import dayjs from 'dayjs'
 import { orderApi } from '../../api/order'
 import { customerApi } from '../../api/base'
 
@@ -136,7 +144,8 @@ const router = useRouter()
 // 搜索表单
 const searchForm = reactive({
   keyword: '',
-  status: undefined
+  status: undefined,
+  dateRange: []
 })
 
 // 表格相关
@@ -176,11 +185,12 @@ const statusTextMap = {
 const columns = [
   { title: '订单号', dataIndex: 'orderNo', width: 150 },
   { title: '客户', dataIndex: 'customerName', width: 120 },
-  { title: '款号明细', dataIndex: 'styleNames', width: 200 },
-  { title: '总件数', dataIndex: 'totalQty', width: 100, align: 'right' },
-  { title: '订单金额', dataIndex: 'totalAmount', width: 120, align: 'right' },
-  { title: '状态', dataIndex: 'status', width: 100, align: 'center' },
-  { title: '交货期', dataIndex: 'deliveryDate', width: 120 },
+  { title: '款号明细', dataIndex: 'styleNames', width: 180 },
+  { title: '总件数', dataIndex: 'totalQty', width: 90, align: 'right' },
+  { title: '订单金额', dataIndex: 'totalAmount', width: 110, align: 'right' },
+  { title: '状态', dataIndex: 'status', width: 90, align: 'center' },
+  { title: '交货期', dataIndex: 'deliveryDate', width: 110 },
+  { title: '创建时间', dataIndex: 'createdAt', width: 170 },
   { title: '操作', dataIndex: 'action', width: 200, fixed: 'right' }
 ]
 
@@ -207,7 +217,13 @@ const loadData = async () => {
     const params = {
       page: pagination.current,
       size: pagination.pageSize,
-      ...searchForm
+      keyword: searchForm.keyword,
+      status: searchForm.status
+    }
+    // 日期范围
+    if (searchForm.dateRange && searchForm.dateRange.length === 2) {
+      params.startDate = searchForm.dateRange[0].format('YYYY-MM-DD')
+      params.endDate = searchForm.dateRange[1].format('YYYY-MM-DD')
     }
     const res = await orderApi.list(params)
     dataSource.value = res.data?.records || []
@@ -239,6 +255,19 @@ const handleSearch = () => {
 const handleReset = () => {
   searchForm.keyword = ''
   searchForm.status = undefined
+  searchForm.dateRange = []
+  handleSearch()
+}
+
+// 本月
+const handleThisMonth = () => {
+  const now = new Date()
+  const start = new Date(now.getFullYear(), now.getMonth(), 1)
+  const end = new Date(now.getFullYear(), now.getMonth() + 1, 0)
+  searchForm.dateRange = [
+    dayjs(start),
+    dayjs(end)
+  ]
   handleSearch()
 }
 

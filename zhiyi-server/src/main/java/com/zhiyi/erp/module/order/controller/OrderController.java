@@ -24,8 +24,10 @@ public class OrderController {
             @Parameter(description = "页码") @RequestParam(defaultValue = "1") Integer page,
             @Parameter(description = "每页条数") @RequestParam(defaultValue = "10") Integer size,
             @Parameter(description = "搜索关键词") @RequestParam(required = false) String keyword,
-            @Parameter(description = "订单状态") @RequestParam(required = false) Integer status) {
-        return R.ok(orderService.page(new Page<>(page, size), keyword, status));
+            @Parameter(description = "订单状态") @RequestParam(required = false) Integer status,
+            @Parameter(description = "开始日期") @RequestParam(required = false) String startDate,
+            @Parameter(description = "结束日期") @RequestParam(required = false) String endDate) {
+        return R.ok(orderService.page(new Page<>(page, size), keyword, status, startDate, endDate));
     }
 
     @Operation(summary = "根据ID查询订单详情")
