@@ -1,13 +1,18 @@
 <template>
   <div>
     <!-- 订单信息卡片 -->
-    <a-card title="订单信息" style="margin-bottom: 16px">
+    <a-card style="margin-bottom: 16px">
+      <template #title>
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <span>订单信息</span>
+          <a-button @click="handleBack">返回列表</a-button>
+        </div>
+      </template>
       <a-descriptions :column="{ xs: 1, sm: 2, md: 3 }">
         <a-descriptions-item label="订单号">{{ orderInfo.orderNo }}</a-descriptions-item>
-        <a-descriptions-item label="客户">{{ orderInfo.customerName }}</a-descriptions-item>
-        <a-descriptions-item label="款号">{{ orderInfo.styleCode }}</a-descriptions-item>
+        <a-descriptions-item label="客户">{{ customerName }}</a-descriptions-item>
+        <a-descriptions-item label="款号">{{ styleCode }} {{ styleName }}</a-descriptions-item>
         <a-descriptions-item label="订单金额">{{ orderInfo.totalAmount }} 元</a-descriptions-item>
-        <a-descriptions-item label="总件数">{{ orderInfo.totalQty }} 件</a-descriptions-item>
         <a-descriptions-item label="状态">
           <a-tag :color="statusColorMap[orderInfo.status]">
             {{ statusTextMap[orderInfo.status] }}
@@ -26,38 +31,93 @@
             <a-button type="primary" @click="handleSaveColorSizes" :loading="colorSizesSaving">
               保存
             </a-button>
-            <a-button style="margin-left: 8px" @click="addColorRow">添加颜色</a-button>
-            <a-button style="margin-left: 8px" @click="addSizeColumn">添加尺码</a-button>
           </div>
-          <a-table
-            :columns="matrixColumns"
-            :data-source="matrixData"
-            :loading="colorSizesLoading"
-            :pagination="false"
-            size="small"
-            bordered
-          >
-            <template #bodyCell="{ column, record, index }">
-              <template v-if="column.dataIndex === 'color'">
-                <a-input v-model:value="record.color" placeholder="颜色" size="small" />
-              </template>
-              <template v-else-if="column.dataIndex === 'action'">
-                <a-button type="link" size="small" danger @click="removeColorRow(index)">删除</a-button>
-              </template>
-              <template v-else>
-                <a-input-number
-                  v-model:value="record[column.dataIndex]"
-                  :min="0"
-                  size="small"
-                  style="width: 80px"
-                  placeholder="数量"
-                />
-              </template>
-            </template>
-          </a-table>
-          <div style="margin-top: 8px; text-align: right;">
-            总件数：<strong>{{ totalQty }}</strong>
+
+          <!-- 颜色输入区 -->
+          <div style="margin-bottom: 16px;">
+            <div style="margin-bottom: 8px; font-weight: bold;">颜色：</div>
+            <div style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center;">
+              <a-tag
+                v-for="(color, index) in colorList"
+                :key="index"
+                closable
+                @close="removeColor(index)"
+                color="blue"
+              >
+                {{ color }}
+              </a-tag>
+              <a-input
+                v-if="colorInputVisible"
+                ref="colorInputRef"
+                v-model:value="colorInputValue"
+                size="small"
+                style="width: 100px"
+                @blur="handleColorInputConfirm"
+                @pressEnter="handleColorInputConfirm"
+              />
+              <a-button v-else size="small" @click="showColorInput">+ 添加颜色</a-button>
+            </div>
           </div>
+
+          <!-- 尺码输入区 -->
+          <div style="margin-bottom: 16px;">
+            <div style="margin-bottom: 8px; font-weight: bold;">尺码：</div>
+            <div style="display: flex; flex-wrap: wrap; gap: 8px; align-items: center;">
+              <a-tag
+                v-for="(size, index) in sizeList"
+                :key="index"
+                closable
+                @close="removeSize(index)"
+                color="green"
+              >
+                {{ size }}
+              </a-tag>
+              <a-input
+                v-if="sizeInputVisible"
+                ref="sizeInputRef"
+                v-model:value="sizeInputValue"
+                size="small"
+                style="width: 100px"
+                @blur="handleSizeInputConfirm"
+                @pressEnter="handleSizeInputConfirm"
+              />
+              <a-button v-else size="small" @click="showSizeInput">+ 添加尺码</a-button>
+            </div>
+          </div>
+
+          <!-- 数量矩阵 -->
+          <div v-if="colorList.length > 0 && sizeList.length > 0">
+            <div style="margin-bottom: 8px; font-weight: bold;">数量：</div>
+            <a-table
+              :columns="matrixColumns"
+              :data-source="matrixData"
+              :pagination="false"
+              size="small"
+              bordered
+            >
+              <template #bodyCell="{ column, record }">
+                <template v-if="column.dataIndex === 'color'">
+                  <span style="font-weight: bold;">{{ record.color }}</span>
+                </template>
+                <template v-else-if="column.dataIndex === 'total'">
+                  <span style="font-weight: bold;">{{ getRowTotal(record) }}</span>
+                </template>
+                <template v-else>
+                  <a-input-number
+                    v-model:value="record[column.dataIndex]"
+                    :min="0"
+                    size="small"
+                    style="width: 80px"
+                    placeholder="0"
+                  />
+                </template>
+              </template>
+            </a-table>
+            <div style="margin-top: 8px; text-align: right; font-size: 16px;">
+              总件数：<strong style="color: #1890ff;">{{ totalQty }}</strong>
+            </div>
+          </div>
+          <a-empty v-else description="请先添加颜色和尺码" />
         </a-tab-pane>
 
         <!-- 工序定价 -->
@@ -172,7 +232,7 @@
             <a-row :gutter="16">
               <a-col :span="6">
                 <div style="color: #666;">订单总件数</div>
-                <div style="font-size: 24px; font-weight: bold;">{{ orderInfo.totalQty }}</div>
+                <div style="font-size: 24px; font-weight: bold;">{{ totalQty }}</div>
               </a-col>
               <a-col :span="6">
                 <div style="color: #666;">已出货数量</div>
@@ -200,11 +260,6 @@
         </a-tab-pane>
       </a-tabs>
     </a-card>
-
-    <!-- 返回按钮 -->
-    <div style="margin-top: 16px; text-align: center">
-      <a-button @click="handleBack">返回列表</a-button>
-    </div>
 
     <!-- 新增出货弹窗 -->
     <a-modal
@@ -234,11 +289,11 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
 import { orderApi, shipmentApi } from '../../api/order'
-import { processApi, materialApi } from '../../api/base'
+import { processApi, materialApi, customerApi, styleApi } from '../../api/base'
 
 const route = useRoute()
 const router = useRouter()
@@ -248,14 +303,16 @@ const id = Number(route.params.id)
 const orderInfo = ref({
   id: '',
   orderNo: '',
-  customerName: '',
-  styleCode: '',
-  styleName: '',
+  customerId: null,
+  styleId: null,
   totalAmount: 0,
-  totalQty: 0,
   status: 0,
   deliveryDate: ''
 })
+
+const customerName = ref('')
+const styleCode = ref('')
+const styleName = ref('')
 
 // 状态映射
 const statusColorMap = {
@@ -281,33 +338,156 @@ const statusTextMap = {
 // 当前选项卡
 const activeTab = ref('colorSizes')
 
-// 颜色尺码矩阵
-const colorSizes = ref([])
-const colorSizesLoading = ref(false)
-const colorSizesSaving = ref(false)
-const sizeColumns = ref([])
+// 颜色尺码管理
+const colorList = ref([])
+const sizeList = ref([])
 const matrixData = ref([])
+
+const colorInputVisible = ref(false)
+const colorInputValue = ref('')
+const colorInputRef = ref(null)
+
+const sizeInputVisible = ref(false)
+const sizeInputValue = ref('')
+const sizeInputRef = ref(null)
 
 const matrixColumns = computed(() => {
   const cols = [
-    { title: '颜色', dataIndex: 'color', width: 120, fixed: 'left' }
+    { title: '颜色', dataIndex: 'color', width: 100, fixed: 'left' }
   ]
-  sizeColumns.value.forEach(size => {
+  sizeList.value.forEach(size => {
     cols.push({ title: size, dataIndex: size, width: 100, align: 'center' })
   })
-  cols.push({ title: '操作', dataIndex: 'action', width: 80, fixed: 'right' })
+  cols.push({ title: '小计', dataIndex: 'total', width: 80, align: 'center', fixed: 'right' })
   return cols
 })
 
 const totalQty = computed(() => {
   let total = 0
   matrixData.value.forEach(row => {
-    sizeColumns.value.forEach(size => {
+    sizeList.value.forEach(size => {
       total += row[size] || 0
     })
   })
   return total
 })
+
+const getRowTotal = (record) => {
+  let total = 0
+  sizeList.value.forEach(size => {
+    total += record[size] || 0
+  })
+  return total
+}
+
+// 颜色输入
+const showColorInput = () => {
+  colorInputVisible.value = true
+  nextTick(() => {
+    colorInputRef.value?.focus()
+  })
+}
+
+const handleColorInputConfirm = () => {
+  if (colorInputValue.value && !colorList.value.includes(colorInputValue.value)) {
+    colorList.value.push(colorInputValue.value)
+    // 为新颜色添加到矩阵
+    matrixData.value.push({ color: colorInputValue.value })
+  }
+  colorInputVisible.value = false
+  colorInputValue.value = ''
+}
+
+const removeColor = (index) => {
+  colorList.value.splice(index, 1)
+  matrixData.value.splice(index, 1)
+}
+
+// 尺码输入
+const showSizeInput = () => {
+  sizeInputVisible.value = true
+  nextTick(() => {
+    sizeInputRef.value?.focus()
+  })
+}
+
+const handleSizeInputConfirm = () => {
+  if (sizeInputValue.value && !sizeList.value.includes(sizeInputValue.value)) {
+    sizeList.value.push(sizeInputValue.value)
+    // 为新尺码添加到所有颜色行
+    matrixData.value.forEach(row => {
+      row[sizeInputValue.value] = 0
+    })
+  }
+  sizeInputVisible.value = false
+  sizeInputValue.value = ''
+}
+
+const removeSize = (index) => {
+  const size = sizeList.value[index]
+  sizeList.value.splice(index, 1)
+  // 从矩阵中移除该尺码列
+  matrixData.value.forEach(row => {
+    delete row[size]
+  })
+}
+
+// 保存颜色尺码
+const colorSizesSaving = ref(false)
+const handleSaveColorSizes = async () => {
+  colorSizesSaving.value = true
+  try {
+    const data = []
+    matrixData.value.forEach(row => {
+      if (row.color) {
+        sizeList.value.forEach(size => {
+          if (row[size] > 0) {
+            data.push({
+              color: row.color,
+              size: size,
+              qty: row[size]
+            })
+          }
+        })
+      }
+    })
+    await orderApi.saveColorSizes(id, data)
+    message.success('颜色尺码保存成功')
+    loadColorSizes()
+  } catch (error) {
+    console.error('保存颜色尺码失败:', error)
+  } finally {
+    colorSizesSaving.value = false
+  }
+}
+
+// 加载颜色尺码
+const loadColorSizes = async () => {
+  try {
+    const res = await orderApi.getColorSizes(id)
+    const data = res.data || []
+    // 转换为矩阵格式
+    const colors = new Set()
+    const sizes = new Set()
+    data.forEach(item => {
+      colors.add(item.color)
+      sizes.add(item.size)
+    })
+    colorList.value = Array.from(colors)
+    sizeList.value = Array.from(sizes)
+    const matrix = []
+    colors.forEach(color => {
+      const row = { color }
+      data.filter(item => item.color === color).forEach(item => {
+        row[item.size] = item.qty
+      })
+      matrix.push(row)
+    })
+    matrixData.value = matrix
+  } catch (error) {
+    console.error('加载颜色尺码失败:', error)
+  }
+}
 
 // 工序定价
 const processes = ref([])
@@ -354,12 +534,12 @@ const shippedQty = computed(() => {
 })
 
 const shipmentProgress = computed(() => {
-  if (!orderInfo.value.totalQty) return 0
-  return Math.round((shippedQty.value / orderInfo.value.totalQty) * 100)
+  if (!totalQty.value) return 0
+  return Math.round((shippedQty.value / totalQty.value) * 100)
 })
 
 const shipmentStatus = computed(() => {
-  if (shippedQty.value >= orderInfo.value.totalQty) return '已出齐'
+  if (shippedQty.value >= totalQty.value) return '已出齐'
   if (shippedQty.value > 0) return '部分出货'
   return '未出货'
 })
@@ -370,97 +550,18 @@ const loadOrderInfo = async () => {
     const res = await orderApi.getById(id)
     Object.assign(orderInfo.value, res.data)
     // 获取客户名称
-    // 注意：这里需要一个获取客户详情的接口，暂时先不处理
+    if (res.data.customerId) {
+      const customerRes = await customerApi.getById(res.data.customerId)
+      customerName.value = customerRes.data?.name || ''
+    }
+    // 获取款号信息
+    if (res.data.styleId) {
+      const styleRes = await styleApi.getById(res.data.styleId)
+      styleCode.value = styleRes.data?.styleCode || ''
+      styleName.value = styleRes.data?.styleName || ''
+    }
   } catch (error) {
     console.error('加载订单信息失败:', error)
-  }
-}
-
-// 加载颜色尺码
-const loadColorSizes = async () => {
-  colorSizesLoading.value = true
-  try {
-    const res = await orderApi.getColorSizes(id)
-    colorSizes.value = res.data || []
-    // 转换为矩阵格式
-    convertToMatrix(colorSizes.value)
-  } catch (error) {
-    console.error('加载颜色尺码失败:', error)
-  } finally {
-    colorSizesLoading.value = false
-  }
-}
-
-// 转换为矩阵格式
-const convertToMatrix = (data) => {
-  const colors = new Set()
-  const sizes = new Set()
-  data.forEach(item => {
-    colors.add(item.color)
-    sizes.add(item.size)
-  })
-  sizeColumns.value = Array.from(sizes)
-  const matrix = []
-  colors.forEach(color => {
-    const row = { color }
-    data.filter(item => item.color === color).forEach(item => {
-      row[item.size] = item.qty
-    })
-    matrix.push(row)
-  })
-  matrixData.value = matrix
-}
-
-// 添加颜色行
-const addColorRow = () => {
-  const newRow = { color: '' }
-  sizeColumns.value.forEach(size => {
-    newRow[size] = 0
-  })
-  matrixData.value.push(newRow)
-}
-
-// 添加尺码列
-const addSizeColumn = () => {
-  const size = prompt('请输入尺码名称（如 S、M、L、XL）：')
-  if (size && !sizeColumns.value.includes(size)) {
-    sizeColumns.value.push(size)
-    matrixData.value.forEach(row => {
-      row[size] = 0
-    })
-  }
-}
-
-// 删除颜色行
-const removeColorRow = (index) => {
-  matrixData.value.splice(index, 1)
-}
-
-// 保存颜色尺码
-const handleSaveColorSizes = async () => {
-  colorSizesSaving.value = true
-  try {
-    const data = []
-    matrixData.value.forEach(row => {
-      if (row.color) {
-        sizeColumns.value.forEach(size => {
-          if (row[size] > 0) {
-            data.push({
-              color: row.color,
-              size: size,
-              qty: row[size]
-            })
-          }
-        })
-      }
-    })
-    await orderApi.saveColorSizes(id, data)
-    message.success('颜色尺码保存成功')
-    loadOrderInfo() // 刷新总件数
-  } catch (error) {
-    console.error('保存颜色尺码失败:', error)
-  } finally {
-    colorSizesSaving.value = false
   }
 }
 
@@ -618,7 +719,6 @@ const handleAddShipment = async () => {
     message.success('出货成功')
     shipmentModalVisible.value = false
     loadShipments()
-    loadOrderInfo()
   } catch (error) {
     console.error('出货失败:', error)
   }

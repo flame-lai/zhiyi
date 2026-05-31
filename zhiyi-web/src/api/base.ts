@@ -25,6 +25,7 @@ export const styleApi = {
 // 客户管理
 export const customerApi = {
   list: (params: any) => request.get('/base/customers', { params }),
+  getById: (id: number) => request.get(`/base/customers/${id}`),
   create: (data: any) => request.post('/base/customers', data),
   update: (id: number, data: any) => request.put(`/base/customers/${id}`, data),
   delete: (id: number) => request.delete(`/base/customers/${id}`),

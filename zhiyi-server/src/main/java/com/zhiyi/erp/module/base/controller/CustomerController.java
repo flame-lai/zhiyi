@@ -26,6 +26,12 @@ public class CustomerController {
         return R.ok(customerService.page(new Page<>(page, size), keyword));
     }
 
+    @Operation(summary = "根据ID查询客户详情")
+    @GetMapping("/{id}")
+    public R<Customer> getById(@Parameter(description = "客户ID") @PathVariable Long id) {
+        return R.ok(customerService.getById(id));
+    }
+
     @Operation(summary = "新增客户")
     @PostMapping
     public R<Void> create(@RequestBody Customer customer) {
