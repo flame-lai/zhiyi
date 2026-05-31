@@ -33,8 +33,10 @@ public class SupplierService extends ServiceImpl<SupplierMapper, Supplier> {
 
     private String generateCode() {
         // 查询当前最大编号
+        Long factoryId = TenantContext.get();
         LambdaQueryWrapper<Supplier> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(Supplier::getFactoryId, TenantContext.get());
+        wrapper.eq(Supplier::getFactoryId, factoryId);
+        wrapper.likeRight(Supplier::getSupplierCode, "S");
         wrapper.orderByDesc(Supplier::getSupplierCode);
         wrapper.last("LIMIT 1");
         Supplier last = getOne(wrapper);
@@ -42,7 +44,7 @@ public class SupplierService extends ServiceImpl<SupplierMapper, Supplier> {
         int nextNum = 1;
         if (last != null && last.getSupplierCode() != null) {
             String lastCode = last.getSupplierCode();
-            if (lastCode.startsWith("S") && lastCode.length() == 4) {
+            if (lastCode.startsWith("S")) {
                 try {
                     nextNum = Integer.parseInt(lastCode.substring(1)) + 1;
                 } catch (NumberFormatException e) {

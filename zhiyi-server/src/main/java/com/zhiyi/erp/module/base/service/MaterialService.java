@@ -58,8 +58,10 @@ public class MaterialService extends ServiceImpl<MaterialMapper, Material> {
 
     private String generateCode() {
         // 查询当前最大编号
+        Long factoryId = TenantContext.get();
         LambdaQueryWrapper<Material> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(Material::getFactoryId, TenantContext.get());
+        wrapper.eq(Material::getFactoryId, factoryId);
+        wrapper.likeRight(Material::getMaterialCode, "M");
         wrapper.orderByDesc(Material::getMaterialCode);
         wrapper.last("LIMIT 1");
         Material last = getOne(wrapper);
@@ -67,7 +69,7 @@ public class MaterialService extends ServiceImpl<MaterialMapper, Material> {
         int nextNum = 1;
         if (last != null && last.getMaterialCode() != null) {
             String lastCode = last.getMaterialCode();
-            if (lastCode.startsWith("M") && lastCode.length() == 4) {
+            if (lastCode.startsWith("M")) {
                 try {
                     nextNum = Integer.parseInt(lastCode.substring(1)) + 1;
                 } catch (NumberFormatException e) {

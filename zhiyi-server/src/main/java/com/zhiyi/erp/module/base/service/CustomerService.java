@@ -33,8 +33,10 @@ public class CustomerService extends ServiceImpl<CustomerMapper, Customer> {
 
     private String generateCode() {
         // 查询当前最大编号
+        Long factoryId = TenantContext.get();
         LambdaQueryWrapper<Customer> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(Customer::getFactoryId, TenantContext.get());
+        wrapper.eq(Customer::getFactoryId, factoryId);
+        wrapper.likeRight(Customer::getCustomerCode, "C");
         wrapper.orderByDesc(Customer::getCustomerCode);
         wrapper.last("LIMIT 1");
         Customer last = getOne(wrapper);
@@ -42,7 +44,7 @@ public class CustomerService extends ServiceImpl<CustomerMapper, Customer> {
         int nextNum = 1;
         if (last != null && last.getCustomerCode() != null) {
             String lastCode = last.getCustomerCode();
-            if (lastCode.startsWith("C") && lastCode.length() == 4) {
+            if (lastCode.startsWith("C")) {
                 try {
                     nextNum = Integer.parseInt(lastCode.substring(1)) + 1;
                 } catch (NumberFormatException e) {
