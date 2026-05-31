@@ -33,8 +33,8 @@ public class OrderController {
 
     @Operation(summary = "根据ID查询订单详情")
     @GetMapping("/{id}")
-    public R<Order> getById(@Parameter(description = "订单ID") @PathVariable Long id) {
-        return R.ok(orderService.getById(id));
+    public R<Map<String, Object>> getById(@Parameter(description = "订单ID") @PathVariable Long id) {
+        return R.ok(orderService.getOrderWithDetails(id));
     }
 
     @Operation(summary = "创建订单")

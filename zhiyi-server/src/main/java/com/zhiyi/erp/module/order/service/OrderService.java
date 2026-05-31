@@ -40,6 +40,45 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
     @Autowired
     private StyleMapper styleMapper;
 
+    public Map<String, Object> getOrderWithDetails(Long orderId) {
+        Order order = getById(orderId);
+        if (order == null) {
+            throw new BizException("订单不存在");
+        }
+
+        Map<String, Object> map = new HashMap<>();
+        map.put("id", order.getId());
+        map.put("orderNo", order.getOrderNo());
+        map.put("customerId", order.getCustomerId());
+        map.put("styleId", order.getStyleId());
+        map.put("totalAmount", order.getTotalAmount());
+        map.put("deliveryDate", order.getDeliveryDate());
+        map.put("status", order.getStatus());
+        map.put("remark", order.getRemark());
+        map.put("createdAt", order.getCreatedAt());
+        map.put("updatedAt", order.getUpdatedAt());
+
+        // 获取客户名称
+        Customer customer = customerMapper.selectById(order.getCustomerId());
+        map.put("customerName", customer != null ? customer.getName() : "");
+
+        // 获取款号信息
+        Style style = styleMapper.selectById(order.getStyleId());
+        map.put("styleCode", style != null ? style.getStyleCode() : "");
+        map.put("styleName", style != null ? style.getStyleName() : "");
+
+        // 获取颜色尺码汇总数量
+        List<OrderColorSize> colorSizes = orderColorSizeMapper.selectList(
+                new LambdaQueryWrapper<OrderColorSize>().eq(OrderColorSize::getOrderId, order.getId()));
+        int totalQty = 0;
+        for (OrderColorSize cs : colorSizes) {
+            totalQty += cs.getQty() != null ? cs.getQty() : 0;
+        }
+        map.put("totalQty", totalQty);
+
+        return map;
+    }
+
     public Page<Map<String, Object>> pageWithDetails(Page<Order> page, String keyword, Integer status, String startDate, String endDate) {
         LambdaQueryWrapper<Order> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(Order::getFactoryId, TenantContext.get());

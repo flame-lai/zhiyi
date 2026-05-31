@@ -293,7 +293,7 @@ import { ref, reactive, computed, onMounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
 import { orderApi, shipmentApi } from '../../api/order'
-import { processApi, materialApi, customerApi, styleApi } from '../../api/base'
+import { processApi, materialApi } from '../../api/base'
 
 const route = useRoute()
 const router = useRouter()
@@ -549,17 +549,9 @@ const loadOrderInfo = async () => {
   try {
     const res = await orderApi.getById(id)
     Object.assign(orderInfo.value, res.data)
-    // 获取客户名称
-    if (res.data.customerId) {
-      const customerRes = await customerApi.getById(res.data.customerId)
-      customerName.value = customerRes.data?.name || ''
-    }
-    // 获取款号信息
-    if (res.data.styleId) {
-      const styleRes = await styleApi.getById(res.data.styleId)
-      styleCode.value = styleRes.data?.styleCode || ''
-      styleName.value = styleRes.data?.styleName || ''
-    }
+    customerName.value = res.data.customerName || ''
+    styleCode.value = res.data.styleCode || ''
+    styleName.value = res.data.styleName || ''
   } catch (error) {
     console.error('加载订单信息失败:', error)
   }
