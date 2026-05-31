@@ -96,7 +96,7 @@ const formData = reactive({
 })
 
 const columns = [
-  { title: '供应商编号', dataIndex: 'supplierNo', key: 'supplierNo' },
+  { title: '供应商编号', dataIndex: 'supplierCode', key: 'supplierCode' },
   { title: '名称', dataIndex: 'name', key: 'name' },
   { title: '联系人', dataIndex: 'contact', key: 'contact' },
   { title: '电话', dataIndex: 'phone', key: 'phone' },
