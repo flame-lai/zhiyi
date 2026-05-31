@@ -1,7 +1,7 @@
 <template>
   <a-card :title="`款号详情：${styleInfo.styleCode}`" :loading="loading">
     <template #extra>
-      <a-button @click="router.back()">返回列表</a-button>
+      <a-button @click="router.push('/base/styles')">返回列表</a-button>
     </template>
 
     <!-- 基本信息 -->
