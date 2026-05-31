@@ -97,10 +97,46 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
         wrapper.orderByDesc(Order::getCreatedAt);
 
         Page<Order> orderPage = page(page, wrapper);
+        List<Order> orders = orderPage.getRecords();
+
+        if (orders.isEmpty()) {
+            Page<Map<String, Object>> result = new Page<>(orderPage.getCurrent(), orderPage.getSize(), orderPage.getTotal());
+            result.setRecords(new ArrayList<>());
+            return result;
+        }
+
+        // 批量获取客户ID和款号ID
+        Set<Long> customerIds = orders.stream().map(Order::getCustomerId).filter(Objects::nonNull).collect(Collectors.toSet());
+        Set<Long> styleIds = orders.stream().map(Order::getStyleId).filter(Objects::nonNull).collect(Collectors.toSet());
+        Set<Long> orderIds = orders.stream().map(Order::getId).collect(Collectors.toSet());
+
+        // 批量查询客户
+        Map<Long, Customer> customerMap = new HashMap<>();
+        if (!customerIds.isEmpty()) {
+            List<Customer> customers = customerMapper.selectBatchIds(customerIds);
+            customerMap = customers.stream().collect(Collectors.toMap(Customer::getId, c -> c));
+        }
+
+        // 批量查询款号
+        Map<Long, Style> styleMap = new HashMap<>();
+        if (!styleIds.isEmpty()) {
+            List<Style> styles = styleMapper.selectBatchIds(styleIds);
+            styleMap = styles.stream().collect(Collectors.toMap(Style::getId, s -> s));
+        }
+
+        // 批量查询颜色尺码汇总
+        Map<Long, Integer> totalQtyMap = new HashMap<>();
+        if (!orderIds.isEmpty()) {
+            List<OrderColorSize> allColorSizes = orderColorSizeMapper.selectList(
+                    new LambdaQueryWrapper<OrderColorSize>().in(OrderColorSize::getOrderId, orderIds));
+            for (OrderColorSize cs : allColorSizes) {
+                totalQtyMap.merge(cs.getOrderId(), cs.getQty() != null ? cs.getQty() : 0, Integer::sum);
+            }
+        }
 
         // 转换为包含详细信息的Map
         List<Map<String, Object>> records = new ArrayList<>();
-        for (Order order : orderPage.getRecords()) {
+        for (Order order : orders) {
             Map<String, Object> map = new HashMap<>();
             map.put("id", order.getId());
             map.put("orderNo", order.getOrderNo());
@@ -112,23 +148,17 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
             map.put("remark", order.getRemark());
             map.put("createdAt", order.getCreatedAt());
 
-            // 获取客户名称
-            Customer customer = customerMapper.selectById(order.getCustomerId());
+            // 客户名称
+            Customer customer = customerMap.get(order.getCustomerId());
             map.put("customerName", customer != null ? customer.getName() : "");
 
-            // 获取款号
-            Style style = styleMapper.selectById(order.getStyleId());
+            // 款号信息
+            Style style = styleMap.get(order.getStyleId());
             map.put("styleCode", style != null ? style.getStyleCode() : "");
             map.put("styleName", style != null ? style.getStyleName() : "");
 
-            // 获取颜色尺码汇总数量
-            List<OrderColorSize> colorSizes = orderColorSizeMapper.selectList(
-                    new LambdaQueryWrapper<OrderColorSize>().eq(OrderColorSize::getOrderId, order.getId()));
-            int totalQty = 0;
-            for (OrderColorSize cs : colorSizes) {
-                totalQty += cs.getQty() != null ? cs.getQty() : 0;
-            }
-            map.put("totalQty", totalQty);
+            // 总件数
+            map.put("totalQty", totalQtyMap.getOrDefault(order.getId(), 0));
 
             records.add(map);
         }
