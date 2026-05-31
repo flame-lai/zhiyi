@@ -37,3 +37,12 @@ export const supplierApi = {
   update: (id: number, data: any) => request.put(`/base/suppliers/${id}`, data),
   delete: (id: number) => request.delete(`/base/suppliers/${id}`),
 }
+
+// 物料管理
+export const materialApi = {
+  list: (params: any) => request.get('/base/materials', { params }),
+  getById: (id: number) => request.get(`/base/materials/${id}`),
+  create: (data: any) => request.post('/base/materials', data),
+  update: (id: number, data: any) => request.put(`/base/materials/${id}`, data),
+  delete: (id: number) => request.delete(`/base/materials/${id}`),
+}

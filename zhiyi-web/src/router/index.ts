@@ -75,6 +75,12 @@ const routes = [
         component: () => import('../views/base/SupplierList.vue'),
         meta: { title: '供应商档案' },
       },
+      {
+        path: 'base/materials',
+        name: 'Materials',
+        component: () => import('../views/base/MaterialList.vue'),
+        meta: { title: '物料管理' },
+      },
       // 订单管理
       {
         path: 'order/list',
