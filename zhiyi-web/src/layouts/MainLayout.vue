@@ -169,12 +169,27 @@ function updateOpenKeys() {
 }
 
 function addCurrentTab() {
+  // 只为主菜单页面添加标签，不为详情页等子页面添加
+  const isMenuPage = findMenuByPath(route.path)
+  if (!isMenuPage) return
+
   const title = (route.meta?.title as string) || '未知页面'
   tabStore.addTab({
     path: route.path,
     title,
     name: route.name as string,
   })
+}
+
+function findMenuByPath(path: string): boolean {
+  for (const menu of menuStore.menus) {
+    if (menu.children) {
+      const found = menu.children.find((c: any) => c.path === path)
+      if (found) return true
+    }
+    if (menu.path === path) return true
+  }
+  return false
 }
 
 function handleMenuClick({ key }: { key: string }) {
