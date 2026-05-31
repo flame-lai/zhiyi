@@ -6,8 +6,12 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.zhiyi.erp.common.exception.BizException;
 import com.zhiyi.erp.common.tenant.TenantContext;
 import com.zhiyi.erp.common.util.OrderNoGenerator;
+import com.zhiyi.erp.module.base.entity.Customer;
+import com.zhiyi.erp.module.base.entity.Style;
 import com.zhiyi.erp.module.base.entity.StyleMaterial;
 import com.zhiyi.erp.module.base.entity.StyleProcess;
+import com.zhiyi.erp.module.base.mapper.CustomerMapper;
+import com.zhiyi.erp.module.base.mapper.StyleMapper;
 import com.zhiyi.erp.module.base.service.StyleService;
 import com.zhiyi.erp.module.order.entity.*;
 import com.zhiyi.erp.module.order.mapper.*;
@@ -15,7 +19,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.List;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 public class OrderService extends ServiceImpl<OrderMapper, Order> {
@@ -28,8 +33,12 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
     private OrderMaterialMapper orderMaterialMapper;
     @Autowired
     private StyleService styleService;
+    @Autowired
+    private CustomerMapper customerMapper;
+    @Autowired
+    private StyleMapper styleMapper;
 
-    public Page<Order> page(Page<Order> page, String keyword, Integer status, String startDate, String endDate) {
+    public Page<Map<String, Object>> pageWithDetails(Page<Order> page, String keyword, Integer status, String startDate, String endDate) {
         LambdaQueryWrapper<Order> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(Order::getFactoryId, TenantContext.get());
         if (keyword != null && !keyword.isEmpty()) {
@@ -45,7 +54,49 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
             wrapper.le(Order::getCreatedAt, endDate + " 23:59:59");
         }
         wrapper.orderByDesc(Order::getCreatedAt);
-        return page(page, wrapper);
+
+        Page<Order> orderPage = page(page, wrapper);
+
+        // 转换为包含详细信息的Map
+        List<Map<String, Object>> records = new ArrayList<>();
+        for (Order order : orderPage.getRecords()) {
+            Map<String, Object> map = new HashMap<>();
+            map.put("id", order.getId());
+            map.put("orderNo", order.getOrderNo());
+            map.put("customerId", order.getCustomerId());
+            map.put("totalAmount", order.getTotalAmount());
+            map.put("deliveryDate", order.getDeliveryDate());
+            map.put("status", order.getStatus());
+            map.put("remark", order.getRemark());
+            map.put("createdAt", order.getCreatedAt());
+
+            // 获取客户名称
+            Customer customer = customerMapper.selectById(order.getCustomerId());
+            map.put("customerName", customer != null ? customer.getName() : "");
+
+            // 获取订单明细
+            List<OrderItem> items = orderItemMapper.selectList(
+                    new LambdaQueryWrapper<OrderItem>().eq(OrderItem::getOrderId, order.getId()));
+
+            // 款号明细（去重）
+            Set<String> styleNames = new LinkedHashSet<>();
+            int totalQty = 0;
+            for (OrderItem item : items) {
+                Style style = styleMapper.selectById(item.getStyleId());
+                if (style != null) {
+                    styleNames.add(style.getStyleCode());
+                }
+                totalQty += item.getQty() != null ? item.getQty() : 0;
+            }
+            map.put("styleNames", String.join(", ", styleNames));
+            map.put("totalQty", totalQty);
+
+            records.add(map);
+        }
+
+        Page<Map<String, Object>> result = new Page<>(orderPage.getCurrent(), orderPage.getSize(), orderPage.getTotal());
+        result.setRecords(records);
+        return result;
     }
 
     @Transactional

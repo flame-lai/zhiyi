@@ -10,6 +10,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
+import java.util.Map;
 
 @Tag(name = "订单管理", description = "订单CRUD、状态流转、工序定价、物料清单")
 @RestController
@@ -20,14 +21,14 @@ public class OrderController {
 
     @Operation(summary = "分页查询订单列表")
     @GetMapping
-    public R<Page<Order>> list(
+    public R<Page<Map<String, Object>>> list(
             @Parameter(description = "页码") @RequestParam(defaultValue = "1") Integer page,
             @Parameter(description = "每页条数") @RequestParam(defaultValue = "10") Integer size,
             @Parameter(description = "搜索关键词") @RequestParam(required = false) String keyword,
             @Parameter(description = "订单状态") @RequestParam(required = false) Integer status,
             @Parameter(description = "开始日期") @RequestParam(required = false) String startDate,
             @Parameter(description = "结束日期") @RequestParam(required = false) String endDate) {
-        return R.ok(orderService.page(new Page<>(page, size), keyword, status, startDate, endDate));
+        return R.ok(orderService.pageWithDetails(new Page<>(page, size), keyword, status, startDate, endDate));
     }
 
     @Operation(summary = "根据ID查询订单详情")
