@@ -42,6 +42,14 @@ public class OrderController {
         return R.ok(orderService.createOrder(dto.getOrder(), dto.getItems()));
     }
 
+    @Operation(summary = "更新订单")
+    @PutMapping("/{id}")
+    public R<Void> update(@Parameter(description = "订单ID") @PathVariable Long id, @RequestBody Order order) {
+        order.setId(id);
+        orderService.updateById(order);
+        return R.ok();
+    }
+
     @Operation(summary = "查询订单物料明细")
     @GetMapping("/{id}/items")
     public R<List<OrderItem>> getItems(@Parameter(description = "订单ID") @PathVariable Long id) {

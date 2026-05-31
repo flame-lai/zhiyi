@@ -58,6 +58,14 @@
                 v-if="record.status === 0"
                 type="link"
                 size="small"
+                @click="handleEdit(record)"
+              >
+                编辑
+              </a-button>
+              <a-button
+                v-if="record.status === 0"
+                type="link"
+                size="small"
                 @click="handleConfirm(record)"
               >
                 确认订单
@@ -75,10 +83,10 @@
       </a-table>
     </a-card>
 
-    <!-- 新增订单弹窗 -->
+    <!-- 新增/编辑订单弹窗 -->
     <a-modal
       v-model:open="modalVisible"
-      title="新增订单"
+      :title="editingId ? '编辑订单' : '新增订单'"
       :width="600"
       @ok="handleSubmit"
       @cancel="handleCancel"
@@ -198,6 +206,7 @@ const columns = [
 const modalVisible = ref(false)
 const formRef = ref(null)
 const customerList = ref([])
+const editingId = ref(null)
 
 const formData = reactive({
   customerId: undefined,
@@ -289,6 +298,17 @@ const handleView = (record) => {
   router.push(`/order/detail/${record.id}`)
 }
 
+// 编辑
+const handleEdit = (record) => {
+  // 打开编辑弹窗，预填数据
+  modalVisible.value = true
+  formData.customerId = record.customerId
+  formData.totalAmount = record.totalAmount
+  formData.deliveryDate = record.deliveryDate
+  formData.remark = record.remark
+  editingId.value = record.id
+}
+
 // 确认订单
 const handleConfirm = (record) => {
   Modal.confirm({
@@ -322,16 +342,18 @@ const handleSubmit = async () => {
   try {
     await formRef.value.validateFields()
     const data = {
-      order: {
-        customerId: formData.customerId,
-        totalAmount: formData.totalAmount,
-        deliveryDate: formData.deliveryDate,
-        remark: formData.remark
-      },
-      items: []
+      customerId: formData.customerId,
+      totalAmount: formData.totalAmount,
+      deliveryDate: formData.deliveryDate,
+      remark: formData.remark
     }
-    await orderApi.create(data)
-    message.success('创建成功')
+    if (editingId.value) {
+      await orderApi.update(editingId.value, data)
+      message.success('编辑成功')
+    } else {
+      await orderApi.create({ order: data, items: [] })
+      message.success('创建成功')
+    }
     modalVisible.value = false
     loadData()
   } catch (error) {
@@ -347,6 +369,7 @@ const handleCancel = () => {
 
 // 重置表单
 const resetForm = () => {
+  editingId.value = null
   formData.customerId = undefined
   formData.totalAmount = undefined
   formData.deliveryDate = ''

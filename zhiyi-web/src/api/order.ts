@@ -5,6 +5,7 @@ export const orderApi = {
   list: (params: any) => request.get('/orders', { params }),
   getById: (id: number) => request.get(`/orders/${id}`),
   create: (data: any) => request.post('/orders', data),
+  update: (id: number, data: any) => request.put(`/orders/${id}`, data),
   getItems: (id: number) => request.get(`/orders/${id}/items`),
   getProcesses: (id: number) => request.get(`/orders/${id}/processes`),
   saveProcesses: (id: number, data: any[]) => request.post(`/orders/${id}/processes`, data),
