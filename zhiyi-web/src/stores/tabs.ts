@@ -13,22 +13,23 @@ export const useTabStore = defineStore('tabs', () => {
   const activeTab = ref('')
 
   function addTab(tab: TabItem, menuPath?: string) {
-    // 如果是详情页，更新已有标签的路径
-    if (menuPath && tab.path !== menuPath) {
-      const existingTab = tabs.value.find(t => t.path === menuPath || t.menuPath === menuPath)
-      if (existingTab) {
-        existingTab.path = tab.path
-        activeTab.value = tab.path
-        return
-      }
-    }
+    const actualMenuPath = menuPath || tab.path
 
-    // 检查是否已存在相同路径的标签
-    const exists = tabs.value.find(t => t.path === tab.path)
-    if (!exists) {
-      tabs.value.push({ ...tab, menuPath: menuPath || tab.path })
+    // 查找是否已有相同菜单的标签
+    const existingTabIndex = tabs.value.findIndex(
+      t => t.menuPath === actualMenuPath || t.path === actualMenuPath
+    )
+
+    if (existingTabIndex > -1) {
+      // 更新已有标签的路径和标题
+      tabs.value[existingTabIndex].path = tab.path
+      tabs.value[existingTabIndex].title = tab.title
+      activeTab.value = tab.path
+    } else {
+      // 添加新标签
+      tabs.value.push({ ...tab, menuPath: actualMenuPath })
+      activeTab.value = tab.path
     }
-    activeTab.value = tab.path
   }
 
   function removeTab(path: string) {
