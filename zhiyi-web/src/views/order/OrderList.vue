@@ -289,8 +289,8 @@ const handleTableChange = (pag) => {
 
 // 新增
 const handleAdd = () => {
-  modalVisible.value = true
   resetForm()
+  modalVisible.value = true
 }
 
 // 查看详情
