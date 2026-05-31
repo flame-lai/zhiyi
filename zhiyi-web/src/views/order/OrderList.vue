@@ -16,11 +16,13 @@
           style="width: 150px"
           allow-clear
         >
-          <a-select-option value="待确认">待确认</a-select-option>
-          <a-select-option value="已确认">已确认</a-select-option>
-          <a-select-option value="生产中">生产中</a-select-option>
-          <a-select-option value="已完工">已完工</a-select-option>
-          <a-select-option value="已结算">已结算</a-select-option>
+          <a-select-option :value="0">待确认</a-select-option>
+          <a-select-option :value="1">已确认</a-select-option>
+          <a-select-option :value="2">生产中</a-select-option>
+          <a-select-option :value="3">部分出货</a-select-option>
+          <a-select-option :value="4">已完工</a-select-option>
+          <a-select-option :value="5">已出货</a-select-option>
+          <a-select-option :value="6">已结算</a-select-option>
         </a-select>
         <a-button type="primary" @click="handleSearch">查询</a-button>
         <a-button @click="handleReset">重置</a-button>
@@ -39,14 +41,14 @@
         <template #bodyCell="{ column, record }">
           <template v-if="column.dataIndex === 'status'">
             <a-tag :color="statusColorMap[record.status]">
-              {{ record.status }}
+              {{ statusTextMap[record.status] }}
             </a-tag>
           </template>
           <template v-if="column.dataIndex === 'action'">
             <a-space>
               <a-button type="link" size="small" @click="handleView(record)">查看详情</a-button>
               <a-button
-                v-if="record.status === '待确认'"
+                v-if="record.status === 0"
                 type="link"
                 size="small"
                 @click="handleConfirm(record)"
@@ -54,7 +56,7 @@
                 确认订单
               </a-button>
               <a-popconfirm
-                v-if="record.status === '已完工'"
+                v-if="record.status === 5"
                 title="确定要结算该订单吗？"
                 @confirm="handleSettle(record)"
               >
@@ -70,7 +72,7 @@
     <a-modal
       v-model:open="modalVisible"
       title="新增订单"
-      :width="900"
+      :width="600"
       @ok="handleSubmit"
       @cancel="handleCancel"
     >
@@ -81,78 +83,42 @@
         :label-col="{ span: 6 }"
         :wrapper-col="{ span: 16 }"
       >
-        <a-row :gutter="24">
-          <a-col :span="12">
-            <a-form-item label="订单号" name="orderNo">
-              <a-input v-model:value="formData.orderNo" disabled placeholder="自动生成" />
-            </a-form-item>
-          </a-col>
-          <a-col :span="12">
-            <a-form-item label="客户" name="customerId">
-              <a-select
-                v-model:value="formData.customerId"
-                placeholder="请选择客户"
-                show-search
-                :filter-option="filterOption"
-              >
-                <a-select-option
-                  v-for="item in customerList"
-                  :key="item.id"
-                  :value="item.id"
-                >
-                  {{ item.name }}
-                </a-select-option>
-              </a-select>
-            </a-form-item>
-          </a-col>
-          <a-col :span="12">
-            <a-form-item label="款号" name="styleId">
-              <a-input v-model:value="formData.styleId" placeholder="请输入款号" />
-            </a-form-item>
-          </a-col>
-          <a-col :span="12">
-            <a-form-item label="交货期" name="deliveryDate">
-              <a-date-picker
-                v-model:value="formData.deliveryDate"
-                style="width: 100%"
-                format="YYYY-MM-DD"
-                value-format="YYYY-MM-DD"
-              />
-            </a-form-item>
-          </a-col>
-        </a-row>
-
-        <!-- 订单明细表格 -->
-        <div style="margin-top: 16px">
-          <div style="margin-bottom: 8px; font-weight: bold">
-            订单明细
-            <a-button type="link" size="small" @click="addItem">+ 添加</a-button>
-          </div>
-          <a-table
-            :columns="itemColumns"
-            :data-source="formData.items"
-            :pagination="false"
-            row-key="key"
-            size="small"
+        <a-form-item label="客户" name="customerId">
+          <a-select
+            v-model:value="formData.customerId"
+            placeholder="请选择客户"
+            show-search
+            :filter-option="filterOption"
           >
-            <template #bodyCell="{ column, record, index }">
-              <template v-if="column.dataIndex === 'color'">
-                <a-input v-model:value="record.color" placeholder="颜色" />
-              </template>
-              <template v-if="column.dataIndex === 'size'">
-                <a-input v-model:value="record.size" placeholder="尺码" />
-              </template>
-              <template v-if="column.dataIndex === 'qty'">
-                <a-input-number v-model:value="record.qty" :min="1" placeholder="数量" />
-              </template>
-              <template v-if="column.dataIndex === 'action'">
-                <a-popconfirm title="确定删除该行？" @confirm="removeItem(index)">
-                  <a-button type="link" danger size="small">删除</a-button>
-                </a-popconfirm>
-              </template>
-            </template>
-          </a-table>
-        </div>
+            <a-select-option
+              v-for="item in customerList"
+              :key="item.id"
+              :value="item.id"
+            >
+              {{ item.name }}
+            </a-select-option>
+          </a-select>
+        </a-form-item>
+        <a-form-item label="订单金额" name="totalAmount">
+          <a-input-number
+            v-model:value="formData.totalAmount"
+            :min="0"
+            :precision="2"
+            placeholder="整单总金额"
+            style="width: 100%"
+          />
+        </a-form-item>
+        <a-form-item label="计划交期" name="deliveryDate">
+          <a-date-picker
+            v-model:value="formData.deliveryDate"
+            style="width: 100%"
+            format="YYYY-MM-DD"
+            value-format="YYYY-MM-DD"
+          />
+        </a-form-item>
+        <a-form-item label="备注" name="remark">
+          <a-textarea v-model:value="formData.remark" placeholder="请输入备注" :rows="2" />
+        </a-form-item>
       </a-form>
     </a-modal>
   </div>
@@ -186,22 +152,35 @@ const pagination = reactive({
 
 // 状态颜色映射
 const statusColorMap = {
-  '待确认': 'default',
-  '已确认': 'blue',
-  '生产中': 'processing',
-  '已完工': 'success',
-  '已结算': 'green'
+  0: 'default',
+  1: 'blue',
+  2: 'processing',
+  3: 'warning',
+  4: 'purple',
+  5: 'success',
+  6: 'default'
+}
+
+// 状态文本映射
+const statusTextMap = {
+  0: '待确认',
+  1: '已确认',
+  2: '生产中',
+  3: '部分出货',
+  4: '已完工',
+  5: '已出货',
+  6: '已结算'
 }
 
 // 表格列定义
 const columns = [
   { title: '订单号', dataIndex: 'orderNo', width: 150 },
   { title: '客户', dataIndex: 'customerName', width: 120 },
-  { title: '款号', dataIndex: 'styleId', width: 120 },
-  { title: '总数量', dataIndex: 'totalQty', width: 100, align: 'right' },
+  { title: '款号明细', dataIndex: 'styleNames', width: 200 },
+  { title: '总件数', dataIndex: 'totalQty', width: 100, align: 'right' },
+  { title: '订单金额', dataIndex: 'totalAmount', width: 120, align: 'right' },
   { title: '状态', dataIndex: 'status', width: 100, align: 'center' },
   { title: '交货期', dataIndex: 'deliveryDate', width: 120 },
-  { title: '创建时间', dataIndex: 'createTime', width: 180 },
   { title: '操作', dataIndex: 'action', width: 200, fixed: 'right' }
 ]
 
@@ -211,39 +190,28 @@ const formRef = ref(null)
 const customerList = ref([])
 
 const formData = reactive({
-  orderNo: '',
   customerId: undefined,
-  styleId: '',
+  totalAmount: undefined,
   deliveryDate: '',
-  items: []
+  remark: ''
 })
 
 const rules = {
-  customerId: [{ required: true, message: '请选择客户' }],
-  styleId: [{ required: true, message: '请输入款号' }],
-  deliveryDate: [{ required: true, message: '请选择交货期' }]
+  customerId: [{ required: true, message: '请选择客户' }]
 }
-
-// 明细表格列定义
-const itemColumns = [
-  { title: '颜色', dataIndex: 'color', width: 150 },
-  { title: '尺码', dataIndex: 'size', width: 150 },
-  { title: '数量', dataIndex: 'qty', width: 120 },
-  { title: '操作', dataIndex: 'action', width: 80, align: 'center' }
-]
 
 // 加载订单列表
 const loadData = async () => {
   loading.value = true
   try {
     const params = {
-      current: pagination.current,
-      pageSize: pagination.pageSize,
+      page: pagination.current,
+      size: pagination.pageSize,
       ...searchForm
     }
-    const res = await orderApi.getList(params)
-    dataSource.value = res.data.records
-    pagination.total = res.data.total
+    const res = await orderApi.list(params)
+    dataSource.value = res.data?.records || []
+    pagination.total = res.data?.total || 0
   } catch (error) {
     console.error('加载订单列表失败:', error)
   } finally {
@@ -254,8 +222,8 @@ const loadData = async () => {
 // 加载客户列表
 const loadCustomers = async () => {
   try {
-    const res = await customerApi.getList()
-    customerList.value = res.data
+    const res = await customerApi.list({ page: 1, size: 9999 })
+    customerList.value = res.data?.records || []
   } catch (error) {
     console.error('加载客户列表失败:', error)
   }
@@ -324,8 +292,15 @@ const handleSettle = async (record) => {
 const handleSubmit = async () => {
   try {
     await formRef.value.validateFields()
-    const data = { ...formData }
-    data.totalQty = data.items.reduce((sum, item) => sum + (item.qty || 0), 0)
+    const data = {
+      order: {
+        customerId: formData.customerId,
+        totalAmount: formData.totalAmount,
+        deliveryDate: formData.deliveryDate,
+        remark: formData.remark
+      },
+      items: []
+    }
     await orderApi.create(data)
     message.success('创建成功')
     modalVisible.value = false
@@ -343,29 +318,13 @@ const handleCancel = () => {
 
 // 重置表单
 const resetForm = () => {
-  formData.orderNo = ''
   formData.customerId = undefined
-  formData.styleId = ''
+  formData.totalAmount = undefined
   formData.deliveryDate = ''
-  formData.items = [{ key: Date.now(), color: '', size: '', qty: 1 }]
+  formData.remark = ''
   if (formRef.value) {
     formRef.value.resetFields()
   }
-}
-
-// 添加明细行
-const addItem = () => {
-  formData.items.push({
-    key: Date.now(),
-    color: '',
-    size: '',
-    qty: 1
-  })
-}
-
-// 删除明细行
-const removeItem = (index) => {
-  formData.items.splice(index, 1)
 }
 
 // 客户搜索过滤
