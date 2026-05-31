@@ -31,6 +31,7 @@
                 style="width: 100%"
                 show-search
                 :filter-option="filterProcessOption"
+                @change="(val: number) => onProcessChange(record, val)"
               >
                 <a-select-option v-for="p in allProcesses" :key="p.id" :value="p.id">
                   {{ p.name }}
@@ -125,7 +126,7 @@ const materialList = ref<any[]>([])
 const processColumns = [
   { title: '工序', key: 'processId', width: 200 },
   { title: '排序', key: 'sort', width: 120 },
-  { title: '参考工价（元/件）', key: 'refPrice', width: 150 },
+  { title: '工价（元/件）', key: 'refPrice', width: 150 },
   { title: '操作', key: 'action', width: 80 },
 ]
 
@@ -197,6 +198,13 @@ function addProcessRow() {
     sort: 0,
     refPrice: undefined,
   })
+}
+
+function onProcessChange(record: any, processId: number) {
+  const process = allProcesses.value.find((p: any) => p.id === processId)
+  if (process) {
+    record.refPrice = process.refPrice
+  }
 }
 
 function removeProcessRow(index: number) {
