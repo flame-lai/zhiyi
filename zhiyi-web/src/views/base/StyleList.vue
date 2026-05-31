@@ -281,12 +281,15 @@ async function handleSubmit() {
     if (editingId.value) {
       await styleApi.update(editingId.value, data)
       message.success('编辑成功')
+      modalVisible.value = false
+      fetchData()
     } else {
-      await styleApi.create(data)
+      const res: any = await styleApi.create(data)
       message.success('新增成功')
+      modalVisible.value = false
+      // 跳转到详情页，方便立即配置工序和物料
+      router.push(`/base/styles/${res.data}`)
     }
-    modalVisible.value = false
-    fetchData()
   } catch {
     // handled by interceptor
   } finally {
