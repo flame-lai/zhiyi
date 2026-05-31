@@ -301,12 +301,12 @@ const handleView = (record) => {
 // 编辑
 const handleEdit = (record) => {
   // 打开编辑弹窗，预填数据
-  modalVisible.value = true
+  editingId.value = record.id
   formData.customerId = record.customerId
   formData.totalAmount = record.totalAmount
-  formData.deliveryDate = record.deliveryDate
+  formData.deliveryDate = record.deliveryDate ? dayjs(record.deliveryDate) : null
   formData.remark = record.remark
-  editingId.value = record.id
+  modalVisible.value = true
 }
 
 // 确认订单
