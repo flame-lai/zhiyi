@@ -32,22 +32,14 @@ public class CustomerService extends ServiceImpl<CustomerMapper, Customer> {
     }
 
     private String generateCode() {
-        // 查询当前最大编号（租户拦截器会自动添加factory_id条件）
-        LambdaQueryWrapper<Customer> wrapper = new LambdaQueryWrapper<>();
-        wrapper.likeRight(Customer::getCustomerCode, "C");
-        wrapper.orderByDesc(Customer::getCustomerCode);
-        wrapper.last("LIMIT 1");
-        Customer last = getOne(wrapper);
-
+        // 查询所有记录（包括已删除）的最大编号，避免编号冲突
+        String maxCode = baseMapper.selectMaxCode(TenantContext.get());
         int nextNum = 1;
-        if (last != null && last.getCustomerCode() != null) {
-            String lastCode = last.getCustomerCode();
-            if (lastCode.startsWith("C")) {
-                try {
-                    nextNum = Integer.parseInt(lastCode.substring(1)) + 1;
-                } catch (NumberFormatException e) {
-                    // ignore
-                }
+        if (maxCode != null && maxCode.startsWith("C")) {
+            try {
+                nextNum = Integer.parseInt(maxCode.substring(1)) + 1;
+            } catch (NumberFormatException e) {
+                // ignore
             }
         }
         return String.format("C%03d", nextNum);

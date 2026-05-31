@@ -32,22 +32,15 @@ public class SupplierService extends ServiceImpl<SupplierMapper, Supplier> {
     }
 
     private String generateCode() {
-        // 查询当前最大编号（租户拦截器会自动添加factory_id条件）
-        LambdaQueryWrapper<Supplier> wrapper = new LambdaQueryWrapper<>();
-        wrapper.likeRight(Supplier::getSupplierCode, "S");
-        wrapper.orderByDesc(Supplier::getSupplierCode);
-        wrapper.last("LIMIT 1");
-        Supplier last = getOne(wrapper);
-
+        // 查询所有记录（包括已删除）的最大编号，避免编号冲突
+        // 使用@InterceptorIgnore忽略租户过滤和逻辑删除
+        String maxCode = baseMapper.selectMaxCode(TenantContext.get());
         int nextNum = 1;
-        if (last != null && last.getSupplierCode() != null) {
-            String lastCode = last.getSupplierCode();
-            if (lastCode.startsWith("S")) {
-                try {
-                    nextNum = Integer.parseInt(lastCode.substring(1)) + 1;
-                } catch (NumberFormatException e) {
-                    // ignore
-                }
+        if (maxCode != null && maxCode.startsWith("S")) {
+            try {
+                nextNum = Integer.parseInt(maxCode.substring(1)) + 1;
+            } catch (NumberFormatException e) {
+                // ignore
             }
         }
         return String.format("S%03d", nextNum);

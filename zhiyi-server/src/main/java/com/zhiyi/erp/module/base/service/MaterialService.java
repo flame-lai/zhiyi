@@ -57,22 +57,14 @@ public class MaterialService extends ServiceImpl<MaterialMapper, Material> {
     }
 
     private String generateCode() {
-        // 查询当前最大编号（租户拦截器会自动添加factory_id条件）
-        LambdaQueryWrapper<Material> wrapper = new LambdaQueryWrapper<>();
-        wrapper.likeRight(Material::getMaterialCode, "M");
-        wrapper.orderByDesc(Material::getMaterialCode);
-        wrapper.last("LIMIT 1");
-        Material last = getOne(wrapper);
-
+        // 查询所有记录（包括已删除）的最大编号，避免编号冲突
+        String maxCode = baseMapper.selectMaxCode(TenantContext.get());
         int nextNum = 1;
-        if (last != null && last.getMaterialCode() != null) {
-            String lastCode = last.getMaterialCode();
-            if (lastCode.startsWith("M")) {
-                try {
-                    nextNum = Integer.parseInt(lastCode.substring(1)) + 1;
-                } catch (NumberFormatException e) {
-                    // ignore
-                }
+        if (maxCode != null && maxCode.startsWith("M")) {
+            try {
+                nextNum = Integer.parseInt(maxCode.substring(1)) + 1;
+            } catch (NumberFormatException e) {
+                // ignore
             }
         }
         return String.format("M%03d", nextNum);
