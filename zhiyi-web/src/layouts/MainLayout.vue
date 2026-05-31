@@ -55,8 +55,32 @@
         </div>
       </a-layout-header>
 
+      <!-- 标签页导航 -->
+      <div class="tab-bar">
+        <div class="tab-list">
+          <div
+            v-for="tab in tabStore.tabs"
+            :key="tab.path"
+            class="tab-item"
+            :class="{ active: tabStore.activeTab === tab.path }"
+            @click="switchTab(tab.path)"
+          >
+            <span class="tab-title">{{ tab.title }}</span>
+            <CloseOutlined
+              v-if="tabStore.tabs.length > 1"
+              class="tab-close"
+              @click.stop="closeTab(tab.path)"
+            />
+          </div>
+        </div>
+      </div>
+
       <a-layout-content class="content">
-        <router-view />
+        <router-view v-slot="{ Component }">
+          <keep-alive>
+            <component :is="Component" :key="route.path" />
+          </keep-alive>
+        </router-view>
       </a-layout-content>
     </a-layout>
   </a-layout>
@@ -67,6 +91,7 @@ import { ref, computed, watch, onMounted, markRaw } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useUserStore } from '../stores/user'
 import { useMenuStore } from '../stores/menu'
+import { useTabStore } from '../stores/tabs'
 import {
   DashboardOutlined,
   SettingOutlined,
@@ -79,6 +104,7 @@ import {
   MenuUnfoldOutlined,
   UserOutlined,
   LogoutOutlined,
+  CloseOutlined,
 } from '@ant-design/icons-vue'
 
 // 图标映射
@@ -96,6 +122,7 @@ const router = useRouter()
 const route = useRoute()
 const userStore = useUserStore()
 const menuStore = useMenuStore()
+const tabStore = useTabStore()
 const collapsed = ref(false)
 const selectedKeys = ref<string[]>([])
 const openKeys = ref<string[]>([])
@@ -105,6 +132,8 @@ onMounted(async () => {
   await menuStore.fetchMenus()
   // 根据当前路由设置展开的菜单
   updateOpenKeys()
+  // 添加当前页面到标签页
+  addCurrentTab()
 })
 
 const currentTitle = computed(() => {
@@ -115,6 +144,7 @@ watch(
   () => route.path,
   () => {
     updateOpenKeys()
+    addCurrentTab()
   }
 )
 
@@ -138,8 +168,30 @@ function updateOpenKeys() {
   selectedKeys.value = [path]
 }
 
+function addCurrentTab() {
+  const title = (route.meta?.title as string) || '未知页面'
+  tabStore.addTab({
+    path: route.path,
+    title,
+    name: route.name as string,
+  })
+}
+
 function handleMenuClick({ key }: { key: string }) {
   router.push(key)
+}
+
+function switchTab(path: string) {
+  tabStore.setActiveTab(path)
+  router.push(path)
+}
+
+function closeTab(path: string) {
+  tabStore.removeTab(path)
+  // 如果关闭后还有标签，导航到当前激活的标签
+  if (tabStore.activeTab) {
+    router.push(tabStore.activeTab)
+  }
 }
 
 function handleUserMenu({ key }: { key: string }) {
@@ -225,10 +277,70 @@ function handleUserMenu({ key }: { key: string }) {
   color: #4A6FA5;
 }
 
+.tab-bar {
+  background: #fff;
+  border-bottom: 1px solid #e8e8e8;
+  padding: 0 16px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+}
+
+.tab-list {
+  display: flex;
+  gap: 4px;
+  overflow-x: auto;
+  white-space: nowrap;
+}
+
+.tab-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  color: #666;
+  background: #f5f5f5;
+  transition: all 0.2s;
+}
+
+.tab-item:hover {
+  color: #4A6FA5;
+  background: rgba(74, 111, 165, 0.1);
+}
+
+.tab-item.active {
+  color: #4A6FA5;
+  background: rgba(74, 111, 165, 0.15);
+  font-weight: 500;
+}
+
+.tab-title {
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tab-close {
+  font-size: 10px;
+  color: #999;
+  cursor: pointer;
+  padding: 2px;
+  border-radius: 50%;
+  transition: all 0.2s;
+}
+
+.tab-close:hover {
+  color: #ff4d4f;
+  background: rgba(255, 77, 79, 0.1);
+}
+
 .content {
-  margin: 20px;
-  padding: 20px;
+  margin: 16px;
+  padding: 16px;
   background: #F5F7FA;
-  min-height: calc(100vh - 64px - 40px);
+  min-height: calc(100vh - 64px - 40px - 32px);
 }
 </style>
