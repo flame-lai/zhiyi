@@ -6,13 +6,10 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.zhiyi.erp.common.exception.BizException;
 import com.zhiyi.erp.common.tenant.TenantContext;
 import com.zhiyi.erp.common.util.OrderNoGenerator;
-import com.zhiyi.erp.module.base.entity.Customer;
-import com.zhiyi.erp.module.base.entity.Style;
 import com.zhiyi.erp.module.base.entity.StyleMaterial;
 import com.zhiyi.erp.module.base.entity.StyleProcess;
-import com.zhiyi.erp.module.base.mapper.CustomerMapper;
-import com.zhiyi.erp.module.base.mapper.StyleMapper;
 import com.zhiyi.erp.module.base.service.StyleService;
+import com.zhiyi.erp.module.order.dto.OrderDetailDTO;
 import com.zhiyi.erp.module.order.entity.*;
 import com.zhiyi.erp.module.order.mapper.*;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,7 +17,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.*;
-import java.util.stream.Collectors;
 
 @Service
 public class OrderService extends ServiceImpl<OrderMapper, Order> {
@@ -36,136 +32,21 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
     @Autowired
     private StyleService styleService;
     @Autowired
-    private CustomerMapper customerMapper;
-    @Autowired
-    private StyleMapper styleMapper;
+    private OrderMapper orderMapper;
 
-    public Map<String, Object> getOrderWithDetails(Long orderId) {
-        Order order = getById(orderId);
-        if (order == null) {
+    public OrderDetailDTO getOrderWithDetails(Long orderId) {
+        OrderDetailDTO detail = orderMapper.selectOrderDetailById(orderId);
+        if (detail == null) {
             throw new BizException("订单不存在");
         }
-
-        Map<String, Object> map = new HashMap<>();
-        map.put("id", order.getId());
-        map.put("orderNo", order.getOrderNo());
-        map.put("customerId", order.getCustomerId());
-        map.put("styleId", order.getStyleId());
-        map.put("totalAmount", order.getTotalAmount());
-        map.put("deliveryDate", order.getDeliveryDate());
-        map.put("status", order.getStatus());
-        map.put("remark", order.getRemark());
-        map.put("createdAt", order.getCreatedAt());
-        map.put("updatedAt", order.getUpdatedAt());
-
-        // 获取客户名称
-        Customer customer = customerMapper.selectById(order.getCustomerId());
-        map.put("customerName", customer != null ? customer.getName() : "");
-
-        // 获取款号信息
-        Style style = styleMapper.selectById(order.getStyleId());
-        map.put("styleCode", style != null ? style.getStyleCode() : "");
-        map.put("styleName", style != null ? style.getStyleName() : "");
-
-        // 获取颜色尺码汇总数量
-        List<OrderColorSize> colorSizes = orderColorSizeMapper.selectList(
-                new LambdaQueryWrapper<OrderColorSize>().eq(OrderColorSize::getOrderId, order.getId()));
-        int totalQty = 0;
-        for (OrderColorSize cs : colorSizes) {
-            totalQty += cs.getQty() != null ? cs.getQty() : 0;
-        }
-        map.put("totalQty", totalQty);
-
-        return map;
+        return detail;
     }
 
-    public Page<Map<String, Object>> pageWithDetails(Page<Order> page, String keyword, Integer status, String startDate, String endDate) {
-        LambdaQueryWrapper<Order> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(Order::getFactoryId, TenantContext.get());
-        if (keyword != null && !keyword.isEmpty()) {
-            wrapper.like(Order::getOrderNo, keyword);
-        }
-        if (status != null) {
-            wrapper.eq(Order::getStatus, status);
-        }
-        if (startDate != null && !startDate.isEmpty()) {
-            wrapper.ge(Order::getCreatedAt, startDate + " 00:00:00");
-        }
-        if (endDate != null && !endDate.isEmpty()) {
-            wrapper.le(Order::getCreatedAt, endDate + " 23:59:59");
-        }
-        wrapper.orderByDesc(Order::getCreatedAt);
-
-        Page<Order> orderPage = page(page, wrapper);
-        List<Order> orders = orderPage.getRecords();
-
-        if (orders.isEmpty()) {
-            Page<Map<String, Object>> result = new Page<>(orderPage.getCurrent(), orderPage.getSize(), orderPage.getTotal());
-            result.setRecords(new ArrayList<>());
-            return result;
-        }
-
-        // 批量获取客户ID和款号ID
-        Set<Long> customerIds = orders.stream().map(Order::getCustomerId).filter(Objects::nonNull).collect(Collectors.toSet());
-        Set<Long> styleIds = orders.stream().map(Order::getStyleId).filter(Objects::nonNull).collect(Collectors.toSet());
-        Set<Long> orderIds = orders.stream().map(Order::getId).collect(Collectors.toSet());
-
-        // 批量查询客户
-        Map<Long, Customer> customerMap = new HashMap<>();
-        if (!customerIds.isEmpty()) {
-            List<Customer> customers = customerMapper.selectBatchIds(customerIds);
-            customerMap = customers.stream().collect(Collectors.toMap(Customer::getId, c -> c));
-        }
-
-        // 批量查询款号
-        Map<Long, Style> styleMap = new HashMap<>();
-        if (!styleIds.isEmpty()) {
-            List<Style> styles = styleMapper.selectBatchIds(styleIds);
-            styleMap = styles.stream().collect(Collectors.toMap(Style::getId, s -> s));
-        }
-
-        // 批量查询颜色尺码汇总
-        Map<Long, Integer> totalQtyMap = new HashMap<>();
-        if (!orderIds.isEmpty()) {
-            List<OrderColorSize> allColorSizes = orderColorSizeMapper.selectList(
-                    new LambdaQueryWrapper<OrderColorSize>().in(OrderColorSize::getOrderId, orderIds));
-            for (OrderColorSize cs : allColorSizes) {
-                totalQtyMap.merge(cs.getOrderId(), cs.getQty() != null ? cs.getQty() : 0, Integer::sum);
-            }
-        }
-
-        // 转换为包含详细信息的Map
-        List<Map<String, Object>> records = new ArrayList<>();
-        for (Order order : orders) {
-            Map<String, Object> map = new HashMap<>();
-            map.put("id", order.getId());
-            map.put("orderNo", order.getOrderNo());
-            map.put("customerId", order.getCustomerId());
-            map.put("styleId", order.getStyleId());
-            map.put("totalAmount", order.getTotalAmount());
-            map.put("deliveryDate", order.getDeliveryDate());
-            map.put("status", order.getStatus());
-            map.put("remark", order.getRemark());
-            map.put("createdAt", order.getCreatedAt());
-
-            // 客户名称
-            Customer customer = customerMap.get(order.getCustomerId());
-            map.put("customerName", customer != null ? customer.getName() : "");
-
-            // 款号信息
-            Style style = styleMap.get(order.getStyleId());
-            map.put("styleCode", style != null ? style.getStyleCode() : "");
-            map.put("styleName", style != null ? style.getStyleName() : "");
-
-            // 总件数
-            map.put("totalQty", totalQtyMap.getOrDefault(order.getId(), 0));
-
-            records.add(map);
-        }
-
-        Page<Map<String, Object>> result = new Page<>(orderPage.getCurrent(), orderPage.getSize(), orderPage.getTotal());
-        result.setRecords(records);
-        return result;
+    public Page<OrderDetailDTO> pageWithDetails(Page<OrderDetailDTO> page, String keyword, Integer status, String startDate, String endDate) {
+        List<OrderDetailDTO> records = orderMapper.selectOrderDetailsPage(
+                page, TenantContext.get(), keyword, status, startDate, endDate);
+        page.setRecords(records);
+        return page;
     }
 
     @Transactional

@@ -2,6 +2,7 @@ package com.zhiyi.erp.module.order.controller;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.zhiyi.erp.common.result.R;
+import com.zhiyi.erp.module.order.dto.OrderDetailDTO;
 import com.zhiyi.erp.module.order.entity.*;
 import com.zhiyi.erp.module.order.service.OrderService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -21,7 +22,7 @@ public class OrderController {
 
     @Operation(summary = "分页查询订单列表")
     @GetMapping
-    public R<Page<Map<String, Object>>> list(
+    public R<Page<OrderDetailDTO>> list(
             @Parameter(description = "页码") @RequestParam(defaultValue = "1") Integer page,
             @Parameter(description = "每页条数") @RequestParam(defaultValue = "10") Integer size,
             @Parameter(description = "搜索关键词") @RequestParam(required = false) String keyword,
@@ -33,7 +34,7 @@ public class OrderController {
 
     @Operation(summary = "根据ID查询订单详情")
     @GetMapping("/{id}")
-    public R<Map<String, Object>> getById(@Parameter(description = "订单ID") @PathVariable Long id) {
+    public R<OrderDetailDTO> getById(@Parameter(description = "订单ID") @PathVariable Long id) {
         return R.ok(orderService.getOrderWithDetails(id));
     }
 

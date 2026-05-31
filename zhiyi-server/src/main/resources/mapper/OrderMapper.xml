@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.zhiyi.erp.module.order.mapper.OrderMapper">
+
+    <!-- 订单详情结果映射 -->
+    <resultMap id="OrderDetailResultMap" type="com.zhiyi.erp.module.order.dto.OrderDetailDTO">
+        <id property="id" column="id"/>
+        <result property="factoryId" column="factory_id"/>
+        <result property="orderNo" column="order_no"/>
+        <result property="customerId" column="customer_id"/>
+        <result property="customerName" column="customer_name"/>
+        <result property="styleId" column="style_id"/>
+        <result property="styleCode" column="style_code"/>
+        <result property="styleName" column="style_name"/>
+        <result property="totalAmount" column="total_amount"/>
+        <result property="totalQty" column="total_qty"/>
+        <result property="deliveryDate" column="delivery_date"/>
+        <result property="status" column="status"/>
+        <result property="remark" column="remark"/>
+        <result property="createdAt" column="created_at"/>
+    </resultMap>
+
+    <!-- 分页查询订单详情 -->
+    <select id="selectOrderDetailsPage" resultMap="OrderDetailResultMap">
+        SELECT
+            o.id,
+            o.factory_id,
+            o.order_no,
+            o.customer_id,
+            c.name AS customer_name,
+            o.style_id,
+            s.style_code,
+            s.style_name,
+            o.total_amount,
+            COALESCE(SUM(ocs.qty), 0) AS total_qty,
+            o.delivery_date,
+            o.status,
+            o.remark,
+            o.created_at
+        FROM `order` o
+        LEFT JOIN customer c ON o.customer_id = c.id AND c.deleted = 0
+        LEFT JOIN style s ON o.style_id = s.id AND s.deleted = 0
+        LEFT JOIN order_color_size ocs ON o.id = ocs.order_id
+        WHERE o.factory_id = #{factoryId}
+          AND o.deleted = 0
+        <if test="keyword != null and keyword != ''">
+            AND o.order_no LIKE CONCAT('%', #{keyword}, '%')
+        </if>
+        <if test="status != null">
+            AND o.status = #{status}
+        </if>
+        <if test="startDate != null and startDate != ''">
+            AND o.created_at &gt;= CONCAT(#{startDate}, ' 00:00:00')
+        </if>
+        <if test="endDate != null and endDate != ''">
+            AND o.created_at &lt;= CONCAT(#{endDate}, ' 23:59:59')
+        </if>
+        GROUP BY o.id
+        ORDER BY o.created_at DESC
+    </select>
+
+    <!-- 查询单个订单详情 -->
+    <select id="selectOrderDetailById" resultMap="OrderDetailResultMap">
+        SELECT
+            o.id,
+            o.factory_id,
+            o.order_no,
+            o.customer_id,
+            c.name AS customer_name,
+            o.style_id,
+            s.style_code,
+            s.style_name,
+            o.total_amount,
+            COALESCE(SUM(ocs.qty), 0) AS total_qty,
+            o.delivery_date,
+            o.status,
+            o.remark,
+            o.created_at
+        FROM `order` o
+        LEFT JOIN customer c ON o.customer_id = c.id AND c.deleted = 0
+        LEFT JOIN style s ON o.style_id = s.id AND s.deleted = 0
+        LEFT JOIN order_color_size ocs ON o.id = ocs.order_id
+        WHERE o.id = #{orderId}
+          AND o.deleted = 0
+        GROUP BY o.id
+    </select>
+
+</mapper>
