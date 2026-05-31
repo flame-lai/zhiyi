@@ -6,6 +6,7 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.zhiyi.erp.common.exception.BizException;
 import com.zhiyi.erp.common.tenant.TenantContext;
 import com.zhiyi.erp.common.util.OrderNoGenerator;
+import com.zhiyi.erp.module.base.entity.StyleMaterial;
 import com.zhiyi.erp.module.base.entity.StyleProcess;
 import com.zhiyi.erp.module.base.service.StyleService;
 import com.zhiyi.erp.module.order.entity.*;
@@ -57,10 +58,27 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
             for (StyleProcess sp : styleProcesses) {
                 OrderProcess op = new OrderProcess();
                 op.setOrderId(order.getId());
+                op.setOrderItemId(item.getId());
                 op.setProcessId(sp.getProcessId());
                 op.setProcessPrice(sp.getRefPrice());
                 op.setSort(sp.getSort());
                 orderProcessMapper.insert(op);
+            }
+
+            // 从款号模板带出物料清单
+            List<StyleMaterial> styleMaterials = styleService.getStyleMaterials(item.getStyleId());
+            for (StyleMaterial sm : styleMaterials) {
+                OrderMaterial om = new OrderMaterial();
+                om.setOrderId(order.getId());
+                om.setMaterialName(sm.getMaterialName());
+                om.setType(sm.getType());
+                om.setUnitQty(sm.getUnitQty());
+                om.setUnit(sm.getUnit());
+                // 总用量 = 单件用量 × 数量
+                if (sm.getUnitQty() != null && item.getQty() != null) {
+                    om.setTotalQty(sm.getUnitQty().multiply(new java.math.BigDecimal(item.getQty())));
+                }
+                orderMaterialMapper.insert(om);
             }
         }
 

@@ -10,6 +10,7 @@ public class OrderProcess {
     @TableId(type = IdType.AUTO)
     private Long id;
     private Long orderId;
+    private Long orderItemId;
     private Long processId;
     private BigDecimal processPrice;
     private Integer sort;

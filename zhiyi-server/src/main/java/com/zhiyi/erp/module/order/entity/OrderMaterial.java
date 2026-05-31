@@ -13,5 +13,6 @@ public class OrderMaterial {
     private String materialName;
     private Integer type;
     private BigDecimal unitQty;
+    private BigDecimal totalQty;
     private String unit;
 }
