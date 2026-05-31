@@ -25,18 +25,23 @@
         >
           <template #bodyCell="{ column, record, index }">
             <template v-if="column.key === 'processId'">
-              <a-select
-                v-model:value="record.processId"
-                placeholder="选择工序"
-                style="width: 100%"
-                show-search
-                :filter-option="filterProcessOption"
-                @change="(val: number) => onProcessChange(record, val)"
-              >
-                <a-select-option v-for="p in allProcesses" :key="p.id" :value="p.id">
-                  {{ p.name }}
-                </a-select-option>
-              </a-select>
+              <a-input-group compact>
+                <a-select
+                  v-model:value="record.processId"
+                  placeholder="选择工序"
+                  style="width: calc(100% - 32px)"
+                  show-search
+                  :filter-option="filterProcessOption"
+                  @change="(val: number) => onProcessChange(record, val)"
+                >
+                  <a-select-option v-for="p in allProcesses" :key="p.id" :value="p.id">
+                    {{ p.name }}
+                  </a-select-option>
+                </a-select>
+                <a-button @click="fetchAllProcesses" style="width: 32px">
+                  <template #icon><ReloadOutlined /></template>
+                </a-button>
+              </a-input-group>
             </template>
             <template v-else-if="column.key === 'sort'">
               <a-input-number v-model:value="record.sort" :min="0" style="width: 100%" />
@@ -67,19 +72,24 @@
         >
           <template #bodyCell="{ column, record, index }">
             <template v-if="column.key === 'materialName'">
-              <a-select
-                v-model:value="record.materialName"
-                placeholder="选择或输入物料"
-                style="width: 100%"
-                show-search
-                allow-custom-input
-                :filter-option="filterMaterialOption"
-                @change="(val: string) => onMaterialChange(record, val)"
-              >
-                <a-select-option v-for="m in allMaterials" :key="m.id" :value="m.materialName">
-                  {{ m.materialName }} ({{ m.type === 1 ? '原料' : '辅料' }})
-                </a-select-option>
-              </a-select>
+              <a-input-group compact>
+                <a-select
+                  v-model:value="record.materialName"
+                  placeholder="选择或输入物料"
+                  style="width: calc(100% - 32px)"
+                  show-search
+                  allow-custom-input
+                  :filter-option="filterMaterialOption"
+                  @change="(val: string) => onMaterialChange(record, val)"
+                >
+                  <a-select-option v-for="m in allMaterials" :key="m.id" :value="m.materialName">
+                    {{ m.materialName }} ({{ m.type === 1 ? '原料' : '辅料' }})
+                  </a-select-option>
+                </a-select>
+                <a-button @click="fetchAllMaterials" style="width: 32px">
+                  <template #icon><ReloadOutlined /></template>
+                </a-button>
+              </a-input-group>
             </template>
             <template v-else-if="column.key === 'type'">
               <a-radio-group v-model:value="record.type">
@@ -107,9 +117,10 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, onActivated } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { message } from 'ant-design-vue'
+import { ReloadOutlined } from '@ant-design/icons-vue'
 import { styleApi, processApi, materialApi } from '../../api/base'
 
 const router = useRouter()
@@ -299,6 +310,12 @@ onMounted(() => {
   fetchStyleInfo()
   fetchProcesses()
   fetchMaterials()
+  fetchAllProcesses()
+  fetchAllMaterials()
+})
+
+// 页面被 keep-alive 缓存后，再次进入时刷新下拉数据
+onActivated(() => {
   fetchAllProcesses()
   fetchAllMaterials()
 })
