@@ -169,27 +169,40 @@ function updateOpenKeys() {
 }
 
 function addCurrentTab() {
-  // 只为主菜单页面添加标签，不为详情页等子页面添加
-  const isMenuPage = findMenuByPath(route.path)
-  if (!isMenuPage) return
+  const menuPath = findMenuPath(route.path)
+  if (!menuPath) return
 
-  const title = (route.meta?.title as string) || '未知页面'
+  // 获取菜单标题
+  const title = getMenuTitle(menuPath) || (route.meta?.title as string) || '未知页面'
+
+  // 如果是详情页，更新已有标签的路径；否则添加新标签
   tabStore.addTab({
     path: route.path,
     title,
     name: route.name as string,
-  })
+  }, menuPath)
 }
 
-function findMenuByPath(path: string): boolean {
+function findMenuPath(path: string): string | null {
   for (const menu of menuStore.menus) {
     if (menu.children) {
-      const found = menu.children.find((c: any) => c.path === path)
-      if (found) return true
+      const found = menu.children.find((c: any) => path.startsWith(c.path))
+      if (found) return found.path
     }
-    if (menu.path === path) return true
+    if (path.startsWith(menu.path)) return menu.path
   }
-  return false
+  return null
+}
+
+function getMenuTitle(menuPath: string): string | null {
+  for (const menu of menuStore.menus) {
+    if (menu.children) {
+      const found = menu.children.find((c: any) => c.path === menuPath)
+      if (found) return found.name
+    }
+    if (menu.path === menuPath) return menu.name
+  }
+  return null
 }
 
 function handleMenuClick({ key }: { key: string }) {

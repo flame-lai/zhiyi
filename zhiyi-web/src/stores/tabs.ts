@@ -5,16 +5,28 @@ interface TabItem {
   path: string
   title: string
   name: string
+  menuPath?: string
 }
 
 export const useTabStore = defineStore('tabs', () => {
   const tabs = ref<TabItem[]>([])
   const activeTab = ref('')
 
-  function addTab(tab: TabItem) {
+  function addTab(tab: TabItem, menuPath?: string) {
+    // 如果是详情页，更新已有标签的路径
+    if (menuPath && tab.path !== menuPath) {
+      const existingTab = tabs.value.find(t => t.path === menuPath || t.menuPath === menuPath)
+      if (existingTab) {
+        existingTab.path = tab.path
+        activeTab.value = tab.path
+        return
+      }
+    }
+
+    // 检查是否已存在相同路径的标签
     const exists = tabs.value.find(t => t.path === tab.path)
     if (!exists) {
-      tabs.value.push(tab)
+      tabs.value.push({ ...tab, menuPath: menuPath || tab.path })
     }
     activeTab.value = tab.path
   }
