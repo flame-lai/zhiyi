@@ -144,7 +144,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, onActivated } from 'vue'
 import { useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
 import { styleApi, processApi } from '../../api/base'
@@ -406,6 +406,11 @@ async function handleSaveMaterials() {
 onMounted(() => {
   fetchData()
   fetchAllProcesses()
+})
+
+// 页面被 keep-alive 缓存后，再次进入时刷新数据
+onActivated(() => {
+  fetchData()
 })
 </script>
 

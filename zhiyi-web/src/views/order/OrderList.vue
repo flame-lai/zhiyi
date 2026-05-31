@@ -140,7 +140,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, onActivated } from 'vue'
 import { useRouter } from 'vue-router'
 import { message, Modal } from 'ant-design-vue'
 import dayjs from 'dayjs'
@@ -391,5 +391,10 @@ const filterOption = (input, option) => {
 onMounted(() => {
   loadData()
   loadCustomers()
+})
+
+// 页面被 keep-alive 缓存后，再次进入时刷新数据
+onActivated(() => {
+  loadData()
 })
 </script>
