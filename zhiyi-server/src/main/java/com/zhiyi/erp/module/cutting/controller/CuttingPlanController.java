@@ -2,6 +2,7 @@ package com.zhiyi.erp.module.cutting.controller;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.zhiyi.erp.common.result.R;
+import com.zhiyi.erp.module.cutting.dto.CuttingPlanDetailDTO;
 import com.zhiyi.erp.module.cutting.entity.Bundle;
 import com.zhiyi.erp.module.cutting.entity.CuttingPlan;
 import com.zhiyi.erp.module.cutting.service.CuttingService;
@@ -21,11 +22,20 @@ public class CuttingPlanController {
 
     @Operation(summary = "分页查询裁床计划列表")
     @GetMapping
-    public R<Page<CuttingPlan>> list(
+    public R<Page<CuttingPlanDetailDTO>> list(
             @Parameter(description = "页码") @RequestParam(defaultValue = "1") Integer page,
             @Parameter(description = "每页条数") @RequestParam(defaultValue = "10") Integer size,
-            @Parameter(description = "订单明细ID") @RequestParam(required = false) Long orderItemId) {
-        return R.ok(cuttingService.page(new Page<>(page, size), orderItemId));
+            @Parameter(description = "订单号") @RequestParam(required = false) String orderNo,
+            @Parameter(description = "款号") @RequestParam(required = false) String styleCode,
+            @Parameter(description = "颜色") @RequestParam(required = false) String color,
+            @Parameter(description = "尺码") @RequestParam(required = false) String size2) {
+        return R.ok(cuttingService.page(new Page<>(page, size), orderNo, styleCode, color, size2));
+    }
+
+    @Operation(summary = "根据ID查询裁床计划详情")
+    @GetMapping("/{id}")
+    public R<CuttingPlanDetailDTO> getById(@Parameter(description = "裁床计划ID") @PathVariable Long id) {
+        return R.ok(cuttingService.getPlanDetailById(id));
     }
 
     @Operation(summary = "创建裁床计划")
@@ -52,8 +62,8 @@ public class CuttingPlanController {
 
     @Operation(summary = "录入实际裁剪数量")
     @PostMapping("/{id}/input-actual")
-    public R<Void> inputActualQty(@Parameter(description = "裁床计划ID") @PathVariable Long id, @Parameter(description = "实际数量") @RequestParam Integer actualQty) {
-        cuttingService.inputActualQty(id, actualQty);
+    public R<Void> inputActualQty(@Parameter(description = "裁床计划ID") @PathVariable Long id, @RequestBody InputActualDTO dto) {
+        cuttingService.inputActualQty(id, dto.getActualQty());
         return R.ok();
     }
 
@@ -67,5 +77,11 @@ public class CuttingPlanController {
     @GetMapping("/{id}/bundles")
     public R<List<Bundle>> getBundles(@Parameter(description = "裁床计划ID") @PathVariable Long id) {
         return R.ok(cuttingService.getBundles(id));
+    }
+
+    public static class InputActualDTO {
+        private Integer actualQty;
+        public Integer getActualQty() { return actualQty; }
+        public void setActualQty(Integer actualQty) { this.actualQty = actualQty; }
     }
 }

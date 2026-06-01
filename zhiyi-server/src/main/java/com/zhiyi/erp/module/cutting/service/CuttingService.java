@@ -5,12 +5,12 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.zhiyi.erp.common.exception.BizException;
 import com.zhiyi.erp.common.tenant.TenantContext;
+import com.zhiyi.erp.module.cutting.dto.BundleDetailDTO;
+import com.zhiyi.erp.module.cutting.dto.CuttingPlanDetailDTO;
 import com.zhiyi.erp.module.cutting.entity.Bundle;
 import com.zhiyi.erp.module.cutting.entity.CuttingPlan;
 import com.zhiyi.erp.module.cutting.mapper.BundleMapper;
 import com.zhiyi.erp.module.cutting.mapper.CuttingPlanMapper;
-import com.zhiyi.erp.module.order.entity.OrderItem;
-import com.zhiyi.erp.module.order.mapper.OrderItemMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -22,18 +22,19 @@ import java.util.List;
 public class CuttingService extends ServiceImpl<CuttingPlanMapper, CuttingPlan> {
 
     @Autowired
-    private BundleMapper bundleMapper;
+    private CuttingPlanMapper cuttingPlanMapper;
     @Autowired
-    private OrderItemMapper orderItemMapper;
+    private BundleMapper bundleMapper;
 
-    public Page<CuttingPlan> page(Page<CuttingPlan> page, Long orderItemId) {
-        LambdaQueryWrapper<CuttingPlan> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(CuttingPlan::getFactoryId, TenantContext.get());
-        if (orderItemId != null) {
-            wrapper.eq(CuttingPlan::getOrderItemId, orderItemId);
-        }
-        wrapper.orderByDesc(CuttingPlan::getCreatedAt);
-        return page(page, wrapper);
+    public Page<CuttingPlanDetailDTO> page(Page<CuttingPlanDetailDTO> page, String orderNo, String styleCode, String color, String size) {
+        List<CuttingPlanDetailDTO> records = cuttingPlanMapper.selectCuttingPlanDetailsPage(
+                page, TenantContext.get(), orderNo, styleCode, color, size);
+        page.setRecords(records);
+        return page;
+    }
+
+    public CuttingPlanDetailDTO getPlanDetailById(Long id) {
+        return cuttingPlanMapper.selectCuttingPlanDetailById(id);
     }
 
     public void inputActualQty(Long id, Integer actualQty) {
@@ -59,18 +60,15 @@ public class CuttingService extends ServiceImpl<CuttingPlanMapper, CuttingPlan> 
         plan.setStatus(2);
         updateById(plan);
 
-        // 获取订单ID
-        OrderItem orderItem = orderItemMapper.selectById(plan.getOrderItemId());
-        Long orderId = orderItem != null ? orderItem.getOrderId() : null;
-
         List<Bundle> bundles = new ArrayList<>();
         for (int i = 1; i <= bundleCount; i++) {
             int qty = (i < bundleCount) ? qtyPerBundle : (actualQty - (bundleCount - 1) * qtyPerBundle);
             Bundle bundle = new Bundle();
             bundle.setFactoryId(TenantContext.get());
             bundle.setCuttingPlanId(id);
-            bundle.setOrderId(orderId);
-            bundle.setOrderItemId(plan.getOrderItemId());
+            bundle.setOrderId(plan.getOrderId());
+            bundle.setColor(plan.getColor());
+            bundle.setSize(plan.getSize());
             bundle.setBundleNo(plan.getBedNo() + "-" + String.format("%03d", i));
             bundle.setGlobalBundleNo(plan.getBarcode() + "-" + plan.getBedNo() + "-" + String.format("%03d", i));
             bundle.setQty(qty);
@@ -89,8 +87,15 @@ public class CuttingService extends ServiceImpl<CuttingPlanMapper, CuttingPlan> 
                         .orderByAsc(Bundle::getBundleNo));
     }
 
-    public Bundle getBundleById(Long id) {
-        return bundleMapper.selectById(id);
+    public Page<BundleDetailDTO> pageBundles(Page<BundleDetailDTO> page, String orderNo, String styleCode, String color, String size, Integer status) {
+        List<BundleDetailDTO> records = bundleMapper.selectBundleDetailsPage(
+                page, TenantContext.get(), orderNo, styleCode, color, size, status);
+        page.setRecords(records);
+        return page;
+    }
+
+    public BundleDetailDTO getBundleDetailById(Long id) {
+        return bundleMapper.selectBundleDetailById(id);
     }
 
     public List<Bundle> getBundlesByOrderId(Long orderId) {

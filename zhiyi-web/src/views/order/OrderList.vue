@@ -152,48 +152,12 @@
         </a-form-item>
       </a-form>
 
-      <!-- 颜色尺码矩阵 -->
-      <div v-if="!editingId" style="margin-top: 16px;">
-        <div style="margin-bottom: 8px; font-weight: bold;">颜色尺码明细</div>
-        <div style="margin-bottom: 8px;">
-          <a-button size="small" @click="addColorRow">添加颜色</a-button>
-          <a-button size="small" style="margin-left: 8px" @click="addSizeColumn">添加尺码</a-button>
-        </div>
-        <a-table
-          :columns="matrixColumns"
-          :data-source="matrixData"
-          :pagination="false"
-          size="small"
-          bordered
-        >
-          <template #bodyCell="{ column, record, index }">
-            <template v-if="column.dataIndex === 'color'">
-              <a-input v-model:value="record.color" placeholder="颜色" size="small" />
-            </template>
-            <template v-else-if="column.dataIndex === 'action'">
-              <a-button type="link" size="small" danger @click="removeColorRow(index)">删除</a-button>
-            </template>
-            <template v-else>
-              <a-input-number
-                v-model:value="record[column.dataIndex]"
-                :min="0"
-                size="small"
-                style="width: 80px"
-                placeholder="数量"
-              />
-            </template>
-          </template>
-        </a-table>
-        <div style="margin-top: 8px; text-align: right;">
-          总件数：<strong>{{ totalQty }}</strong>
-        </div>
-      </div>
     </a-modal>
   </div>
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted, onActivated } from 'vue'
+import { ref, reactive, onMounted, onActivated } from 'vue'
 import { useRouter } from 'vue-router'
 import { message, Modal } from 'ant-design-vue'
 import dayjs from 'dayjs'
@@ -275,55 +239,6 @@ const rules = {
   styleId: [{ required: true, message: '请选择款号' }]
 }
 
-// 颜色尺码矩阵
-const sizeColumns = ref([])
-const matrixData = ref([])
-
-const matrixColumns = computed(() => {
-  const cols = [
-    { title: '颜色', dataIndex: 'color', width: 120, fixed: 'left' }
-  ]
-  sizeColumns.value.forEach(size => {
-    cols.push({ title: size, dataIndex: size, width: 100, align: 'center' })
-  })
-  cols.push({ title: '操作', dataIndex: 'action', width: 80, fixed: 'right' })
-  return cols
-})
-
-const totalQty = computed(() => {
-  let total = 0
-  matrixData.value.forEach(row => {
-    sizeColumns.value.forEach(size => {
-      total += row[size] || 0
-    })
-  })
-  return total
-})
-
-// 添加颜色行
-const addColorRow = () => {
-  const newRow = { color: '' }
-  sizeColumns.value.forEach(size => {
-    newRow[size] = 0
-  })
-  matrixData.value.push(newRow)
-}
-
-// 添加尺码列
-const addSizeColumn = () => {
-  const size = prompt('请输入尺码名称（如 S、M、L、XL）：')
-  if (size && !sizeColumns.value.includes(size)) {
-    sizeColumns.value.push(size)
-    matrixData.value.forEach(row => {
-      row[size] = 0
-    })
-  }
-}
-
-// 删除颜色行
-const removeColorRow = (index) => {
-  matrixData.value.splice(index, 1)
-}
 
 // 加载订单列表
 const loadData = async () => {
@@ -471,27 +386,6 @@ const handleSubmit = async () => {
       loadData()
     } else {
       // 新增模式
-      // 构建颜色尺码数据
-      const colorSizes = []
-      matrixData.value.forEach(row => {
-        if (row.color) {
-          sizeColumns.value.forEach(size => {
-            if (row[size] > 0) {
-              colorSizes.push({
-                color: row.color,
-                size: size,
-                qty: row[size]
-              })
-            }
-          })
-        }
-      })
-
-      if (colorSizes.length === 0) {
-        message.warning('请至少添加一个颜色尺码明细')
-        return
-      }
-
       const data = {
         order: {
           customerId: formData.customerId,
@@ -499,8 +393,7 @@ const handleSubmit = async () => {
           totalAmount: formData.totalAmount,
           deliveryDate: formData.deliveryDate,
           remark: formData.remark
-        },
-        colorSizes: colorSizes
+        }
       }
       const res = await orderApi.create(data)
       message.success('创建成功')
@@ -526,8 +419,6 @@ const resetForm = () => {
   formData.totalAmount = undefined
   formData.deliveryDate = ''
   formData.remark = ''
-  sizeColumns.value = []
-  matrixData.value = []
   if (formRef.value) {
     formRef.value.resetFields()
   }

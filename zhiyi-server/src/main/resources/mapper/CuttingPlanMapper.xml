@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.zhiyi.erp.module.cutting.mapper.CuttingPlanMapper">
+
+    <!-- 裁床计划详情结果映射 -->
+    <resultMap id="CuttingPlanDetailResultMap" type="com.zhiyi.erp.module.cutting.dto.CuttingPlanDetailDTO">
+        <id property="id" column="id"/>
+        <result property="factoryId" column="factory_id"/>
+        <result property="orderId" column="order_id"/>
+        <result property="orderNo" column="order_no"/>
+        <result property="styleId" column="style_id"/>
+        <result property="styleCode" column="style_code"/>
+        <result property="styleName" column="style_name"/>
+        <result property="color" column="color"/>
+        <result property="size" column="size"/>
+        <result property="bedNo" column="bed_no"/>
+        <result property="planQty" column="plan_qty"/>
+        <result property="actualQty" column="actual_qty"/>
+        <result property="qtyPerBundle" column="qty_per_bundle"/>
+        <result property="bundleCount" column="bundle_count"/>
+        <result property="cuttingDate" column="cutting_date"/>
+        <result property="barcode" column="barcode"/>
+        <result property="status" column="status"/>
+        <result property="createdAt" column="created_at"/>
+    </resultMap>
+
+    <!-- 分页查询裁床计划详情 -->
+    <select id="selectCuttingPlanDetailsPage" resultMap="CuttingPlanDetailResultMap">
+        SELECT
+            cp.id,
+            cp.factory_id,
+            cp.order_id,
+            o.order_no,
+            o.style_id,
+            s.style_code,
+            s.style_name,
+            cp.color,
+            cp.size,
+            cp.bed_no,
+            cp.plan_qty,
+            cp.actual_qty,
+            cp.qty_per_bundle,
+            cp.bundle_count,
+            cp.cutting_date,
+            cp.barcode,
+            cp.status,
+            cp.created_at
+        FROM cutting_plan cp
+        LEFT JOIN `order` o ON cp.order_id = o.id AND o.deleted = 0
+        LEFT JOIN style s ON o.style_id = s.id AND s.deleted = 0
+        WHERE cp.factory_id = #{factoryId}
+          AND cp.deleted = 0
+        <if test="orderNo != null and orderNo != ''">
+            AND o.order_no LIKE CONCAT('%', #{orderNo}, '%')
+        </if>
+        <if test="styleCode != null and styleCode != ''">
+            AND s.style_code LIKE CONCAT('%', #{styleCode}, '%')
+        </if>
+        <if test="color != null and color != ''">
+            AND cp.color = #{color}
+        </if>
+        <if test="size != null and size != ''">
+            AND cp.size = #{size}
+        </if>
+        ORDER BY cp.created_at DESC
+    </select>
+
+    <!-- 查询单个裁床计划详情 -->
+    <select id="selectCuttingPlanDetailById" resultMap="CuttingPlanDetailResultMap">
+        SELECT
+            cp.id,
+            cp.factory_id,
+            cp.order_id,
+            o.order_no,
+            o.style_id,
+            s.style_code,
+            s.style_name,
+            cp.color,
+            cp.size,
+            cp.bed_no,
+            cp.plan_qty,
+            cp.actual_qty,
+            cp.qty_per_bundle,
+            cp.bundle_count,
+            cp.cutting_date,
+            cp.barcode,
+            cp.status,
+            cp.created_at
+        FROM cutting_plan cp
+        LEFT JOIN `order` o ON cp.order_id = o.id AND o.deleted = 0
+        LEFT JOIN style s ON o.style_id = s.id AND s.deleted = 0
+        WHERE cp.id = #{planId}
+          AND cp.deleted = 0
+    </select>
+
+</mapper>

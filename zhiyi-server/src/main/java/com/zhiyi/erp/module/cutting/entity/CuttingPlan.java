@@ -11,7 +11,10 @@ public class CuttingPlan {
     @TableId(type = IdType.AUTO)
     private Long id;
     private Long factoryId;
+    private Long orderId;
     private Long orderItemId;
+    private String color;
+    private String size;
     private Integer bedNo;
     private Integer planQty;
     private Integer actualQty;

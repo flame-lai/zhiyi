@@ -13,6 +13,8 @@ public class Bundle {
     private Long cuttingPlanId;
     private Long orderId;
     private Long orderItemId;
+    private String color;
+    private String size;
     private String bundleNo;
     private String globalBundleNo;
     private Integer qty;
