@@ -224,7 +224,7 @@ import { orderApi } from '../../api/order'
 
 // 订单列表
 const orderList = ref<any[]>([])
-const colorSizeMap = ref<Map<string, string[]>>(new Map())
+const orderColorSizes = ref<any[]>([])
 
 // 表格列定义
 const columns = [
@@ -300,21 +300,23 @@ const formData = reactive({
 
 // 可选颜色和尺码
 const availableColors = computed(() => {
-  if (!formData.orderId) return []
-  const key = String(formData.orderId)
-  const sizes = colorSizeMap.value.get(key) || []
-  // 从订单数据中获取颜色列表
-  const order = orderList.value.find(o => o.id === formData.orderId)
-  if (!order) return []
-  // 这里需要从订单的颜色尺码明细中获取颜色列表
-  // 暂时返回空，需要后续优化
-  return []
+  if (!formData.orderId || orderColorSizes.value.length === 0) return []
+  const colors = new Set<string>()
+  orderColorSizes.value.forEach(item => {
+    if (item.color) colors.add(item.color)
+  })
+  return Array.from(colors)
 })
 
 const availableSizes = computed(() => {
-  if (!formData.orderId || !formData.color) return []
-  const key = `${formData.orderId}_${formData.color}`
-  return colorSizeMap.value.get(key) || []
+  if (!formData.orderId || !formData.color || orderColorSizes.value.length === 0) return []
+  const sizes = new Set<string>()
+  orderColorSizes.value
+    .filter(item => item.color === formData.color)
+    .forEach(item => {
+      if (item.size) sizes.add(item.size)
+    })
+  return Array.from(sizes)
 })
 
 // 录入实际数相关
@@ -332,10 +334,10 @@ const bundleListVisible = ref(false)
 const bundleLoading = ref(false)
 const bundleList = ref<any[]>([])
 
-// 加载订单列表
+// 加载订单列表（只加载已确认的订单）
 async function loadOrders() {
   try {
-    const res: any = await orderApi.list({ page: 1, size: 9999 })
+    const res: any = await orderApi.list({ page: 1, size: 9999, status: 1 })
     orderList.value = res.data?.records || []
   } catch {
     // error handled by interceptor
@@ -343,11 +345,18 @@ async function loadOrders() {
 }
 
 // 订单选择变化
-function onOrderChange(orderId: number) {
+async function onOrderChange(orderId: number) {
   formData.color = undefined
   formData.size = undefined
-  // 这里需要加载订单的颜色尺码明细
-  // 暂时留空，需要后续优化
+  orderColorSizes.value = []
+  if (orderId) {
+    try {
+      const res: any = await orderApi.getColorSizes(orderId)
+      orderColorSizes.value = res.data || []
+    } catch {
+      // error handled by interceptor
+    }
+  }
 }
 
 // 订单搜索过滤
