@@ -136,6 +136,7 @@ const columns = [
 ]
 
 const actualQtyColumns = [
+  { title: '部位', dataIndex: 'part', width: 100 },
   { title: '颜色', dataIndex: 'color', width: 100 },
   { title: '尺码', dataIndex: 'size', width: 80 },
   { title: '计划数', dataIndex: 'planQty', width: 80 },
