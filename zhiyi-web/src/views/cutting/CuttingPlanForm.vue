@@ -247,8 +247,19 @@ async function loadEditData() {
     formData.details = detailsRes.data || []
 
     if (plan.orderId) {
-      const res = await orderApi.getColorSizes(plan.orderId)
-      colorSizeList.value = res.data || []
+      // 获取订单信息
+      const orderRes = await orderApi.getById(plan.orderId)
+      const order = orderRes.data
+
+      // 加载颜色尺码、款号部位、裁剪进度
+      const [colorSizeRes, partsRes, progressRes] = await Promise.all([
+        orderApi.getColorSizes(plan.orderId),
+        order.styleId ? styleApi.getParts(order.styleId) : Promise.resolve({ data: [] }),
+        order.styleId ? cuttingPlanApi.getProgress(plan.orderId, order.styleId) : Promise.resolve({ data: [] }),
+      ])
+      colorSizeList.value = colorSizeRes.data || []
+      styleParts.value = partsRes.data || []
+      cuttingProgress.value = progressRes.data || []
     }
   } catch {}
 }
