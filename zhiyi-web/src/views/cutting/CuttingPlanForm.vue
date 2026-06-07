@@ -346,6 +346,20 @@ async function handleSubmit() {
   }
 }
 
+// 重置表单
+function resetForm() {
+  formData.orderId = undefined
+  formData.fabric = undefined
+  formData.bedNo = 1
+  formData.layers = 1
+  formData.qtyPerBundle = 20
+  formData.cuttingDate = undefined
+  formData.details = []
+  colorSizeList.value = []
+  styleParts.value = []
+  cuttingProgress.value = []
+}
+
 // 返回列表
 function handleBack() {
   router.push('/cutting/plans')
@@ -356,6 +370,8 @@ onMounted(async () => {
   await loadBaseData()
   if (isEdit.value) {
     await loadEditData()
+  } else {
+    resetForm()
   }
 })
 </script>
