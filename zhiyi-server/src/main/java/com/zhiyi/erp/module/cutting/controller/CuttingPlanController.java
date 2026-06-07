@@ -2,6 +2,7 @@ package com.zhiyi.erp.module.cutting.controller;
 
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.zhiyi.erp.common.result.R;
+import com.zhiyi.erp.module.cutting.dto.BundleDetailDTO;
 import com.zhiyi.erp.module.cutting.dto.CuttingPlanDetailDTO;
 import com.zhiyi.erp.module.cutting.dto.CuttingProgressDTO;
 import com.zhiyi.erp.module.cutting.entity.Bundle;
@@ -83,6 +84,12 @@ public class CuttingPlanController {
     @GetMapping("/{id}/bundles")
     public R<List<Bundle>> getBundles(@Parameter(description = "裁床计划ID") @PathVariable Long id) {
         return R.ok(cuttingService.getBundles(id));
+    }
+
+    @Operation(summary = "查询裁床计划的扎号详情（含订单号、款号）")
+    @GetMapping("/{id}/bundle-details")
+    public R<List<BundleDetailDTO>> getBundleDetails(@Parameter(description = "裁床计划ID") @PathVariable Long id) {
+        return R.ok(cuttingService.getBundleDetails(id));
     }
 
     @Operation(summary = "查询订单的裁剪进度")

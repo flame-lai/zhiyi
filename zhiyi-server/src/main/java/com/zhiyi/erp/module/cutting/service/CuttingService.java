@@ -6,6 +6,7 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.zhiyi.erp.common.exception.BizException;
 import com.zhiyi.erp.common.tenant.TenantContext;
 import com.zhiyi.erp.module.base.entity.StylePart;
+import com.zhiyi.erp.module.base.mapper.StyleMapper;
 import com.zhiyi.erp.module.base.service.StylePartService;
 import com.zhiyi.erp.module.cutting.dto.BundleDetailDTO;
 import com.zhiyi.erp.module.cutting.dto.CuttingPlanDetailDTO;
@@ -16,8 +17,11 @@ import com.zhiyi.erp.module.cutting.entity.CuttingPlanDetail;
 import com.zhiyi.erp.module.cutting.mapper.BundleMapper;
 import com.zhiyi.erp.module.cutting.mapper.CuttingPlanDetailMapper;
 import com.zhiyi.erp.module.cutting.mapper.CuttingPlanMapper;
+import com.zhiyi.erp.module.order.entity.Order;
 import com.zhiyi.erp.module.order.entity.OrderColorSize;
 import com.zhiyi.erp.module.order.mapper.OrderColorSizeMapper;
+import com.zhiyi.erp.module.order.mapper.OrderMapper;
+import com.zhiyi.erp.module.base.entity.Style;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -42,6 +46,10 @@ public class CuttingService extends ServiceImpl<CuttingPlanMapper, CuttingPlan> 
     private StylePartService stylePartService;
     @Autowired
     private OrderColorSizeMapper orderColorSizeMapper;
+    @Autowired
+    private OrderMapper orderMapper;
+    @Autowired
+    private StyleMapper styleMapper;
 
     public Page<CuttingPlanDetailDTO> page(Page<CuttingPlanDetailDTO> page, String orderNo, String styleCode, Integer status) {
         List<CuttingPlanDetailDTO> records = cuttingPlanMapper.selectCuttingPlanDetailsPage(
@@ -194,6 +202,56 @@ public class CuttingService extends ServiceImpl<CuttingPlanMapper, CuttingPlan> 
                 new LambdaQueryWrapper<Bundle>()
                         .eq(Bundle::getCuttingPlanId, cuttingPlanId)
                         .orderByAsc(Bundle::getBundleNo));
+    }
+
+    /**
+     * 查询裁床计划的扎号详情（含订单号、款号）
+     */
+    public List<BundleDetailDTO> getBundleDetails(Long cuttingPlanId) {
+        LambdaQueryWrapper<Bundle> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(Bundle::getCuttingPlanId, cuttingPlanId);
+        wrapper.orderByAsc(Bundle::getBundleNo);
+        List<Bundle> bundles = bundleMapper.selectList(wrapper);
+
+        if (bundles.isEmpty()) {
+            return new ArrayList<>();
+        }
+
+        // 获取订单信息
+        Long orderId = bundles.get(0).getOrderId();
+        Order order = orderMapper.selectById(orderId);
+        String orderNo = order != null ? order.getOrderNo() : "";
+        Long styleId = order != null ? order.getStyleId() : null;
+
+        // 获取款号信息
+        Style style = styleId != null ? styleMapper.selectById(styleId) : null;
+        String styleCode = style != null ? style.getStyleCode() : "";
+        String styleName = style != null ? style.getStyleName() : "";
+
+        // 转换为BundleDetailDTO
+        List<BundleDetailDTO> result = new ArrayList<>();
+        for (Bundle bundle : bundles) {
+            BundleDetailDTO dto = new BundleDetailDTO();
+            dto.setId(bundle.getId());
+            dto.setFactoryId(bundle.getFactoryId());
+            dto.setCuttingPlanId(bundle.getCuttingPlanId());
+            dto.setOrderId(bundle.getOrderId());
+            dto.setOrderNo(orderNo);
+            dto.setStyleId(styleId);
+            dto.setStyleCode(styleCode);
+            dto.setStyleName(styleName);
+            dto.setColor(bundle.getColor());
+            dto.setSize(bundle.getSize());
+            dto.setFabric(bundle.getFabric());
+            dto.setPart(bundle.getPart());
+            dto.setBundleNo(bundle.getBundleNo());
+            dto.setGlobalBundleNo(bundle.getGlobalBundleNo());
+            dto.setQty(bundle.getQty());
+            dto.setStatus(bundle.getStatus());
+            dto.setCreatedAt(bundle.getCreatedAt());
+            result.add(dto);
+        }
+        return result;
     }
 
     public Page<BundleDetailDTO> pageBundles(Page<BundleDetailDTO> page, String orderNo, String styleCode, String color, String size, Integer status) {
