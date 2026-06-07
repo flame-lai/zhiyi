@@ -296,7 +296,7 @@ function getProgress(part: string, color: string, size: string) {
 
 // 添加配比行
 function addDetailRow() {
-  formData.details.push({ part: '全套', color: undefined, size: undefined, ratio: 1 })
+  formData.details.push({ part: undefined, color: undefined, size: undefined, ratio: 1 })
 }
 
 // 删除配比行
