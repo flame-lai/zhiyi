@@ -25,13 +25,6 @@
             </a-select-option>
           </a-select>
         </a-form-item>
-        <a-form-item label="裁剪部位">
-          <a-select v-model:value="formData.part" placeholder="选择或输入部位" show-search allow-custom-input>
-            <a-select-option v-for="p in partList" :key="p.name" :value="p.name">
-              {{ p.name }}
-            </a-select-option>
-          </a-select>
-        </a-form-item>
         <a-form-item label="床次" required>
           <a-input-number v-model:value="formData.bedNo" :min="1" :precision="0" style="width: 100%" placeholder="床次" />
         </a-form-item>
@@ -46,7 +39,7 @@
         </a-form-item>
 
         <!-- 配比矩阵 -->
-        <a-divider orientation="left">颜色尺码配比</a-divider>
+        <a-divider orientation="left">配比明细（部位 × 颜色 × 尺码）</a-divider>
         <div style="margin-bottom: 16px;">
           <a-button type="dashed" @click="addDetailRow" style="width: 100%">
             + 添加配比行
@@ -60,6 +53,11 @@
           bordered
         >
           <template #bodyCell="{ column, record, index }">
+            <template v-if="column.dataIndex === 'part'">
+              <a-select v-model:value="record.part" placeholder="部位" size="small" style="width: 100%" show-search allow-custom-input>
+                <a-select-option v-for="p in partList" :key="p.name" :value="p.name">{{ p.name }}</a-select-option>
+              </a-select>
+            </template>
             <template v-if="column.dataIndex === 'color'">
               <a-select v-model:value="record.color" placeholder="颜色" size="small" style="width: 100%">
                 <a-select-option v-for="color in colorList" :key="color" :value="color">{{ color }}</a-select-option>
@@ -136,7 +134,6 @@ const submitLoading = ref(false)
 const formData = reactive({
   orderId: undefined as number | undefined,
   fabric: undefined as string | undefined,
-  part: '全套',
   bedNo: 1,
   layers: 1,
   qtyPerBundle: 20,
@@ -146,11 +143,12 @@ const formData = reactive({
 
 // 配比表格列
 const detailColumns = [
-  { title: '颜色', dataIndex: 'color', width: 150 },
-  { title: '尺码', dataIndex: 'size', width: 120 },
-  { title: '配比', dataIndex: 'ratio', width: 100 },
-  { title: '计划数', dataIndex: 'planQty', width: 100 },
-  { title: '操作', dataIndex: 'action', width: 80, align: 'center' },
+  { title: '部位', dataIndex: 'part', width: 120 },
+  { title: '颜色', dataIndex: 'color', width: 120 },
+  { title: '尺码', dataIndex: 'size', width: 100 },
+  { title: '配比', dataIndex: 'ratio', width: 80 },
+  { title: '计划数', dataIndex: 'planQty', width: 80 },
+  { title: '操作', dataIndex: 'action', width: 60, align: 'center' },
 ]
 
 // 可选颜色和尺码
@@ -197,7 +195,6 @@ async function loadEditData() {
     const plan = planRes.data
     formData.orderId = plan.orderId
     formData.fabric = plan.fabric
-    formData.part = plan.part || '全套'
     formData.bedNo = plan.bedNo
     formData.layers = plan.layers || 1
     formData.qtyPerBundle = plan.qtyPerBundle
@@ -230,7 +227,7 @@ async function onOrderChange(orderId: number) {
 
 // 添加配比行
 function addDetailRow() {
-  formData.details.push({ color: undefined, size: undefined, ratio: 1 })
+  formData.details.push({ part: '全套', color: undefined, size: undefined, ratio: 1 })
 }
 
 // 删除配比行
@@ -251,7 +248,7 @@ async function handleSubmit() {
     return
   }
   if (formData.details.length === 0) {
-    message.warning('请添加颜色尺码配比明细')
+    message.warning('请添加配比明细')
     return
   }
   submitLoading.value = true
@@ -260,7 +257,6 @@ async function handleSubmit() {
       plan: {
         orderId: formData.orderId,
         fabric: formData.fabric,
-        part: formData.part,
         bedNo: formData.bedNo,
         layers: formData.layers,
         qtyPerBundle: formData.qtyPerBundle,

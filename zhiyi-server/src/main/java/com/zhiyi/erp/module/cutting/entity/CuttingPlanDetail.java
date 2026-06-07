@@ -10,6 +10,7 @@ public class CuttingPlanDetail {
     @TableId(type = IdType.AUTO)
     private Long id;
     private Long cuttingPlanId;     // 裁床计划ID
+    private String part;            // 部位
     private String color;           // 颜色
     private String size;            // 尺码
     private Integer ratio;          // 配比
