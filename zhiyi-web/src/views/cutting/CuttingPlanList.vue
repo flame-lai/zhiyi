@@ -62,14 +62,7 @@
               </a-popconfirm>
               <a v-if="record.status < 2" @click="openActualQtyModal(record, false)">录入实际数</a>
               <a v-else @click="openActualQtyModal(record, true)">查看实际数</a>
-              <a
-                v-if="record.status < 2"
-                @click="handleOpenBundle(record)"
-              >开菲</a>
-              <a
-                v-else
-                style="color: #ccc; cursor: not-allowed;"
-              >已开菲</a>
+              <a v-if="record.status < 2" @click="handleOpenBundle(record)">开菲</a>
               <a @click="openBundleModal(record)">查看扎号</a>
               <a v-if="record.status >= 2" @click="openPrintModal(record)">打印菲仔</a>
             </a-space>
