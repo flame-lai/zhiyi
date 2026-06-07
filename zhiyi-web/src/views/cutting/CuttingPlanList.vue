@@ -123,7 +123,6 @@ const columns = [
   { title: '订单号', dataIndex: 'orderNo', width: 140 },
   { title: '款号', dataIndex: 'styleCode', width: 100 },
   { title: '面料', dataIndex: 'fabric', width: 100 },
-  { title: '部位', dataIndex: 'part', width: 80 },
   { title: '床次', dataIndex: 'bedNo', width: 70 },
   { title: '层数', dataIndex: 'layers', width: 70 },
   { title: '总计划数', dataIndex: 'planQty', width: 90 },
