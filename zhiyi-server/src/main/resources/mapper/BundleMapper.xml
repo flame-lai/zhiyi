@@ -14,6 +14,8 @@
         <result property="styleName" column="style_name"/>
         <result property="color" column="color"/>
         <result property="size" column="size"/>
+        <result property="fabric" column="fabric"/>
+        <result property="part" column="part"/>
         <result property="bedNo" column="bed_no"/>
         <result property="bundleNo" column="bundle_no"/>
         <result property="globalBundleNo" column="global_bundle_no"/>
@@ -37,6 +39,8 @@
             s.style_name,
             b.color,
             b.size,
+            b.fabric,
+            b.part,
             cp.bed_no,
             b.bundle_no,
             b.global_bundle_no,
@@ -79,6 +83,8 @@
             s.style_name,
             b.color,
             b.size,
+            b.fabric,
+            b.part,
             cp.bed_no,
             b.bundle_no,
             b.global_bundle_no,

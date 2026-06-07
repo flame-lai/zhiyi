@@ -15,6 +15,8 @@ public class BundleDetailDTO {
     private String styleName;
     private String color;
     private String size;
+    private String fabric;          // 面料
+    private String part;            // 部位
     private Integer bedNo;
     private String bundleNo;
     private String globalBundleNo;
