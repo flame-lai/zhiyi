@@ -71,6 +71,7 @@
                 style="color: #ccc; cursor: not-allowed;"
               >已开菲</a>
               <a @click="openBundleModal(record)">查看扎号</a>
+              <a v-if="record.status >= 2" @click="openPrintModal(record)">打印菲仔</a>
             </a-space>
           </template>
         </template>
@@ -131,6 +132,13 @@
         </template>
       </a-table>
     </a-modal>
+
+    <!-- 打印菲仔弹窗 -->
+    <BundlePrint
+      v-model:visible="printModalVisible"
+      :bundles="printBundles"
+      :order-barcode="printOrderBarcode"
+    />
   </div>
 </template>
 
@@ -139,6 +147,7 @@ import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
 import { cuttingPlanApi } from '../../api/cutting'
+import BundlePrint from '../../components/BundlePrint.vue'
 
 const router = useRouter()
 
@@ -212,6 +221,11 @@ const currentPlanId = ref<number | null>(null)
 const bundleListVisible = ref(false)
 const bundleLoading = ref(false)
 const bundleList = ref<any[]>([])
+
+// 打印菲仔相关
+const printModalVisible = ref(false)
+const printBundles = ref<any[]>([])
+const printOrderBarcode = ref('')
 
 // 加载表格数据
 async function loadData() {
@@ -321,6 +335,34 @@ async function openBundleModal(record: any) {
   } catch {} finally {
     bundleLoading.value = false
   }
+}
+
+// 打印菲仔
+async function openPrintModal(record: any) {
+  try {
+    const res = await cuttingPlanApi.getBundles(record.id)
+    const bundles = res.data || []
+    if (bundles.length === 0) {
+      message.warning('暂无扎号数据')
+      return
+    }
+    // 构建订单条码（ORD + 订单号）
+    const orderNo = bundles[0].orderNo || ''
+    printOrderBarcode.value = `ORD${orderNo.replace('ORD', '')}`
+    printBundles.value = bundles.map((b: any) => ({
+      id: b.id,
+      orderNo: b.orderNo,
+      styleCode: b.styleCode,
+      color: b.color,
+      size: b.size,
+      part: b.part,
+      fabric: b.fabric,
+      bundleNo: b.bundleNo,
+      globalBundleNo: b.globalBundleNo,
+      qty: b.qty,
+    }))
+    printModalVisible.value = true
+  } catch {}
 }
 
 // 初始化加载
