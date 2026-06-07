@@ -193,9 +193,8 @@ async function printBundles(bundlesToPrint: BundleData[]) {
   const qrCodeUrls: Record<number, string> = {}
   for (const bundle of bundlesToPrint) {
     try {
-      const canvas = document.createElement('canvas')
-      await QRCode.toCanvas(canvas, bundle.globalBundleNo, { width: 80, margin: 1 })
-      qrCodeUrls[bundle.id] = canvas.toDataURL('image/png')
+      const url = await QRCode.toDataURL(bundle.globalBundleNo, { width: 80, margin: 1 })
+      qrCodeUrls[bundle.id] = url
     } catch (e) {
       console.error('生成二维码失败:', e)
     }
@@ -342,7 +341,7 @@ async function printBundles(bundlesToPrint: BundleData[]) {
         </div>
         <div class="label-codes">
           <div class="code-item">
-            <svg id="print-barcode-${index}"></svg>
+            <svg class="print-barcode" data-value="${props.orderBarcode}"></svg>
             <div class="code-text">订单码</div>
           </div>
           <div class="code-item">
@@ -356,16 +355,16 @@ async function printBundles(bundlesToPrint: BundleData[]) {
 
   html += `
       <script>
-        ${bundlesToPrint.map((_, index) => `
-          JsBarcode("#print-barcode-${index}", "${props.orderBarcode}", {
-            format: "CODE128",
+        document.querySelectorAll('.print-barcode').forEach(function(el) {
+          JsBarcode(el, el.getAttribute('data-value'), {
+            format: 'CODE128',
             width: 1.5,
             height: 25,
             displayValue: false,
             margin: 1
           });
-        `).join('')}
-        setTimeout(function() { window.print(); window.close(); }, 300);
+        });
+        setTimeout(function() { window.print(); window.close(); }, 500);
       <\/script>
     </body>
     </html>
