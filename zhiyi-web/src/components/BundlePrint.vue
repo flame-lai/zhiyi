@@ -8,7 +8,7 @@
   >
     <div class="print-container">
       <!-- 打印选项 -->
-      <div class="print-options" v-if="!printing">
+      <div class="print-options">
         <a-space>
           <a-button type="primary" @click="handlePrintAll">批量打印全部</a-button>
           <a-button @click="handlePrintSelected" :disabled="selectedBundles.length === 0">
@@ -26,7 +26,7 @@
           :class="{ selected: selectedBundles.includes(bundle.id) }"
           @click="toggleSelect(bundle.id)"
         >
-          <div class="bundle-label">
+          <div class="bundle-label" :id="'label-' + bundle.id">
             <div class="label-header">
               <div class="label-row">
                 <span class="label-key">订单号：</span>
@@ -67,11 +67,11 @@
             </div>
             <div class="label-codes">
               <div class="code-item">
-                <canvas :ref="el => setBarcodeRef(el, bundle, 'order')"></canvas>
+                <svg :id="'barcode-order-' + bundle.id"></svg>
                 <div class="code-text">订单码</div>
               </div>
               <div class="code-item">
-                <canvas :ref="el => setBarcodeRef(el, bundle, 'bundle')"></canvas>
+                <svg :id="'barcode-bundle-' + bundle.id"></svg>
                 <div class="code-text">扎号码</div>
               </div>
             </div>
@@ -111,11 +111,7 @@ const emit = defineEmits<{
 }>()
 
 const visible = ref(props.visible)
-const printing = ref(false)
 const selectedBundles = ref<number[]>([])
-
-// 存储canvas引用
-const barcodeRefs = ref<Map<string, HTMLCanvasElement>>(new Map())
 
 watch(() => props.visible, (val) => {
   visible.value = val
@@ -129,20 +125,13 @@ watch(visible, (val) => {
   emit('update:visible', val)
 })
 
-function setBarcodeRef(el: any, bundle: BundleData, type: 'order' | 'bundle') {
-  if (el) {
-    const key = `${bundle.id}-${type}`
-    barcodeRefs.value.set(key, el as HTMLCanvasElement)
-  }
-}
-
 function generateAllBarcodes() {
   props.bundles.forEach(bundle => {
     // 生成订单条形码
-    const orderCanvas = barcodeRefs.value.get(`${bundle.id}-order`)
-    if (orderCanvas) {
+    const barcodeEl = document.getElementById(`barcode-order-${bundle.id}`)
+    if (barcodeEl) {
       try {
-        JsBarcode(orderCanvas, props.orderBarcode, {
+        JsBarcode(barcodeEl, props.orderBarcode, {
           format: 'CODE128',
           width: 1.5,
           height: 30,
@@ -154,23 +143,31 @@ function generateAllBarcodes() {
       }
     }
 
-    // 生成扎号二维码
-    const bundleCanvas = barcodeRefs.value.get(`${bundle.id}-bundle`)
-    if (bundleCanvas) {
-      try {
-        QRCode.toCanvas(bundleCanvas, bundle.globalBundleNo, {
-          width: 60,
-          margin: 2,
-          color: {
-            dark: '#000000',
-            light: '#ffffff',
-          },
-        })
-      } catch (e) {
-        console.error('生成扎号二维码失败:', e)
-      }
-    }
+    // 生成扎号二维码 - 用canvas转图片
+    generateQRCode(bundle)
   })
+}
+
+async function generateQRCode(bundle: BundleData) {
+  try {
+    const canvas = document.createElement('canvas')
+    await QRCode.toCanvas(canvas, bundle.globalBundleNo, {
+      width: 60,
+      margin: 2,
+    })
+    // 转成图片
+    const img = document.createElement('img')
+    img.src = canvas.toDataURL('image/png')
+    img.style.width = '60px'
+    img.style.height = '60px'
+    const container = document.getElementById(`barcode-bundle-${bundle.id}`)
+    if (container) {
+      container.innerHTML = ''
+      container.appendChild(img)
+    }
+  } catch (e) {
+    console.error('生成扎号二维码失败:', e)
+  }
 }
 
 function toggleSelect(id: number) {
@@ -183,23 +180,184 @@ function toggleSelect(id: number) {
 }
 
 function handlePrintAll() {
-  printing.value = true
-  nextTick(() => {
-    window.print()
-    setTimeout(() => {
-      printing.value = false
-    }, 500)
-  })
+  printBundles(props.bundles)
 }
 
 function handlePrintSelected() {
-  printing.value = true
-  nextTick(() => {
-    window.print()
+  const selected = props.bundles.filter(b => selectedBundles.value.includes(b.id))
+  printBundles(selected)
+}
+
+function printBundles(bundlesToPrint: BundleData[]) {
+  // 等待二维码生成完成
+  setTimeout(() => {
+    const printWindow = window.open('', '_blank')
+    if (!printWindow) return
+
+    let html = `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <title>打印菲仔</title>
+        <style>
+          @page {
+            size: 70mm 50mm;
+            margin: 2mm;
+          }
+          * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+          }
+          body {
+            font-family: sans-serif;
+            font-size: 10px;
+          }
+          .label-page {
+            width: 66mm;
+            height: 46mm;
+            padding: 2mm;
+            border: 0.5pt solid #000;
+            page-break-after: always;
+            display: flex;
+            flex-direction: column;
+          }
+          .label-page:last-child {
+            page-break-after: auto;
+          }
+          .label-header {
+            border-bottom: 0.5pt solid #000;
+            padding-bottom: 1mm;
+            margin-bottom: 1mm;
+          }
+          .label-row {
+            display: flex;
+            line-height: 1.4;
+          }
+          .label-key {
+            width: 35px;
+            color: #333;
+          }
+          .label-value {
+            flex: 1;
+          }
+          .label-body {
+            flex: 1;
+            margin-bottom: 1mm;
+          }
+          .label-info {
+            border-top: 0.5pt dashed #000;
+            border-bottom: 0.5pt dashed #000;
+            padding: 1mm 0;
+            margin-bottom: 1mm;
+          }
+          .bundle-no {
+            font-size: 14px;
+            font-weight: bold;
+          }
+          .qty {
+            font-size: 12px;
+            font-weight: bold;
+          }
+          .label-codes {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+          }
+          .code-item {
+            text-align: center;
+          }
+          .code-item svg,
+          .code-item img {
+            max-width: 25mm;
+            max-height: 10mm;
+            display: block;
+          }
+          .code-item img {
+            width: 20mm;
+            height: 20mm;
+          }
+          .code-text {
+            font-size: 7px;
+            color: #666;
+            margin-top: 0.5mm;
+          }
+        </style>
+      </head>
+      <body>
+    `
+
+    bundlesToPrint.forEach(bundle => {
+      // 获取条形码SVG
+      const barcodeSvg = document.getElementById(`barcode-order-${bundle.id}`)?.outerHTML || ''
+      // 获取二维码图片
+      const qrImg = document.getElementById(`barcode-bundle-${bundle.id}`)?.innerHTML || ''
+
+      html += `
+        <div class="label-page">
+          <div class="label-header">
+            <div class="label-row">
+              <span class="label-key">订单号：</span>
+              <span class="label-value">${bundle.orderNo}</span>
+            </div>
+            <div class="label-row">
+              <span class="label-key">款号：</span>
+              <span class="label-value">${bundle.styleCode}</span>
+            </div>
+          </div>
+          <div class="label-body">
+            <div class="label-row">
+              <span class="label-key">颜色：</span>
+              <span class="label-value">${bundle.color}</span>
+            </div>
+            <div class="label-row">
+              <span class="label-key">尺码：</span>
+              <span class="label-value">${bundle.size}</span>
+            </div>
+            <div class="label-row">
+              <span class="label-key">部位：</span>
+              <span class="label-value">${bundle.part}</span>
+            </div>
+            <div class="label-row">
+              <span class="label-key">面料：</span>
+              <span class="label-value">${bundle.fabric}</span>
+            </div>
+          </div>
+          <div class="label-info">
+            <div class="label-row">
+              <span class="label-key">扎号：</span>
+              <span class="label-value bundle-no">${bundle.bundleNo}</span>
+            </div>
+            <div class="label-row">
+              <span class="label-key">件数：</span>
+              <span class="label-value qty">${bundle.qty}件</span>
+            </div>
+          </div>
+          <div class="label-codes">
+            <div class="code-item">
+              ${barcodeSvg}
+              <div class="code-text">订单码</div>
+            </div>
+            <div class="code-item">
+              ${qrImg}
+              <div class="code-text">扎号码</div>
+            </div>
+          </div>
+        </div>
+      `
+    })
+
+    html += '</body></html>'
+
+    printWindow.document.write(html)
+    printWindow.document.close()
+
+    // 等待图片加载后打印
     setTimeout(() => {
-      printing.value = false
+      printWindow.print()
+      printWindow.close()
     }, 500)
-  })
+  }, 300)
 }
 
 function handleClose() {
@@ -261,8 +419,12 @@ function handleClose() {
 }
 
 .label-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
   margin-bottom: 8px;
-  padding-bottom: 8px;
+  padding: 4px 0;
+  border-top: 1px dashed #ccc;
   border-bottom: 1px dashed #ccc;
 }
 
@@ -297,7 +459,8 @@ function handleClose() {
   align-items: center;
 }
 
-.code-item canvas {
+.code-item svg,
+.code-item img {
   max-width: 120px;
 }
 
@@ -305,148 +468,5 @@ function handleClose() {
   font-size: 10px;
   color: #666;
   margin-top: 4px;
-}
-</style>
-
-<!-- 打印样式不能用scoped -->
-<style>
-@media print {
-  /* 隐藏非打印内容 */
-  .ant-modal-mask,
-  .ant-modal-wrap .ant-modal-header,
-  .ant-modal-wrap .ant-modal-footer,
-  .print-options {
-    display: none !important;
-  }
-
-  /* 设置页面大小 */
-  @page {
-    size: 70mm 50mm;
-    margin: 2mm;
-  }
-
-  body {
-    margin: 0;
-    padding: 0;
-  }
-
-  .ant-modal-wrap {
-    position: static;
-    overflow: visible;
-  }
-
-  .ant-modal {
-    position: static;
-    width: 100%;
-    max-width: none;
-    margin: 0;
-    padding: 0;
-  }
-
-  .ant-modal-content {
-    box-shadow: none;
-    border: none;
-  }
-
-  .ant-modal-body {
-    padding: 0;
-  }
-
-  .print-container {
-    max-height: none;
-    overflow: visible;
-  }
-
-  .bundle-preview {
-    display: block;
-  }
-
-  .bundle-item {
-    border: none !important;
-    padding: 0 !important;
-    margin: 0 !important;
-    page-break-after: always;
-    break-after: page;
-    width: 70mm;
-    height: 50mm;
-    box-sizing: border-box;
-  }
-
-  .bundle-item:last-child {
-    page-break-after: auto;
-    break-after: auto;
-  }
-
-  .bundle-item.selected {
-    border: none !important;
-    background: none !important;
-  }
-
-  .bundle-label {
-    width: 100%;
-    height: 100%;
-    border: 0.5pt solid #000 !important;
-    margin: 0;
-    padding: 2mm;
-    font-size: 8pt;
-    line-height: 1.3;
-    box-sizing: border-box;
-  }
-
-  .label-header {
-    border-bottom: 0.5pt solid #000 !important;
-    margin-bottom: 1mm;
-    padding-bottom: 1mm;
-  }
-
-  .label-info {
-    border-top: 0.5pt dashed #000 !important;
-    border-bottom: 0.5pt dashed #000 !important;
-    margin-top: 1mm;
-    padding-top: 1mm;
-    padding-bottom: 1mm;
-  }
-
-  .label-row {
-    display: flex;
-  }
-
-  .label-key {
-    width: 40px;
-    color: #000;
-  }
-
-  .label-value {
-    flex: 1;
-  }
-
-  .label-value.bold {
-    font-weight: bold;
-    font-size: 10pt;
-  }
-
-  .label-codes {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-end;
-    margin-top: 1mm;
-  }
-
-  .code-item {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-  }
-
-  .code-item canvas {
-    max-width: 25mm;
-    max-height: 8mm;
-  }
-
-  .code-text {
-    font-size: 6pt;
-    color: #000;
-    margin-top: 0.5mm;
-  }
 }
 </style>
