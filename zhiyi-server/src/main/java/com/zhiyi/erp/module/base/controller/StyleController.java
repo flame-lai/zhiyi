@@ -4,8 +4,10 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.zhiyi.erp.common.result.R;
 import com.zhiyi.erp.module.base.entity.Style;
 import com.zhiyi.erp.module.base.entity.StyleMaterial;
+import com.zhiyi.erp.module.base.entity.StylePart;
 import com.zhiyi.erp.module.base.entity.StyleProcess;
 import com.zhiyi.erp.module.base.service.StyleService;
+import com.zhiyi.erp.module.base.service.StylePartService;
 import org.springframework.beans.factory.annotation.Autowired;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -13,12 +15,14 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
 
-@Tag(name = "款号管理", description = "款号CRUD、标准工序路由、标准物料清单")
+@Tag(name = "款号管理", description = "款号CRUD、标准工序路由、标准物料清单、裁剪部位")
 @RestController
 @RequestMapping("/api/base/styles")
 public class StyleController {
     @Autowired
     private StyleService styleService;
+    @Autowired
+    private StylePartService stylePartService;
 
     @Operation(summary = "分页查询款号列表")
     @GetMapping
@@ -80,6 +84,19 @@ public class StyleController {
     @PostMapping("/{id}/materials")
     public R<Void> saveMaterials(@Parameter(description = "款号ID") @PathVariable Long id, @RequestBody List<StyleMaterial> materials) {
         styleService.saveStyleMaterials(id, materials);
+        return R.ok();
+    }
+
+    @Operation(summary = "查询款号裁剪部位BOM")
+    @GetMapping("/{id}/parts")
+    public R<List<StylePart>> getParts(@Parameter(description = "款号ID") @PathVariable Long id) {
+        return R.ok(stylePartService.getByStyleId(id));
+    }
+
+    @Operation(summary = "保存款号裁剪部位BOM")
+    @PostMapping("/{id}/parts")
+    public R<Void> saveParts(@Parameter(description = "款号ID") @PathVariable Long id, @RequestBody List<StylePart> parts) {
+        stylePartService.saveStyleParts(id, parts);
         return R.ok();
     }
 }

@@ -102,6 +102,54 @@
           <a-button type="primary" :loading="savingMaterials" @click="handleSaveMaterials">保存物料清单</a-button>
         </div>
       </a-tab-pane>
+
+      <a-tab-pane key="part" tab="裁剪部位">
+        <div style="margin-bottom: 12px">
+          <a-button type="dashed" block @click="addPartRow">+ 添加部位</a-button>
+        </div>
+        <a-table
+          :columns="partColumns"
+          :data-source="partList"
+          :pagination="false"
+          row-key="_key"
+          size="small"
+        >
+          <template #bodyCell="{ column, record, index }">
+            <template v-if="column.key === 'partName'">
+              <a-select
+                v-model:value="record.partName"
+                placeholder="选择或输入部位"
+                style="width: 100%"
+                show-search
+                allow-custom-input
+              >
+                <a-select-option v-for="p in allParts" :key="p.name" :value="p.name">
+                  {{ p.name }}
+                </a-select-option>
+              </a-select>
+            </template>
+            <template v-else-if="column.key === 'fabric'">
+              <a-select v-model:value="record.fabric" placeholder="选择面料" style="width: 100%">
+                <a-select-option v-for="m in allMaterials" :key="m.id" :value="m.materialName">
+                  {{ m.materialName }}
+                </a-select-option>
+              </a-select>
+            </template>
+            <template v-else-if="column.key === 'qtyPerPiece'">
+              <a-input-number v-model:value="record.qtyPerPiece" :min="0" :precision="2" style="width: 100%" />
+            </template>
+            <template v-else-if="column.key === 'remark'">
+              <a-input v-model:value="record.remark" placeholder="备注" />
+            </template>
+            <template v-else-if="column.key === 'action'">
+              <a style="color: #ff4d4f" @click="removePartRow(index)">删除</a>
+            </template>
+          </template>
+        </a-table>
+        <div style="margin-top: 16px; text-align: right">
+          <a-button type="primary" :loading="savingParts" @click="handleSaveParts">保存裁剪部位</a-button>
+        </div>
+      </a-tab-pane>
     </a-tabs>
   </a-card>
 </template>
@@ -110,7 +158,7 @@
 import { ref, reactive, onMounted, onActivated } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { message } from 'ant-design-vue'
-import { styleApi, processApi, materialApi } from '../../api/base'
+import { styleApi, processApi, materialApi, partApi } from '../../api/base'
 
 const router = useRouter()
 const route = useRoute()
@@ -136,6 +184,11 @@ const savingMaterials = ref(false)
 const materialList = ref<any[]>([])
 const allMaterials = ref<any[]>([])
 
+// 裁剪部位
+const savingParts = ref(false)
+const partList = ref<any[]>([])
+const allParts = ref<any[]>([])
+
 const processColumns = [
   { title: '工序', key: 'processId', width: 200 },
   { title: '排序', key: 'sort', width: 120 },
@@ -148,6 +201,14 @@ const materialColumns = [
   { title: '类型', key: 'type', width: 150 },
   { title: '单件用量', key: 'unitQty', width: 120 },
   { title: '单位', key: 'unit', width: 120 },
+  { title: '操作', key: 'action', width: 80 },
+]
+
+const partColumns = [
+  { title: '部位名称', key: 'partName', width: 150 },
+  { title: '面料', key: 'fabric', width: 150 },
+  { title: '单件用量（片）', key: 'qtyPerPiece', width: 130 },
+  { title: '备注', key: 'remark', width: 200 },
   { title: '操作', key: 'action', width: 80 },
 ]
 
@@ -224,6 +285,27 @@ async function fetchAllMaterials() {
   }
 }
 
+async function fetchParts() {
+  try {
+    const res: any = await styleApi.getParts(styleId)
+    partList.value = (res.data || []).map((item: any) => ({
+      ...item,
+      _key: ++rowKeyCounter,
+    }))
+  } catch {
+    partList.value = []
+  }
+}
+
+async function fetchAllParts() {
+  try {
+    const res: any = await partApi.list({ page: 1, size: 9999 })
+    allParts.value = res.data?.records || []
+  } catch {
+    // handled by interceptor
+  }
+}
+
 // 工序路由操作
 function addProcessRow() {
   processList.value.push({
@@ -295,17 +377,53 @@ async function handleSaveMaterials() {
   }
 }
 
+// 裁剪部位操作
+function addPartRow() {
+  partList.value.push({
+    _key: ++rowKeyCounter,
+    partName: undefined,
+    fabric: undefined,
+    qtyPerPiece: 1,
+    remark: '',
+  })
+}
+
+function removePartRow(index: number) {
+  partList.value.splice(index, 1)
+}
+
+async function handleSaveParts() {
+  savingParts.value = true
+  try {
+    const data = partList.value.map(({ partName, fabric, qtyPerPiece, remark }: any) => ({
+      partName,
+      fabric,
+      qtyPerPiece,
+      remark,
+    }))
+    await styleApi.saveParts(styleId, data)
+    message.success('裁剪部位保存成功')
+  } catch {
+    // handled by interceptor
+  } finally {
+    savingParts.value = false
+  }
+}
+
 onMounted(() => {
   fetchStyleInfo()
   fetchProcesses()
   fetchMaterials()
+  fetchParts()
   fetchAllProcesses()
   fetchAllMaterials()
+  fetchAllParts()
 })
 
 // 页面被 keep-alive 缓存后，再次进入时刷新下拉数据
 onActivated(() => {
   fetchAllProcesses()
   fetchAllMaterials()
+  fetchAllParts()
 })
 </script>

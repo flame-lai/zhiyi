@@ -20,6 +20,8 @@ export const styleApi = {
   saveProcesses: (id: number, data: any[]) => request.post(`/base/styles/${id}/processes`, data),
   getMaterials: (id: number) => request.get(`/base/styles/${id}/materials`),
   saveMaterials: (id: number, data: any[]) => request.post(`/base/styles/${id}/materials`, data),
+  getParts: (id: number) => request.get(`/base/styles/${id}/parts`),
+  saveParts: (id: number, data: any[]) => request.post(`/base/styles/${id}/parts`, data),
 }
 
 // 客户管理

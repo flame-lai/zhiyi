@@ -87,7 +87,7 @@
           <template #bodyCell="{ column, record, index }">
             <template v-if="column.dataIndex === 'part'">
               <a-select v-model:value="record.part" placeholder="部位" size="small" style="width: 100%" show-search allow-custom-input>
-                <a-select-option v-for="p in partList" :key="p.name" :value="p.name">{{ p.name }}</a-select-option>
+                <a-select-option v-for="p in styleParts" :key="p.partName" :value="p.partName">{{ p.partName }}</a-select-option>
               </a-select>
             </template>
             <template v-if="column.dataIndex === 'color'">
@@ -132,7 +132,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { message } from 'ant-design-vue'
 import { cuttingPlanApi } from '../../api/cutting'
 import { orderApi } from '../../api/order'
-import { materialApi, partApi } from '../../api/base'
+import { materialApi, partApi, styleApi } from '../../api/base'
 
 const route = useRoute()
 const router = useRouter()
@@ -144,6 +144,7 @@ const orderList = ref<any[]>([])
 const materialList = ref<any[]>([])
 const partList = ref<any[]>([])
 const colorSizeList = ref<any[]>([])
+const styleParts = ref<any[]>([])
 
 // 表单数据
 const submitLoading = ref(false)
@@ -229,11 +230,25 @@ async function onOrderChange(orderId: number) {
   formData.fabric = undefined
   formData.details = []
   colorSizeList.value = []
+  styleParts.value = []
   if (orderId) {
     try {
-      const res = await orderApi.getColorSizes(orderId)
-      colorSizeList.value = res.data || []
-      if (materialList.value.length > 0) {
+      // 获取订单信息（包含styleId）
+      const orderRes = await orderApi.getById(orderId)
+      const order = orderRes.data
+
+      // 加载颜色尺码和款号部位
+      const [colorSizeRes, partsRes] = await Promise.all([
+        orderApi.getColorSizes(orderId),
+        order.styleId ? styleApi.getParts(order.styleId) : Promise.resolve({ data: [] }),
+      ])
+      colorSizeList.value = colorSizeRes.data || []
+      styleParts.value = partsRes.data || []
+
+      // 自动选择面料（优先使用款号部位配置的面料）
+      if (styleParts.value.length > 0 && styleParts.value[0].fabric) {
+        formData.fabric = styleParts.value[0].fabric
+      } else if (materialList.value.length > 0) {
         formData.fabric = materialList.value[0].materialName
       }
     } catch {}
