@@ -202,23 +202,28 @@ function printBundles(bundlesToPrint: BundleData[]) {
         <style>
           @page {
             size: 70mm 50mm;
-            margin: 2mm;
+            margin: 0;
           }
           * {
             margin: 0;
             padding: 0;
             box-sizing: border-box;
           }
-          body {
+          html, body {
+            width: 70mm;
+            height: 50mm;
             font-family: sans-serif;
-            font-size: 10px;
+            font-size: 9px;
+            line-height: 1.2;
           }
           .label-page {
-            width: 66mm;
-            height: 46mm;
+            width: 70mm;
+            height: 50mm;
             padding: 2mm;
             border: 0.5pt solid #000;
             page-break-after: always;
+            page-break-inside: avoid;
+            overflow: hidden;
             display: flex;
             flex-direction: column;
           }
@@ -229,14 +234,16 @@ function printBundles(bundlesToPrint: BundleData[]) {
             border-bottom: 0.5pt solid #000;
             padding-bottom: 1mm;
             margin-bottom: 1mm;
+            flex-shrink: 0;
           }
           .label-row {
             display: flex;
-            line-height: 1.4;
+            line-height: 1.3;
           }
           .label-key {
-            width: 35px;
+            width: 30px;
             color: #333;
+            flex-shrink: 0;
           }
           .label-value {
             flex: 1;
@@ -244,41 +251,47 @@ function printBundles(bundlesToPrint: BundleData[]) {
           .label-body {
             flex: 1;
             margin-bottom: 1mm;
+            overflow: hidden;
           }
           .label-info {
             border-top: 0.5pt dashed #000;
             border-bottom: 0.5pt dashed #000;
             padding: 1mm 0;
             margin-bottom: 1mm;
+            flex-shrink: 0;
           }
           .bundle-no {
-            font-size: 14px;
+            font-size: 12px;
             font-weight: bold;
           }
           .qty {
-            font-size: 12px;
+            font-size: 11px;
             font-weight: bold;
           }
           .label-codes {
             display: flex;
             justify-content: space-between;
             align-items: flex-end;
+            flex-shrink: 0;
+            height: 12mm;
           }
           .code-item {
             text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: flex-end;
           }
-          .code-item svg,
-          .code-item img {
-            max-width: 25mm;
-            max-height: 10mm;
-            display: block;
+          .code-item svg {
+            width: 25mm;
+            height: 8mm;
           }
           .code-item img {
-            width: 20mm;
-            height: 20mm;
+            width: 12mm;
+            height: 12mm;
           }
           .code-text {
-            font-size: 7px;
+            font-size: 6px;
             color: #666;
             margin-top: 0.5mm;
           }
