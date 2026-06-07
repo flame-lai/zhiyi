@@ -37,8 +37,8 @@
             <div class="field-item">
               <label>面料 <span class="required">*</span></label>
               <a-select v-model:value="formData.fabric" placeholder="选择面料" size="small">
-                <a-select-option v-for="m in materialList" :key="m.materialName" :value="m.materialName">
-                  {{ m.materialName }}
+                <a-select-option v-for="f in fabricList" :key="f" :value="f">
+                  {{ f }}
                 </a-select-option>
               </a-select>
             </div>
@@ -100,6 +100,15 @@
                 <a-select-option v-for="size in sizeList" :key="size" :value="size">{{ size }}</a-select-option>
               </a-select>
             </template>
+            <template v-if="column.dataIndex === 'totalNeeded'">
+              <span>{{ getProgress(record.part, record.color, record.size).totalNeeded }}</span>
+            </template>
+            <template v-if="column.dataIndex === 'alreadyCut'">
+              <span style="color: #52c41a;">{{ getProgress(record.part, record.color, record.size).alreadyCut }}</span>
+            </template>
+            <template v-if="column.dataIndex === 'remaining'">
+              <span style="color: #ff4d4f;">{{ getProgress(record.part, record.color, record.size).remaining }}</span>
+            </template>
             <template v-if="column.dataIndex === 'ratio'">
               <a-input-number v-model:value="record.ratio" :min="1" size="small" style="width: 100%" />
             </template>
@@ -145,6 +154,7 @@ const materialList = ref<any[]>([])
 const partList = ref<any[]>([])
 const colorSizeList = ref<any[]>([])
 const styleParts = ref<any[]>([])
+const cuttingProgress = ref<any[]>([])
 
 // 表单数据
 const submitLoading = ref(false)
@@ -161,11 +171,14 @@ const formData = reactive({
 // 配比表格列
 const detailColumns = [
   { title: '部位', dataIndex: 'part', width: 120 },
-  { title: '颜色', dataIndex: 'color', width: 120 },
-  { title: '尺码', dataIndex: 'size', width: 100 },
-  { title: '配比', dataIndex: 'ratio', width: 80, align: 'center' },
-  { title: '计划数', dataIndex: 'planQty', width: 80, align: 'center' },
-  { title: '操作', dataIndex: 'action', width: 60, align: 'center' },
+  { title: '颜色', dataIndex: 'color', width: 100 },
+  { title: '尺码', dataIndex: 'size', width: 80 },
+  { title: '需裁', dataIndex: 'totalNeeded', width: 70, align: 'center' },
+  { title: '已裁', dataIndex: 'alreadyCut', width: 70, align: 'center' },
+  { title: '待裁', dataIndex: 'remaining', width: 70, align: 'center' },
+  { title: '配比', dataIndex: 'ratio', width: 70, align: 'center' },
+  { title: '计划数', dataIndex: 'planQty', width: 70, align: 'center' },
+  { title: '操作', dataIndex: 'action', width: 50, align: 'center' },
 ]
 
 // 可选颜色和尺码
@@ -178,6 +191,15 @@ const sizeList = computed(() => {
   const sizes = new Set<string>()
   colorSizeList.value.forEach(item => sizes.add(item.size))
   return Array.from(sizes)
+})
+
+// 可选面料（从款号部位BOM中提取）
+const fabricList = computed(() => {
+  const fabrics = new Set<string>()
+  styleParts.value.forEach(item => {
+    if (item.fabric) fabrics.add(item.fabric)
+  })
+  return Array.from(fabrics)
 })
 
 // 总计划数
@@ -231,19 +253,22 @@ async function onOrderChange(orderId: number) {
   formData.details = []
   colorSizeList.value = []
   styleParts.value = []
+  cuttingProgress.value = []
   if (orderId) {
     try {
       // 获取订单信息（包含styleId）
       const orderRes = await orderApi.getById(orderId)
       const order = orderRes.data
 
-      // 加载颜色尺码和款号部位
-      const [colorSizeRes, partsRes] = await Promise.all([
+      // 加载颜色尺码、款号部位、裁剪进度
+      const [colorSizeRes, partsRes, progressRes] = await Promise.all([
         orderApi.getColorSizes(orderId),
         order.styleId ? styleApi.getParts(order.styleId) : Promise.resolve({ data: [] }),
+        order.styleId ? cuttingPlanApi.getProgress(orderId, order.styleId) : Promise.resolve({ data: [] }),
       ])
       colorSizeList.value = colorSizeRes.data || []
       styleParts.value = partsRes.data || []
+      cuttingProgress.value = progressRes.data || []
 
       // 自动选择面料（优先使用款号部位配置的面料）
       if (styleParts.value.length > 0 && styleParts.value[0].fabric) {
@@ -253,6 +278,14 @@ async function onOrderChange(orderId: number) {
       }
     } catch {}
   }
+}
+
+// 获取裁剪进度
+function getProgress(part: string, color: string, size: string) {
+  const key = `${part}|${color}|${size}`
+  return cuttingProgress.value.find(p =>
+    `${p.part}|${p.color}|${p.size}` === key
+  ) || { totalNeeded: 0, alreadyCut: 0, remaining: 0 }
 }
 
 // 添加配比行

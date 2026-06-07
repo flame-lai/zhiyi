@@ -11,6 +11,7 @@ export const cuttingPlanApi = {
   inputActualQty: (id: number, details: any[]) => request.post(`/cutting/plans/${id}/input-actual`, details),
   openBundle: (id: number) => request.post(`/cutting/plans/${id}/open-bundle`),
   getBundles: (id: number) => request.get(`/cutting/plans/${id}/bundles`),
+  getProgress: (orderId: number, styleId: number) => request.get('/cutting/plans/progress', { params: { orderId, styleId } }),
 }
 
 // 扎号管理
