@@ -124,7 +124,7 @@ public class CuttingService extends ServiceImpl<CuttingPlanMapper, CuttingPlan> 
     }
 
     /**
-     * 开菲：按每个颜色尺码独立分扎
+     * 开菲：按部位+颜色+尺码独立分扎
      */
     @Transactional
     public List<Bundle> openBundle(Long planId) {
@@ -134,7 +134,7 @@ public class CuttingService extends ServiceImpl<CuttingPlanMapper, CuttingPlan> 
 
         // 获取明细
         List<CuttingPlanDetail> details = getPlanDetails(planId);
-        if (details.isEmpty()) throw new BizException("没有颜色尺码明细");
+        if (details.isEmpty()) throw new BizException("没有配比明细");
 
         // 检查是否已录入实际数
         boolean hasActual = details.stream().anyMatch(d -> d.getActualQty() != null && d.getActualQty() > 0);
@@ -144,7 +144,7 @@ public class CuttingService extends ServiceImpl<CuttingPlanMapper, CuttingPlan> 
         int totalBundleCount = 0;
         List<Bundle> allBundles = new ArrayList<>();
 
-        // 按每个颜色尺码独立分扎
+        // 按部位+颜色+尺码独立分扎
         for (CuttingPlanDetail detail : details) {
             if (detail.getActualQty() == null || detail.getActualQty() <= 0) continue;
 
@@ -159,10 +159,10 @@ public class CuttingService extends ServiceImpl<CuttingPlanMapper, CuttingPlan> 
                 bundle.setFactoryId(TenantContext.get());
                 bundle.setCuttingPlanId(planId);
                 bundle.setOrderId(plan.getOrderId());
+                bundle.setPart(detail.getPart());      // 从明细获取部位
                 bundle.setColor(detail.getColor());
                 bundle.setSize(detail.getSize());
                 bundle.setFabric(plan.getFabric());
-                bundle.setPart(plan.getPart());
                 bundle.setBundleNo(plan.getBedNo() + "-" + String.format("%03d", totalBundleCount));
                 bundle.setGlobalBundleNo(generateBundleBarcode());
                 bundle.setQty(qty);
