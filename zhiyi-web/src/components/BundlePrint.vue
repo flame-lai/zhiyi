@@ -193,12 +193,19 @@ async function printBundles(bundlesToPrint: BundleData[]) {
   const qrCodeUrls: Record<number, string> = {}
   for (const bundle of bundlesToPrint) {
     try {
-      const url = await QRCode.toDataURL(bundle.globalBundleNo, { width: 80, margin: 1 })
-      qrCodeUrls[bundle.id] = url
+      const dataUrl = await QRCode.toDataURL(bundle.globalBundleNo || 'UNKNOWN', {
+        width: 80,
+        margin: 1,
+        errorCorrectionLevel: 'M'
+      })
+      qrCodeUrls[bundle.id] = dataUrl
+      console.log('QR generated for', bundle.bundleNo, dataUrl.substring(0, 30))
     } catch (e) {
-      console.error('生成二维码失败:', e)
+      console.error('生成二维码失败:', e, bundle.globalBundleNo)
     }
   }
+
+  console.log('QR codes generated:', Object.keys(qrCodeUrls).length)
 
   const printWindow = window.open('', '_blank')
   if (!printWindow) return
