@@ -340,7 +340,7 @@ async function openBundleModal(record: any) {
 // 打印菲仔
 async function openPrintModal(record: any) {
   try {
-    const res = await cuttingPlanApi.getBundles(record.id)
+    const res = await cuttingPlanApi.getBundleDetails(record.id)
     const bundles = res.data || []
     if (bundles.length === 0) {
       message.warning('暂无扎号数据')

@@ -306,11 +306,50 @@ function handleClose() {
   color: #666;
   margin-top: 4px;
 }
+</style>
 
-/* 打印样式 */
+<!-- 打印样式不能用scoped -->
+<style>
 @media print {
+  /* 隐藏非打印内容 */
+  .ant-modal-mask,
+  .ant-modal-wrap .ant-modal-header,
+  .ant-modal-wrap .ant-modal-footer,
   .print-options {
     display: none !important;
+  }
+
+  /* 设置页面大小 */
+  @page {
+    size: 70mm 50mm;
+    margin: 2mm;
+  }
+
+  body {
+    margin: 0;
+    padding: 0;
+  }
+
+  .ant-modal-wrap {
+    position: static;
+    overflow: visible;
+  }
+
+  .ant-modal {
+    position: static;
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  .ant-modal-content {
+    box-shadow: none;
+    border: none;
+  }
+
+  .ant-modal-body {
+    padding: 0;
   }
 
   .print-container {
@@ -325,8 +364,12 @@ function handleClose() {
   .bundle-item {
     border: none !important;
     padding: 0 !important;
+    margin: 0 !important;
     page-break-after: always;
     break-after: page;
+    width: 70mm;
+    height: 50mm;
+    box-sizing: border-box;
   }
 
   .bundle-item:last-child {
@@ -340,17 +383,70 @@ function handleClose() {
   }
 
   .bundle-label {
-    border: 1px solid #000 !important;
-    margin: 0 auto;
+    width: 100%;
+    height: 100%;
+    border: 0.5pt solid #000 !important;
+    margin: 0;
+    padding: 2mm;
+    font-size: 8pt;
+    line-height: 1.3;
+    box-sizing: border-box;
   }
 
   .label-header {
-    border-bottom: 1px solid #000 !important;
+    border-bottom: 0.5pt solid #000 !important;
+    margin-bottom: 1mm;
+    padding-bottom: 1mm;
   }
 
   .label-info {
-    border-top: 1px dashed #000 !important;
-    border-bottom: 1px dashed #000 !important;
+    border-top: 0.5pt dashed #000 !important;
+    border-bottom: 0.5pt dashed #000 !important;
+    margin-top: 1mm;
+    padding-top: 1mm;
+    padding-bottom: 1mm;
+  }
+
+  .label-row {
+    display: flex;
+  }
+
+  .label-key {
+    width: 40px;
+    color: #000;
+  }
+
+  .label-value {
+    flex: 1;
+  }
+
+  .label-value.bold {
+    font-weight: bold;
+    font-size: 10pt;
+  }
+
+  .label-codes {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    margin-top: 1mm;
+  }
+
+  .code-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .code-item canvas {
+    max-width: 25mm;
+    max-height: 8mm;
+  }
+
+  .code-text {
+    font-size: 6pt;
+    color: #000;
+    margin-top: 0.5mm;
   }
 }
 </style>
