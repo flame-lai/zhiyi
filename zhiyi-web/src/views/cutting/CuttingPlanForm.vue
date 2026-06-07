@@ -1,6 +1,17 @@
 <template>
   <div class="cutting-plan-form">
-    <a-card :title="isEdit ? '编辑裁床计划' : '新增裁床计划'">
+    <a-card>
+      <template #title>
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <span>{{ isEdit ? '编辑裁床计划' : '新增裁床计划' }}</span>
+          <a-space>
+            <a-button @click="handleBack">取消</a-button>
+            <a-button type="primary" @click="handleSubmit" :loading="submitLoading">
+              {{ isEdit ? '保存修改' : '创建计划' }}
+            </a-button>
+          </a-space>
+        </div>
+      </template>
       <!-- 基本信息 - 紧凑布局 -->
       <div class="basic-info">
         <a-row :gutter="16">
@@ -96,32 +107,20 @@
               <span class="plan-qty">{{ (formData.layers || 0) * (record.ratio || 0) }}</span>
             </template>
             <template v-if="column.dataIndex === 'action'">
-              <a-popconfirm title="确定删除？" @confirm="removeDetailRow(index)">
-                <a style="color: #ff4d4f; font-size: 12px;">删除</a>
-              </a-popconfirm>
+              <a style="color: #ff4d4f; font-size: 12px; cursor: pointer;" @click="removeDetailRow(index)">删除</a>
             </template>
           </template>
         </a-table>
       </div>
 
-      <!-- 底部操作栏 -->
+      <!-- 底部汇总 -->
       <div class="footer-bar">
-        <div class="footer-left">
-          <span class="total-label">总计划数：</span>
-          <span class="total-value">{{ totalPlanQty }}</span>
-          <span class="total-unit">件</span>
-          <span class="total-separator">|</span>
-          <span class="total-label">配比行数：</span>
-          <span class="total-value">{{ formData.details.length }}</span>
-        </div>
-        <div class="footer-right">
-          <a-space>
-            <a-button @click="handleBack">取消</a-button>
-            <a-button type="primary" @click="handleSubmit" :loading="submitLoading">
-              {{ isEdit ? '保存修改' : '创建计划' }}
-            </a-button>
-          </a-space>
-        </div>
+        <span class="total-label">总计划数：</span>
+        <span class="total-value">{{ totalPlanQty }}</span>
+        <span class="total-unit">件</span>
+        <span class="total-separator">|</span>
+        <span class="total-label">配比行数：</span>
+        <span class="total-value">{{ formData.details.length }}</span>
       </div>
     </a-card>
   </div>
@@ -358,19 +357,13 @@ onMounted(async () => {
   color: #4A6FA5;
 }
 
-/* 底部操作栏 */
+/* 底部汇总 */
 .footer-bar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 12px 0;
-  border-top: 1px solid #f0f0f0;
-}
-
-.footer-left {
   display: flex;
   align-items: center;
   gap: 8px;
+  padding: 12px 0;
+  border-top: 1px solid #f0f0f0;
 }
 
 .total-label {
