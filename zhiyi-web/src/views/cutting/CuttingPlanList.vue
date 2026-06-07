@@ -60,7 +60,8 @@
               <a-popconfirm v-if="record.status < 2" title="确定删除？" @confirm="handleDelete(record.id)">
                 <a style="color: #ff4d4f">删除</a>
               </a-popconfirm>
-              <a @click="openActualQtyModal(record)">录入实际数</a>
+              <a v-if="record.status < 2" @click="openActualQtyModal(record, false)">录入实际数</a>
+              <a v-else @click="openActualQtyModal(record, true)">查看实际数</a>
               <a
                 v-if="record.status < 2"
                 @click="handleOpenBundle(record)"
@@ -76,10 +77,11 @@
       </a-table>
     </a-card>
 
-    <!-- 录入实际数弹窗 -->
+    <!-- 录入/查看实际数弹窗 -->
     <a-modal
       v-model:open="actualQtyModalVisible"
-      title="录入实际数量"
+      :title="actualQtyReadonly ? '实际数量明细' : '录入实际数量'"
+      :footer="actualQtyReadonly ? null : undefined"
       @ok="handleActualQtySubmit"
       :confirm-loading="submitLoading"
       width="700px"
@@ -93,7 +95,13 @@
       >
         <template #bodyCell="{ column, record }">
           <template v-if="column.dataIndex === 'actualQty'">
-            <a-input-number v-model:value="record.actualQty" :min="0" size="small" style="width: 100%" />
+            <a-input-number
+              v-model:value="record.actualQty"
+              :min="0"
+              size="small"
+              style="width: 100%"
+              :disabled="actualQtyReadonly"
+            />
           </template>
         </template>
       </a-table>
@@ -188,6 +196,7 @@ const pagination = reactive({
 // 录入实际数相关
 const submitLoading = ref(false)
 const actualQtyModalVisible = ref(false)
+const actualQtyReadonly = ref(false)
 const actualQtyData = ref<any[]>([])
 const currentPlanId = ref<number | null>(null)
 
@@ -256,9 +265,10 @@ async function handleDelete(id: number) {
   } catch {}
 }
 
-// 打开录入实际数弹窗
-async function openActualQtyModal(record: any) {
+// 打开录入/查看实际数弹窗
+async function openActualQtyModal(record: any, readonly: boolean = false) {
   currentPlanId.value = record.id
+  actualQtyReadonly.value = readonly
   try {
     const res = await cuttingPlanApi.getDetails(record.id)
     actualQtyData.value = (res.data || []).map((d: any) => ({
