@@ -340,9 +340,7 @@ async function openBundleModal(record: any) {
 // 打印菲仔
 async function openPrintModal(record: any) {
   try {
-    console.log('打开打印弹窗, 计划ID:', record.id)
     const res = await cuttingPlanApi.getBundleDetails(record.id)
-    console.log('扎号数据:', res.data)
     const bundles = res.data || []
     if (bundles.length === 0) {
       message.warning('暂无扎号数据')
@@ -363,10 +361,8 @@ async function openPrintModal(record: any) {
       globalBundleNo: b.globalBundleNo,
       qty: b.qty,
     }))
-    console.log('准备打开弹窗, 扎号数量:', printBundles.value.length)
     printModalVisible.value = true
   } catch (e) {
-    console.error('打印菲仔失败:', e)
     message.error('获取扎号数据失败')
   }
 }

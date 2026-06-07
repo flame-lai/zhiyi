@@ -194,13 +194,10 @@ async function printBundles(bundlesToPrint: BundleData[]) {
         errorCorrectionLevel: 'M'
       })
       qrCodeUrls[bundle.id] = dataUrl
-      console.log('QR generated for', bundle.bundleNo, dataUrl.substring(0, 30))
     } catch (e) {
-      console.error('生成二维码失败:', e, bundle.globalBundleNo)
+      console.error('生成二维码失败:', e)
     }
   }
-
-  console.log('QR codes generated:', Object.keys(qrCodeUrls).length)
 
   const printWindow = window.open('', '_blank')
   if (!printWindow) return
