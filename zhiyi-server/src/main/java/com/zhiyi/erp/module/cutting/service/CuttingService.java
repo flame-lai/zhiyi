@@ -5,22 +5,27 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.zhiyi.erp.common.exception.BizException;
 import com.zhiyi.erp.common.tenant.TenantContext;
+import com.zhiyi.erp.module.base.entity.StylePart;
+import com.zhiyi.erp.module.base.service.StylePartService;
 import com.zhiyi.erp.module.cutting.dto.BundleDetailDTO;
 import com.zhiyi.erp.module.cutting.dto.CuttingPlanDetailDTO;
+import com.zhiyi.erp.module.cutting.dto.CuttingProgressDTO;
 import com.zhiyi.erp.module.cutting.entity.Bundle;
 import com.zhiyi.erp.module.cutting.entity.CuttingPlan;
 import com.zhiyi.erp.module.cutting.entity.CuttingPlanDetail;
 import com.zhiyi.erp.module.cutting.mapper.BundleMapper;
 import com.zhiyi.erp.module.cutting.mapper.CuttingPlanDetailMapper;
 import com.zhiyi.erp.module.cutting.mapper.CuttingPlanMapper;
+import com.zhiyi.erp.module.order.entity.OrderColorSize;
+import com.zhiyi.erp.module.order.mapper.OrderColorSizeMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 public class CuttingService extends ServiceImpl<CuttingPlanMapper, CuttingPlan> {
@@ -33,6 +38,10 @@ public class CuttingService extends ServiceImpl<CuttingPlanMapper, CuttingPlan> 
     private CuttingPlanDetailMapper cuttingPlanDetailMapper;
     @Autowired
     private BundleMapper bundleMapper;
+    @Autowired
+    private StylePartService stylePartService;
+    @Autowired
+    private OrderColorSizeMapper orderColorSizeMapper;
 
     public Page<CuttingPlanDetailDTO> page(Page<CuttingPlanDetailDTO> page, String orderNo, String styleCode, Integer status) {
         List<CuttingPlanDetailDTO> records = cuttingPlanMapper.selectCuttingPlanDetailsPage(
@@ -203,6 +212,65 @@ public class CuttingService extends ServiceImpl<CuttingPlanMapper, CuttingPlan> 
                 new LambdaQueryWrapper<Bundle>()
                         .eq(Bundle::getOrderId, orderId)
                         .orderByAsc(Bundle::getBundleNo));
+    }
+
+    /**
+     * 查询订单的裁剪进度
+     */
+    public List<CuttingProgressDTO> getCuttingProgress(Long orderId, Long styleId) {
+        // 1. 获取款号部位BOM
+        List<StylePart> styleParts = stylePartService.getByStyleId(styleId);
+        if (styleParts.isEmpty()) {
+            return new ArrayList<>();
+        }
+
+        // 2. 获取订单的颜色尺码明细（获取订单总件数）
+        List<OrderColorSize> orderColorSizes = orderColorSizeMapper.selectList(
+                new LambdaQueryWrapper<OrderColorSize>().eq(OrderColorSize::getOrderId, orderId));
+
+        // 3. 获取该订单所有裁床计划的明细（已裁数量）
+        List<CuttingPlan> plans = cuttingPlanMapper.selectList(
+                new LambdaQueryWrapper<CuttingPlan>()
+                        .eq(CuttingPlan::getOrderId, orderId)
+                        .eq(CuttingPlan::getDeleted, 0));
+        Set<Long> planIds = plans.stream().map(CuttingPlan::getId).collect(Collectors.toSet());
+
+        Map<String, Integer> alreadyCutMap = new HashMap<>();
+        if (!planIds.isEmpty()) {
+            List<CuttingPlanDetail> allDetails = cuttingPlanDetailMapper.selectList(
+                    new LambdaQueryWrapper<CuttingPlanDetail>().in(CuttingPlanDetail::getCuttingPlanId, planIds));
+            for (CuttingPlanDetail detail : allDetails) {
+                String key = detail.getPart() + "|" + detail.getColor() + "|" + detail.getSize();
+                alreadyCutMap.merge(key, detail.getActualQty() != null ? detail.getActualQty() : 0, Integer::sum);
+            }
+        }
+
+        // 4. 计算每个部位+颜色+尺码的进度
+        List<CuttingProgressDTO> result = new ArrayList<>();
+        for (StylePart part : styleParts) {
+            for (OrderColorSize ocs : orderColorSizes) {
+                CuttingProgressDTO dto = new CuttingProgressDTO();
+                dto.setPart(part.getPartName());
+                dto.setColor(ocs.getColor());
+                dto.setSize(ocs.getSize());
+
+                // 需裁总数 = 订单该颜色尺码数量 × 单件用量
+                int totalNeeded = (int) Math.ceil(ocs.getQty() * part.getQtyPerPiece().doubleValue());
+                dto.setTotalNeeded(totalNeeded);
+
+                // 已裁数量
+                String key = part.getPartName() + "|" + ocs.getColor() + "|" + ocs.getSize();
+                int alreadyCut = alreadyCutMap.getOrDefault(key, 0);
+                dto.setAlreadyCut(alreadyCut);
+
+                // 待裁数量
+                dto.setRemaining(Math.max(0, totalNeeded - alreadyCut));
+
+                result.add(dto);
+            }
+        }
+
+        return result;
     }
 
     /**
