@@ -24,30 +24,27 @@ public class PartService extends ServiceImpl<PartMapper, Part> {
 
     @Override
     public boolean save(Part entity) {
-        // 检查名称是否重复
-        LambdaQueryWrapper<Part> wrapper = new LambdaQueryWrapper<>();
-        wrapper.eq(Part::getFactoryId, TenantContext.get());
-        wrapper.eq(Part::getName, entity.getName());
-        if (entity.getId() != null) {
-            wrapper.ne(Part::getId, entity.getId());
-        }
-        if (count(wrapper) > 0) {
-            throw new BizException("部位名称已存在");
-        }
+        checkNameDuplicate(entity.getName(), entity.getId());
         entity.setFactoryId(TenantContext.get());
         return super.save(entity);
     }
 
     @Override
     public boolean updateById(Part entity) {
-        // 检查名称是否重复
+        checkNameDuplicate(entity.getName(), entity.getId());
+        return super.updateById(entity);
+    }
+
+    private void checkNameDuplicate(String name, Long excludeId) {
         LambdaQueryWrapper<Part> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(Part::getFactoryId, TenantContext.get());
-        wrapper.eq(Part::getName, entity.getName());
-        wrapper.ne(Part::getId, entity.getId());
+        wrapper.eq(Part::getName, name);
+        wrapper.eq(Part::getDeleted, 0);
+        if (excludeId != null) {
+            wrapper.ne(Part::getId, excludeId);
+        }
         if (count(wrapper) > 0) {
             throw new BizException("部位名称已存在");
         }
-        return super.updateById(entity);
     }
 }
