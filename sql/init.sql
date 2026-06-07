@@ -397,6 +397,19 @@ CREATE TABLE `operation_log` (
   KEY `idx_factory_id` (`factory_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='操作日志';
 
+-- 部位表
+CREATE TABLE `part` (
+  `id` BIGINT NOT NULL AUTO_INCREMENT,
+  `factory_id` BIGINT NOT NULL,
+  `name` VARCHAR(50) NOT NULL COMMENT '部位名称',
+  `sort` INT DEFAULT 0 COMMENT '排序号',
+  `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `deleted` TINYINT DEFAULT 0,
+  PRIMARY KEY (`id`),
+  KEY `idx_factory_id` (`factory_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='部位表';
+
 -- 初始数据：默认工厂
 INSERT INTO `factory` (`name`, `code`, `status`) VALUES ('默认工厂', 'DEFAULT', 1);
 

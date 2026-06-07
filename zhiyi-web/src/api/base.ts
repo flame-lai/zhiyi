@@ -47,3 +47,11 @@ export const materialApi = {
   update: (id: number, data: any) => request.put(`/base/materials/${id}`, data),
   delete: (id: number) => request.delete(`/base/materials/${id}`),
 }
+
+// 部位管理
+export const partApi = {
+  list: (params: any) => request.get('/base/parts', { params }),
+  create: (data: any) => request.post('/base/parts', data),
+  update: (id: number, data: any) => request.put(`/base/parts/${id}`, data),
+  delete: (id: number) => request.delete(`/base/parts/${id}`),
+}

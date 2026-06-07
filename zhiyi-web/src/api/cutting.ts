@@ -4,10 +4,11 @@ import request from '../utils/request'
 export const cuttingPlanApi = {
   list: (params: any) => request.get('/cutting/plans', { params }),
   getById: (id: number) => request.get(`/cutting/plans/${id}`),
+  getDetails: (id: number) => request.get(`/cutting/plans/${id}/details`),
   create: (data: any) => request.post('/cutting/plans', data),
   update: (id: number, data: any) => request.put(`/cutting/plans/${id}`, data),
   delete: (id: number) => request.delete(`/cutting/plans/${id}`),
-  inputActualQty: (id: number, actualQty: number) => request.post(`/cutting/plans/${id}/input-actual`, { actualQty }),
+  inputActualQty: (id: number, details: any[]) => request.post(`/cutting/plans/${id}/input-actual`, details),
   openBundle: (id: number) => request.post(`/cutting/plans/${id}/open-bundle`),
   getBundles: (id: number) => request.get(`/cutting/plans/${id}/bundles`),
 }

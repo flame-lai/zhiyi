@@ -96,7 +96,7 @@
             :filter-option="filterSupplierOption"
           >
             <a-select-option v-for="s in supplierList" :key="s.id" :value="s.id">
-              {{ s.supplierName }}
+              {{ s.name }}
             </a-select-option>
           </a-select>
         </a-form-item>
@@ -149,7 +149,7 @@ const columns = [
 
 function filterSupplierOption(input: string, option: any) {
   const supplier = supplierList.value.find((s: any) => s.id === option.value)
-  return supplier?.supplierName?.toLowerCase().includes(input.toLowerCase()) ?? false
+  return supplier?.name?.toLowerCase().includes(input.toLowerCase()) ?? false
 }
 
 async function fetchData() {

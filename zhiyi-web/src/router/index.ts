@@ -81,6 +81,12 @@ const routes = [
         component: () => import('../views/base/MaterialList.vue'),
         meta: { title: '物料管理' },
       },
+      {
+        path: 'base/parts',
+        name: 'Parts',
+        component: () => import('../views/base/PartList.vue'),
+        meta: { title: '部位管理' },
+      },
       // 订单管理
       {
         path: 'order/list',
@@ -106,6 +112,18 @@ const routes = [
         name: 'CuttingPlans',
         component: () => import('../views/cutting/CuttingPlanList.vue'),
         meta: { title: '裁床计划' },
+      },
+      {
+        path: 'cutting/plans/create',
+        name: 'CuttingPlanCreate',
+        component: () => import('../views/cutting/CuttingPlanForm.vue'),
+        meta: { title: '新增裁床计划' },
+      },
+      {
+        path: 'cutting/plans/edit/:id',
+        name: 'CuttingPlanEdit',
+        component: () => import('../views/cutting/CuttingPlanForm.vue'),
+        meta: { title: '编辑裁床计划' },
       },
       {
         path: 'cutting/bundles',
