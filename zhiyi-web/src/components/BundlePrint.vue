@@ -230,14 +230,14 @@ function handleClose() {
   background: rgba(74, 111, 165, 0.05);
 }
 
-/* 标签样式 - 60mm x 40mm */
+/* 标签样式 - 40mm x 60mm */
 .bundle-label {
-  width: 226px;  /* 60mm ≈ 226px at 96dpi */
-  height: 151px; /* 40mm ≈ 151px at 96dpi */
-  padding: 8px;
+  width: 151px;  /* 40mm ≈ 151px at 96dpi */
+  height: 226px; /* 60mm ≈ 226px at 96dpi */
+  padding: 6px;
   border: 1px solid #333;
-  font-size: 11px;
-  line-height: 1.4;
+  font-size: 10px;
+  line-height: 1.3;
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
@@ -325,6 +325,22 @@ function handleClose() {
 
 /* 打印样式 */
 @media print {
+  /* 设置页面大小为标签大小 */
+  @page {
+    size: 40mm 60mm;
+    margin: 0;
+  }
+
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  body {
+    margin: 0;
+    padding: 0;
+  }
+
   .print-options {
     display: none !important;
   }
@@ -341,8 +357,11 @@ function handleClose() {
   .bundle-item {
     border: none !important;
     padding: 0 !important;
+    margin: 0 !important;
     page-break-after: always;
     break-after: page;
+    width: 40mm;
+    height: 60mm;
   }
 
   .bundle-item:last-child {
@@ -350,11 +369,27 @@ function handleClose() {
     break-after: auto;
   }
 
+  .bundle-item.selected {
+    border: none !important;
+    background: none !important;
+  }
+
   .bundle-label {
-    width: 60mm;
-    height: 40mm;
+    width: 40mm;
+    height: 60mm;
     border: 1px solid #000 !important;
-    margin: 0 auto;
+    margin: 0;
+    padding: 2mm;
+    font-size: 8pt;
+  }
+
+  .label-header {
+    border-bottom: 1px solid #000 !important;
+  }
+
+  .label-info {
+    border-top: 1px dashed #000 !important;
+    border-bottom: 1px dashed #000 !important;
   }
 }
 </style>
