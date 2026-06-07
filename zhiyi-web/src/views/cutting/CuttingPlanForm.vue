@@ -87,7 +87,7 @@
           <template #bodyCell="{ column, record, index }">
             <template v-if="column.dataIndex === 'part'">
               <a-select v-model:value="record.part" placeholder="部位" size="small" style="width: 100%" show-search allow-custom-input>
-                <a-select-option v-for="p in styleParts" :key="p.partName" :value="p.partName">{{ p.partName }}</a-select-option>
+                <a-select-option v-for="p in filteredStyleParts" :key="p.partName" :value="p.partName">{{ p.partName }}</a-select-option>
               </a-select>
             </template>
             <template v-if="column.dataIndex === 'color'">
@@ -200,6 +200,12 @@ const fabricList = computed(() => {
     if (item.fabric) fabrics.add(item.fabric)
   })
   return Array.from(fabrics)
+})
+
+// 可选部位（根据选择的面料过滤）
+const filteredStyleParts = computed(() => {
+  if (!formData.fabric) return styleParts.value
+  return styleParts.value.filter(item => item.fabric === formData.fabric)
 })
 
 // 总计划数
