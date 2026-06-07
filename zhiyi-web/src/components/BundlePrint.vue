@@ -18,7 +18,7 @@
       </div>
 
       <!-- 菲仔预览 -->
-      <div class="bundle-list">
+      <div class="bundle-preview">
         <div
           v-for="bundle in bundles"
           :key="bundle.id"
@@ -28,14 +28,8 @@
         >
           <div class="bundle-label">
             <div class="label-header">
-              <div class="label-row">
-                <span class="label-key">订单号：</span>
-                <span class="label-value">{{ bundle.orderNo }}</span>
-              </div>
-              <div class="label-row">
-                <span class="label-key">款号：</span>
-                <span class="label-value">{{ bundle.styleCode }}</span>
-              </div>
+              <span class="order-no">{{ bundle.orderNo }}</span>
+              <span class="style-code">{{ bundle.styleCode }}</span>
             </div>
             <div class="label-body">
               <div class="label-row">
@@ -56,14 +50,8 @@
               </div>
             </div>
             <div class="label-info">
-              <div class="label-row">
-                <span class="label-key">扎号：</span>
-                <span class="label-value bold">{{ bundle.bundleNo }}</span>
-              </div>
-              <div class="label-row">
-                <span class="label-key">件数：</span>
-                <span class="label-value bold">{{ bundle.qty }}件</span>
-              </div>
+              <div class="bundle-no">{{ bundle.bundleNo }}</div>
+              <div class="qty">{{ bundle.qty }}件</div>
             </div>
             <div class="label-codes">
               <div class="code-item">
@@ -219,7 +207,7 @@ function handleClose() {
   border-bottom: 1px solid #f0f0f0;
 }
 
-.bundle-list {
+.bundle-preview {
   display: flex;
   flex-wrap: wrap;
   gap: 16px;
@@ -242,28 +230,40 @@ function handleClose() {
   background: rgba(74, 111, 165, 0.05);
 }
 
+/* 标签样式 - 60mm x 40mm */
 .bundle-label {
-  width: 280px;
-  padding: 12px;
+  width: 226px;  /* 60mm ≈ 226px at 96dpi */
+  height: 151px; /* 40mm ≈ 151px at 96dpi */
+  padding: 8px;
   border: 1px solid #333;
-  font-size: 12px;
-  line-height: 1.5;
+  font-size: 11px;
+  line-height: 1.4;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
 }
 
 .label-header {
-  margin-bottom: 8px;
-  padding-bottom: 8px;
-  border-bottom: 1px dashed #ccc;
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 6px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid #333;
+}
+
+.order-no {
+  font-weight: bold;
+  font-size: 12px;
+}
+
+.style-code {
+  font-weight: bold;
+  font-size: 12px;
 }
 
 .label-body {
-  margin-bottom: 8px;
-}
-
-.label-info {
-  margin-bottom: 8px;
-  padding-bottom: 8px;
-  border-bottom: 1px dashed #ccc;
+  flex: 1;
+  margin-bottom: 4px;
 }
 
 .label-row {
@@ -271,24 +271,39 @@ function handleClose() {
 }
 
 .label-key {
-  width: 50px;
+  width: 40px;
   color: #666;
+  flex-shrink: 0;
 }
 
 .label-value {
   flex: 1;
 }
 
-.label-value.bold {
+.label-info {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+  padding: 4px 0;
+  border-top: 1px dashed #ccc;
+  border-bottom: 1px dashed #ccc;
+}
+
+.bundle-no {
+  font-size: 16px;
   font-weight: bold;
+}
+
+.qty {
   font-size: 14px;
+  font-weight: bold;
 }
 
 .label-codes {
   display: flex;
   justify-content: space-between;
   align-items: flex-end;
-  margin-top: 8px;
 }
 
 .code-item {
@@ -298,13 +313,14 @@ function handleClose() {
 }
 
 .code-item canvas {
-  max-width: 120px;
+  max-width: 100px;
+  max-height: 35px;
 }
 
 .code-text {
-  font-size: 10px;
+  font-size: 9px;
   color: #666;
-  margin-top: 4px;
+  margin-top: 2px;
 }
 
 /* 打印样式 */
@@ -313,19 +329,32 @@ function handleClose() {
     display: none !important;
   }
 
-  .bundle-item {
-    break-inside: avoid;
-    border: none !important;
-    padding: 0 !important;
-    page-break-inside: avoid;
+  .print-container {
+    max-height: none;
+    overflow: visible;
   }
 
-  .bundle-list {
-    gap: 8px;
+  .bundle-preview {
+    display: block;
+  }
+
+  .bundle-item {
+    border: none !important;
+    padding: 0 !important;
+    page-break-after: always;
+    break-after: page;
+  }
+
+  .bundle-item:last-child {
+    page-break-after: auto;
+    break-after: auto;
   }
 
   .bundle-label {
+    width: 60mm;
+    height: 40mm;
     border: 1px solid #000 !important;
+    margin: 0 auto;
   }
 }
 </style>
