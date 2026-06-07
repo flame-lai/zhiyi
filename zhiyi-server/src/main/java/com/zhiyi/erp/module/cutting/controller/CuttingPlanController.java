@@ -5,6 +5,7 @@ import com.zhiyi.erp.common.result.R;
 import com.zhiyi.erp.module.cutting.dto.CuttingPlanDetailDTO;
 import com.zhiyi.erp.module.cutting.entity.Bundle;
 import com.zhiyi.erp.module.cutting.entity.CuttingPlan;
+import com.zhiyi.erp.module.cutting.entity.CuttingPlanDetail;
 import com.zhiyi.erp.module.cutting.service.CuttingService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -27,9 +28,8 @@ public class CuttingPlanController {
             @Parameter(description = "每页条数") @RequestParam(defaultValue = "10") Integer size,
             @Parameter(description = "订单号") @RequestParam(required = false) String orderNo,
             @Parameter(description = "款号") @RequestParam(required = false) String styleCode,
-            @Parameter(description = "颜色") @RequestParam(required = false) String color,
-            @Parameter(description = "尺码") @RequestParam(required = false) String size2) {
-        return R.ok(cuttingService.page(new Page<>(page, size), orderNo, styleCode, color, size2));
+            @Parameter(description = "状态") @RequestParam(required = false) Integer status) {
+        return R.ok(cuttingService.page(new Page<>(page, size), orderNo, styleCode, status));
     }
 
     @Operation(summary = "根据ID查询裁床计划详情")
@@ -38,18 +38,23 @@ public class CuttingPlanController {
         return R.ok(cuttingService.getPlanDetailById(id));
     }
 
-    @Operation(summary = "创建裁床计划")
-    @PostMapping
-    public R<Void> create(@RequestBody CuttingPlan plan) {
-        cuttingService.save(plan);
-        return R.ok();
+    @Operation(summary = "查询裁床计划的配比明细")
+    @GetMapping("/{id}/details")
+    public R<List<CuttingPlanDetail>> getDetails(@Parameter(description = "裁床计划ID") @PathVariable Long id) {
+        return R.ok(cuttingService.getPlanDetails(id));
     }
 
-    @Operation(summary = "更新裁床计划")
+    @Operation(summary = "创建裁床计划（含配比明细）")
+    @PostMapping
+    public R<Long> create(@RequestBody CreatePlanDTO dto) {
+        return R.ok(cuttingService.savePlanWithDetails(dto.getPlan(), dto.getDetails()));
+    }
+
+    @Operation(summary = "更新裁床计划（含配比明细）")
     @PutMapping("/{id}")
-    public R<Void> update(@Parameter(description = "裁床计划ID") @PathVariable Long id, @RequestBody CuttingPlan plan) {
-        plan.setId(id);
-        cuttingService.updateById(plan);
+    public R<Void> update(@Parameter(description = "裁床计划ID") @PathVariable Long id, @RequestBody CreatePlanDTO dto) {
+        dto.getPlan().setId(id);
+        cuttingService.savePlanWithDetails(dto.getPlan(), dto.getDetails());
         return R.ok();
     }
 
@@ -60,10 +65,10 @@ public class CuttingPlanController {
         return R.ok();
     }
 
-    @Operation(summary = "录入实际裁剪数量")
+    @Operation(summary = "录入实际裁剪数量（按颜色尺码明细）")
     @PostMapping("/{id}/input-actual")
-    public R<Void> inputActualQty(@Parameter(description = "裁床计划ID") @PathVariable Long id, @RequestBody InputActualDTO dto) {
-        cuttingService.inputActualQty(id, dto.getActualQty());
+    public R<Void> inputActualQty(@Parameter(description = "裁床计划ID") @PathVariable Long id, @RequestBody List<CuttingPlanDetail> details) {
+        cuttingService.inputActualQty(id, details);
         return R.ok();
     }
 
@@ -79,9 +84,12 @@ public class CuttingPlanController {
         return R.ok(cuttingService.getBundles(id));
     }
 
-    public static class InputActualDTO {
-        private Integer actualQty;
-        public Integer getActualQty() { return actualQty; }
-        public void setActualQty(Integer actualQty) { this.actualQty = actualQty; }
+    public static class CreatePlanDTO {
+        private CuttingPlan plan;
+        private List<CuttingPlanDetail> details;
+        public CuttingPlan getPlan() { return plan; }
+        public void setPlan(CuttingPlan plan) { this.plan = plan; }
+        public List<CuttingPlanDetail> getDetails() { return details; }
+        public void setDetails(List<CuttingPlanDetail> details) { this.details = details; }
     }
 }

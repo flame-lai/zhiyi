@@ -11,9 +11,10 @@
         <result property="styleId" column="style_id"/>
         <result property="styleCode" column="style_code"/>
         <result property="styleName" column="style_name"/>
-        <result property="color" column="color"/>
-        <result property="size" column="size"/>
+        <result property="fabric" column="fabric"/>
+        <result property="part" column="part"/>
         <result property="bedNo" column="bed_no"/>
+        <result property="layers" column="layers"/>
         <result property="planQty" column="plan_qty"/>
         <result property="actualQty" column="actual_qty"/>
         <result property="qtyPerBundle" column="qty_per_bundle"/>
@@ -34,9 +35,10 @@
             o.style_id,
             s.style_code,
             s.style_name,
-            cp.color,
-            cp.size,
+            cp.fabric,
+            cp.part,
             cp.bed_no,
+            cp.layers,
             cp.plan_qty,
             cp.actual_qty,
             cp.qty_per_bundle,
@@ -56,11 +58,8 @@
         <if test="styleCode != null and styleCode != ''">
             AND s.style_code LIKE CONCAT('%', #{styleCode}, '%')
         </if>
-        <if test="color != null and color != ''">
-            AND cp.color = #{color}
-        </if>
-        <if test="size != null and size != ''">
-            AND cp.size = #{size}
+        <if test="status != null">
+            AND cp.status = #{status}
         </if>
         ORDER BY cp.created_at DESC
     </select>
@@ -75,9 +74,10 @@
             o.style_id,
             s.style_code,
             s.style_name,
-            cp.color,
-            cp.size,
+            cp.fabric,
+            cp.part,
             cp.bed_no,
+            cp.layers,
             cp.plan_qty,
             cp.actual_qty,
             cp.qty_per_bundle,

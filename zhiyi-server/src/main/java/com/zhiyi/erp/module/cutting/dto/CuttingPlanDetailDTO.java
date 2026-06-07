@@ -13,15 +13,16 @@ public class CuttingPlanDetailDTO {
     private Long styleId;
     private String styleCode;
     private String styleName;
-    private String color;
-    private String size;
-    private Integer bedNo;
-    private Integer planQty;
-    private Integer actualQty;
-    private Integer qtyPerBundle;
-    private Integer bundleCount;
-    private LocalDate cuttingDate;
-    private String barcode;
-    private Integer status;
+    private String fabric;          // 裁剪面料
+    private String part;            // 裁剪部位
+    private Integer bedNo;          // 床次
+    private Integer layers;         // 铺料层数
+    private Integer planQty;        // 总计划数
+    private Integer actualQty;      // 总实际数
+    private Integer qtyPerBundle;   // 每扎件数
+    private Integer bundleCount;    // 总扎数
+    private LocalDate cuttingDate;  // 裁床日期
+    private String barcode;         // 裁床条形码ID
+    private Integer status;         // 状态
     private LocalDateTime createdAt;
 }

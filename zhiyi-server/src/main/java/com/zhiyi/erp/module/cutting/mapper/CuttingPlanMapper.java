@@ -20,8 +20,7 @@ public interface CuttingPlanMapper extends BaseMapper<CuttingPlan> {
             @Param("factoryId") Long factoryId,
             @Param("orderNo") String orderNo,
             @Param("styleCode") String styleCode,
-            @Param("color") String color,
-            @Param("size") String size
+            @Param("status") Integer status
     );
 
     /**
