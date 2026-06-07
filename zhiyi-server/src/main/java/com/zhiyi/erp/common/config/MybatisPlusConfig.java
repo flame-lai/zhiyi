@@ -34,7 +34,7 @@ public class MybatisPlusConfig {
             public boolean ignoreTable(String tableName) {
                 // 这些表不做租户过滤
                 return "factory".equals(tableName) || "menu".equals(tableName) || "role_menu".equals(tableName)
-                        || "style_process".equals(tableName) || "style_material".equals(tableName)
+                        || "style_process".equals(tableName) || "style_material".equals(tableName) || "style_part".equals(tableName)
                         || "order_item".equals(tableName) || "order_process".equals(tableName) || "order_material".equals(tableName)
                         || "order_color_size".equals(tableName)
                         || "cutting_plan_detail".equals(tableName);
