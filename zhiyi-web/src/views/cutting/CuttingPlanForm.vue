@@ -1,49 +1,69 @@
 <template>
-  <div>
+  <div class="cutting-plan-form">
     <a-card :title="isEdit ? '编辑裁床计划' : '新增裁床计划'">
-      <a-form :model="formData" :label-col="{ span: 6 }" :wrapper-col="{ span: 14 }">
-        <!-- 基本信息 -->
-        <a-divider orientation="left">基本信息</a-divider>
-        <a-form-item label="订单" required>
-          <a-select
-            v-model:value="formData.orderId"
-            placeholder="选择订单"
-            show-search
-            :filter-option="filterOrderOption"
-            @change="onOrderChange"
-            :disabled="isEdit"
-          >
-            <a-select-option v-for="order in orderList" :key="order.id" :value="order.id">
-              {{ order.orderNo }} - {{ order.styleCode }} ({{ order.customerName }})
-            </a-select-option>
-          </a-select>
-        </a-form-item>
-        <a-form-item label="裁剪面料" required>
-          <a-select v-model:value="formData.fabric" placeholder="选择面料">
-            <a-select-option v-for="m in materialList" :key="m.materialName" :value="m.materialName">
-              {{ m.materialName }}
-            </a-select-option>
-          </a-select>
-        </a-form-item>
-        <a-form-item label="床次" required>
-          <a-input-number v-model:value="formData.bedNo" :min="1" :precision="0" style="width: 100%" placeholder="床次" />
-        </a-form-item>
-        <a-form-item label="铺料层数" required>
-          <a-input-number v-model:value="formData.layers" :min="1" :precision="0" style="width: 100%" placeholder="层数" />
-        </a-form-item>
-        <a-form-item label="每扎件数" required>
-          <a-input-number v-model:value="formData.qtyPerBundle" :min="1" :precision="0" style="width: 100%" placeholder="每扎件数" />
-        </a-form-item>
-        <a-form-item label="裁床日期">
-          <a-date-picker v-model:value="formData.cuttingDate" style="width: 100%" format="YYYY-MM-DD" value-format="YYYY-MM-DD" />
-        </a-form-item>
+      <!-- 基本信息 - 紧凑布局 -->
+      <div class="basic-info">
+        <a-row :gutter="16">
+          <a-col :span="8">
+            <div class="field-item">
+              <label>订单 <span class="required">*</span></label>
+              <a-select
+                v-model:value="formData.orderId"
+                placeholder="选择订单"
+                show-search
+                :filter-option="filterOrderOption"
+                @change="onOrderChange"
+                :disabled="isEdit"
+                size="small"
+              >
+                <a-select-option v-for="order in orderList" :key="order.id" :value="order.id">
+                  {{ order.orderNo }} - {{ order.styleCode }}
+                </a-select-option>
+              </a-select>
+            </div>
+          </a-col>
+          <a-col :span="4">
+            <div class="field-item">
+              <label>面料 <span class="required">*</span></label>
+              <a-select v-model:value="formData.fabric" placeholder="选择面料" size="small">
+                <a-select-option v-for="m in materialList" :key="m.materialName" :value="m.materialName">
+                  {{ m.materialName }}
+                </a-select-option>
+              </a-select>
+            </div>
+          </a-col>
+          <a-col :span="3">
+            <div class="field-item">
+              <label>床次 <span class="required">*</span></label>
+              <a-input-number v-model:value="formData.bedNo" :min="1" :precision="0" size="small" style="width: 100%" />
+            </div>
+          </a-col>
+          <a-col :span="3">
+            <div class="field-item">
+              <label>层数 <span class="required">*</span></label>
+              <a-input-number v-model:value="formData.layers" :min="1" :precision="0" size="small" style="width: 100%" />
+            </div>
+          </a-col>
+          <a-col :span="3">
+            <div class="field-item">
+              <label>每扎件数 <span class="required">*</span></label>
+              <a-input-number v-model:value="formData.qtyPerBundle" :min="1" :precision="0" size="small" style="width: 100%" />
+            </div>
+          </a-col>
+          <a-col :span="3">
+            <div class="field-item">
+              <label>裁床日期</label>
+              <a-date-picker v-model:value="formData.cuttingDate" size="small" style="width: 100%" format="YYYY-MM-DD" value-format="YYYY-MM-DD" />
+            </div>
+          </a-col>
+        </a-row>
+      </div>
 
-        <!-- 配比矩阵 -->
-        <a-divider orientation="left">配比明细（部位 × 颜色 × 尺码）</a-divider>
-        <div style="margin-bottom: 16px;">
-          <a-button type="dashed" @click="addDetailRow" style="width: 100%">
-            + 添加配比行
-          </a-button>
+      <!-- 配比明细表格 -->
+      <div class="detail-section">
+        <div class="detail-header">
+          <span class="detail-title">配比明细</span>
+          <a-button type="dashed" size="small" @click="addDetailRow">+ 添加配比</a-button>
         </div>
         <a-table
           :columns="detailColumns"
@@ -51,6 +71,7 @@
           :pagination="false"
           size="small"
           bordered
+          :scroll="{ y: 400 }"
         >
           <template #bodyCell="{ column, record, index }">
             <template v-if="column.dataIndex === 'part'">
@@ -72,32 +93,28 @@
               <a-input-number v-model:value="record.ratio" :min="1" size="small" style="width: 100%" />
             </template>
             <template v-if="column.dataIndex === 'planQty'">
-              <span>{{ (formData.layers || 0) * (record.ratio || 0) }}</span>
+              <span class="plan-qty">{{ (formData.layers || 0) * (record.ratio || 0) }}</span>
             </template>
             <template v-if="column.dataIndex === 'action'">
               <a-popconfirm title="确定删除？" @confirm="removeDetailRow(index)">
-                <a style="color: #ff4d4f">删除</a>
+                <a style="color: #ff4d4f; font-size: 12px;">删除</a>
               </a-popconfirm>
             </template>
           </template>
         </a-table>
+      </div>
 
-        <!-- 汇总信息 -->
-        <div style="margin-top: 16px; padding: 16px; background: #f5f5f5; border-radius: 4px;">
-          <a-row :gutter="16">
-            <a-col :span="8">
-              <div style="color: #666;">总计划数</div>
-              <div style="font-size: 20px; font-weight: bold;">{{ totalPlanQty }}</div>
-            </a-col>
-            <a-col :span="8">
-              <div style="color: #666;">配比行数</div>
-              <div style="font-size: 20px; font-weight: bold;">{{ formData.details.length }}</div>
-            </a-col>
-          </a-row>
+      <!-- 底部操作栏 -->
+      <div class="footer-bar">
+        <div class="footer-left">
+          <span class="total-label">总计划数：</span>
+          <span class="total-value">{{ totalPlanQty }}</span>
+          <span class="total-unit">件</span>
+          <span class="total-separator">|</span>
+          <span class="total-label">配比行数：</span>
+          <span class="total-value">{{ formData.details.length }}</span>
         </div>
-
-        <!-- 操作按钮 -->
-        <div style="margin-top: 24px; text-align: center;">
+        <div class="footer-right">
           <a-space>
             <a-button @click="handleBack">取消</a-button>
             <a-button type="primary" @click="handleSubmit" :loading="submitLoading">
@@ -105,7 +122,7 @@
             </a-button>
           </a-space>
         </div>
-      </a-form>
+      </div>
     </a-card>
   </div>
 </template>
@@ -146,8 +163,8 @@ const detailColumns = [
   { title: '部位', dataIndex: 'part', width: 120 },
   { title: '颜色', dataIndex: 'color', width: 120 },
   { title: '尺码', dataIndex: 'size', width: 100 },
-  { title: '配比', dataIndex: 'ratio', width: 80 },
-  { title: '计划数', dataIndex: 'planQty', width: 80 },
+  { title: '配比', dataIndex: 'ratio', width: 80, align: 'center' },
+  { title: '计划数', dataIndex: 'planQty', width: 80, align: 'center' },
   { title: '操作', dataIndex: 'action', width: 60, align: 'center' },
 ]
 
@@ -201,7 +218,6 @@ async function loadEditData() {
     formData.cuttingDate = plan.cuttingDate
     formData.details = detailsRes.data || []
 
-    // 加载颜色尺码
     if (plan.orderId) {
       const res = await orderApi.getColorSizes(plan.orderId)
       colorSizeList.value = res.data || []
@@ -290,3 +306,91 @@ onMounted(async () => {
   }
 })
 </script>
+
+<style scoped>
+.cutting-plan-form {
+  height: 100%;
+}
+
+/* 基本信息区域 */
+.basic-info {
+  background: #fafafa;
+  padding: 12px 16px;
+  border-radius: 4px;
+  margin-bottom: 16px;
+}
+
+.field-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.field-item label {
+  font-size: 12px;
+  color: #666;
+  white-space: nowrap;
+}
+
+.required {
+  color: #ff4d4f;
+}
+
+/* 配比明细区域 */
+.detail-section {
+  margin-bottom: 16px;
+}
+
+.detail-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.detail-title {
+  font-weight: 500;
+  font-size: 14px;
+}
+
+.plan-qty {
+  font-weight: 500;
+  color: #4A6FA5;
+}
+
+/* 底部操作栏 */
+.footer-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 0;
+  border-top: 1px solid #f0f0f0;
+}
+
+.footer-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.total-label {
+  font-size: 13px;
+  color: #666;
+}
+
+.total-value {
+  font-size: 18px;
+  font-weight: 600;
+  color: #4A6FA5;
+}
+
+.total-unit {
+  font-size: 13px;
+  color: #666;
+}
+
+.total-separator {
+  color: #e8e8e8;
+  margin: 0 4px;
+}
+</style>
