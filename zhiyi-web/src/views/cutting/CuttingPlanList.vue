@@ -121,7 +121,15 @@
         row-key="id"
         :pagination="false"
         bordered
-      />
+      >
+        <template #bodyCell="{ column, record }">
+          <template v-if="column.dataIndex === 'status'">
+            <a-tag :color="record.status === 1 ? 'success' : 'processing'">
+              {{ record.status === 1 ? '已完成' : '生产中' }}
+            </a-tag>
+          </template>
+        </template>
+      </a-table>
     </a-modal>
   </div>
 </template>
