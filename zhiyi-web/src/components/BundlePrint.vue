@@ -71,7 +71,8 @@
                 <div class="code-text">订单码</div>
               </div>
               <div class="code-item">
-                <svg :id="'barcode-bundle-' + bundle.id"></svg>
+                <img v-if="qrCodeUrls[bundle.id]" :src="qrCodeUrls[bundle.id]" class="qr-code-img" />
+                <svg v-else :id="'barcode-bundle-' + bundle.id"></svg>
                 <div class="code-text">扎号码</div>
               </div>
             </div>
@@ -112,6 +113,7 @@ const emit = defineEmits<{
 
 const visible = ref(props.visible)
 const selectedBundles = ref<number[]>([])
+const qrCodeUrls = ref<Record<number, string>>({})
 
 watch(() => props.visible, (val) => {
   visible.value = val
@@ -125,49 +127,42 @@ watch(visible, (val) => {
   emit('update:visible', val)
 })
 
-function generateAllBarcodes() {
-  props.bundles.forEach(bundle => {
-    // 生成订单条形码
-    const barcodeEl = document.getElementById(`barcode-order-${bundle.id}`)
-    if (barcodeEl) {
-      try {
-        JsBarcode(barcodeEl, props.orderBarcode, {
-          format: 'CODE128',
-          width: 1.5,
-          height: 30,
-          displayValue: false,
-          margin: 2,
-        })
-      } catch (e) {
-        console.error('生成订单条形码失败:', e)
-      }
+async function generateAllBarcodes() {
+  // 生成二维码data URL
+  const urls: Record<number, string> = {}
+  for (const bundle of props.bundles) {
+    try {
+      const dataUrl = await QRCode.toDataURL(bundle.globalBundleNo || 'UNKNOWN', {
+        width: 80,
+        margin: 1,
+        errorCorrectionLevel: 'M'
+      })
+      urls[bundle.id] = dataUrl
+    } catch (e) {
+      console.error('生成二维码失败:', e)
     }
-
-    // 生成扎号二维码 - 用canvas转图片
-    generateQRCode(bundle)
-  })
-}
-
-async function generateQRCode(bundle: BundleData) {
-  try {
-    const canvas = document.createElement('canvas')
-    await QRCode.toCanvas(canvas, bundle.globalBundleNo, {
-      width: 60,
-      margin: 2,
-    })
-    // 转成图片
-    const img = document.createElement('img')
-    img.src = canvas.toDataURL('image/png')
-    img.style.width = '60px'
-    img.style.height = '60px'
-    const container = document.getElementById(`barcode-bundle-${bundle.id}`)
-    if (container) {
-      container.innerHTML = ''
-      container.appendChild(img)
-    }
-  } catch (e) {
-    console.error('生成扎号二维码失败:', e)
   }
+  qrCodeUrls.value = urls
+
+  // 生成条形码
+  nextTick(() => {
+    props.bundles.forEach(bundle => {
+      const barcodeEl = document.getElementById(`barcode-order-${bundle.id}`)
+      if (barcodeEl) {
+        try {
+          JsBarcode(barcodeEl, props.orderBarcode, {
+            format: 'CODE128',
+            width: 1.5,
+            height: 30,
+            displayValue: false,
+            margin: 2,
+          })
+        } catch (e) {
+          console.error('生成订单条形码失败:', e)
+        }
+      }
+    })
+  })
 }
 
 function toggleSelect(id: number) {
@@ -483,6 +478,11 @@ function handleClose() {
 .code-item svg,
 .code-item img {
   max-width: 120px;
+}
+
+.qr-code-img {
+  width: 60px;
+  height: 60px;
 }
 
 .code-text {
