@@ -235,6 +235,16 @@ function handleUserMenu({ key }: { key: string }) {
   min-height: 100vh;
 }
 
+/* 左侧菜单固定 */
+:deep(.ant-layout-sider) {
+  position: fixed;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  z-index: 100;
+  overflow: auto;
+}
+
 .logo {
   height: 64px;
   display: flex;
@@ -244,8 +254,23 @@ function handleUserMenu({ key }: { key: string }) {
   font-weight: 700;
   color: #4A6FA5;
   border-bottom: 1px solid #e8e8e8;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: #fff;
 }
 
+/* 右侧内容区域 */
+:deep(.ant-layout) {
+  margin-left: 220px;
+  transition: margin-left 0.2s;
+}
+
+:deep(.ant-layout-sider-collapsed) + :deep(.ant-layout) {
+  margin-left: 80px;
+}
+
+/* 顶部固定 */
 .header {
   background: #fff;
   padding: 0 24px;
@@ -254,6 +279,10 @@ function handleUserMenu({ key }: { key: string }) {
   justify-content: space-between;
   border-bottom: 1px solid #e8e8e8;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.05);
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  height: 64px;
 }
 
 .header-left {
@@ -305,6 +334,7 @@ function handleUserMenu({ key }: { key: string }) {
   color: #4A6FA5;
 }
 
+/* 标签栏固定 */
 .tab-bar {
   background: #fff;
   border-bottom: 1px solid #e8e8e8;
@@ -312,6 +342,9 @@ function handleUserMenu({ key }: { key: string }) {
   height: 40px;
   display: flex;
   align-items: center;
+  position: sticky;
+  top: 64px;
+  z-index: 40;
 }
 
 .tab-list {
@@ -365,6 +398,7 @@ function handleUserMenu({ key }: { key: string }) {
   background: rgba(255, 77, 79, 0.1);
 }
 
+/* 内容区域可滚动 */
 .content {
   margin: 16px;
   padding: 16px;
