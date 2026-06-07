@@ -60,7 +60,14 @@
                 <a style="color: #ff4d4f">删除</a>
               </a-popconfirm>
               <a @click="openActualQtyModal(record)">录入实际数</a>
-              <a @click="handleOpenBundle(record)" :disabled="record.status >= 2">开菲</a>
+              <a
+                v-if="record.status < 2"
+                @click="handleOpenBundle(record)"
+              >开菲</a>
+              <a
+                v-else
+                style="color: #ccc; cursor: not-allowed;"
+              >已开菲</a>
               <a @click="openBundleModal(record)">查看扎号</a>
             </a-space>
           </template>
