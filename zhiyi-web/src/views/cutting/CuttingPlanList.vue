@@ -55,8 +55,9 @@
           </template>
           <template v-if="column.dataIndex === 'action'">
             <a-space>
-              <a @click="handleEdit(record)">编辑</a>
-              <a-popconfirm title="确定删除？" @confirm="handleDelete(record.id)">
+              <a v-if="record.status < 2" @click="handleEdit(record)">编辑</a>
+              <a v-else @click="handleEdit(record)">查看</a>
+              <a-popconfirm v-if="record.status < 2" title="确定删除？" @confirm="handleDelete(record.id)">
                 <a style="color: #ff4d4f">删除</a>
               </a-popconfirm>
               <a @click="openActualQtyModal(record)">录入实际数</a>

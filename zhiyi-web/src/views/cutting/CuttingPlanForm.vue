@@ -3,10 +3,10 @@
     <a-card>
       <template #title>
         <div style="display: flex; justify-content: space-between; align-items: center;">
-          <span>{{ isEdit ? '编辑裁床计划' : '新增裁床计划' }}</span>
+          <span>{{ readonly ? '裁床计划详情' : isEdit ? '编辑裁床计划' : '新增裁床计划' }}</span>
           <a-space>
-            <a-button @click="handleBack">取消</a-button>
-            <a-button type="primary" @click="handleSubmit" :loading="submitLoading">
+            <a-button @click="handleBack">{{ readonly ? '返回' : '取消' }}</a-button>
+            <a-button v-if="!readonly" type="primary" @click="handleSubmit" :loading="submitLoading">
               {{ isEdit ? '保存修改' : '创建计划' }}
             </a-button>
           </a-space>
@@ -24,7 +24,7 @@
                 show-search
                 :filter-option="filterOrderOption"
                 @change="onOrderChange"
-                :disabled="isEdit"
+                :disabled="isEdit || readonly"
                 size="small"
               >
                 <a-select-option v-for="order in orderList" :key="order.id" :value="order.id">
@@ -36,7 +36,7 @@
           <a-col :span="4">
             <div class="field-item">
               <label>面料 <span class="required">*</span></label>
-              <a-select v-model:value="formData.fabric" placeholder="选择面料" size="small">
+              <a-select v-model:value="formData.fabric" placeholder="选择面料" size="small" :disabled="readonly">
                 <a-select-option v-for="f in fabricList" :key="f" :value="f">
                   {{ f }}
                 </a-select-option>
@@ -46,25 +46,25 @@
           <a-col :span="3">
             <div class="field-item">
               <label>床次 <span class="required">*</span></label>
-              <a-input-number v-model:value="formData.bedNo" :min="1" :precision="0" size="small" style="width: 100%" />
+              <a-input-number v-model:value="formData.bedNo" :min="1" :precision="0" size="small" style="width: 100%" :disabled="readonly" />
             </div>
           </a-col>
           <a-col :span="3">
             <div class="field-item">
               <label>层数 <span class="required">*</span></label>
-              <a-input-number v-model:value="formData.layers" :min="1" :precision="0" size="small" style="width: 100%" />
+              <a-input-number v-model:value="formData.layers" :min="1" :precision="0" size="small" style="width: 100%" :disabled="readonly" />
             </div>
           </a-col>
           <a-col :span="3">
             <div class="field-item">
               <label>每扎件数 <span class="required">*</span></label>
-              <a-input-number v-model:value="formData.qtyPerBundle" :min="1" :precision="0" size="small" style="width: 100%" />
+              <a-input-number v-model:value="formData.qtyPerBundle" :min="1" :precision="0" size="small" style="width: 100%" :disabled="readonly" />
             </div>
           </a-col>
           <a-col :span="3">
             <div class="field-item">
               <label>裁床日期</label>
-              <a-date-picker v-model:value="formData.cuttingDate" size="small" style="width: 100%" format="YYYY-MM-DD" value-format="YYYY-MM-DD" />
+              <a-date-picker v-model:value="formData.cuttingDate" size="small" style="width: 100%" format="YYYY-MM-DD" value-format="YYYY-MM-DD" :disabled="readonly" />
             </div>
           </a-col>
         </a-row>
@@ -74,7 +74,7 @@
       <div class="detail-section">
         <div class="detail-header">
           <span class="detail-title">配比明细</span>
-          <a-button type="dashed" size="small" @click="addDetailRow">+ 添加配比</a-button>
+          <a-button v-if="!readonly" type="dashed" size="small" @click="addDetailRow">+ 添加配比</a-button>
         </div>
         <a-table
           :columns="detailColumns"
@@ -86,17 +86,17 @@
         >
           <template #bodyCell="{ column, record, index }">
             <template v-if="column.dataIndex === 'part'">
-              <a-select v-model:value="record.part" placeholder="部位" size="small" style="width: 100%" show-search allow-custom-input>
+              <a-select v-model:value="record.part" placeholder="部位" size="small" style="width: 100%" show-search allow-custom-input :disabled="readonly">
                 <a-select-option v-for="p in filteredStyleParts" :key="p.partName" :value="p.partName">{{ p.partName }}</a-select-option>
               </a-select>
             </template>
             <template v-if="column.dataIndex === 'color'">
-              <a-select v-model:value="record.color" placeholder="颜色" size="small" style="width: 100%">
+              <a-select v-model:value="record.color" placeholder="颜色" size="small" style="width: 100%" :disabled="readonly">
                 <a-select-option v-for="color in colorList" :key="color" :value="color">{{ color }}</a-select-option>
               </a-select>
             </template>
             <template v-if="column.dataIndex === 'size'">
-              <a-select v-model:value="record.size" placeholder="尺码" size="small" style="width: 100%">
+              <a-select v-model:value="record.size" placeholder="尺码" size="small" style="width: 100%" :disabled="readonly">
                 <a-select-option v-for="size in sizeList" :key="size" :value="size">{{ size }}</a-select-option>
               </a-select>
             </template>
@@ -110,13 +110,13 @@
               <span style="color: #ff4d4f;">{{ getProgress(record.part, record.color, record.size).remaining }}</span>
             </template>
             <template v-if="column.dataIndex === 'ratio'">
-              <a-input-number v-model:value="record.ratio" :min="1" size="small" style="width: 100%" />
+              <a-input-number v-model:value="record.ratio" :min="1" size="small" style="width: 100%" :disabled="readonly" />
             </template>
             <template v-if="column.dataIndex === 'planQty'">
               <span class="plan-qty">{{ (formData.layers || 0) * (record.ratio || 0) }}</span>
             </template>
             <template v-if="column.dataIndex === 'action'">
-              <a style="color: #ff4d4f; font-size: 12px; cursor: pointer;" @click="removeDetailRow(index)">删除</a>
+              <a v-if="!readonly" style="color: #ff4d4f; font-size: 12px; cursor: pointer;" @click="removeDetailRow(index)">删除</a>
             </template>
           </template>
         </a-table>
@@ -147,6 +147,8 @@ const route = useRoute()
 const router = useRouter()
 const isEdit = computed(() => !!route.params.id)
 const planId = computed(() => route.params.id ? Number(route.params.id) : null)
+const planStatus = ref(0)
+const readonly = computed(() => planStatus.value >= 2)
 
 // 基础数据
 const orderList = ref<any[]>([])
@@ -238,6 +240,7 @@ async function loadEditData() {
       cuttingPlanApi.getDetails(planId.value),
     ])
     const plan = planRes.data
+    planStatus.value = plan.status || 0
     formData.orderId = plan.orderId
     formData.fabric = plan.fabric
     formData.bedNo = plan.bedNo
