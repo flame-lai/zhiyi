@@ -279,7 +279,7 @@ async function fetchAllProcesses() {
 async function fetchAllMaterials() {
   try {
     const res: any = await materialApi.list({ page: 1, size: 9999 })
-    allMaterials.value = res.data?.records || []
+    allMaterials.value = (res.data?.records || []).filter((m: any) => m.type === 1)
   } catch {
     // handled by interceptor
   }
