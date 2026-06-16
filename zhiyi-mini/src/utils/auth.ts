@@ -1,7 +1,7 @@
 import Taro from '@tarojs/taro'
-import { clearAuth as clearAuthRequest, getToken, getMenus, getPermissions } from './request'
+import { clearAuth as clearAuthRequest, getToken, getMenus, getPermissions, getUserInfo } from './request'
 
-export { getToken, getMenus, getPermissions }
+export { getToken, getMenus, getPermissions, getUserInfo }
 
 export function isLoggedIn(): boolean {
   return !!getToken()
