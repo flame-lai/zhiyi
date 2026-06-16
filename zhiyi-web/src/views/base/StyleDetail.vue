@@ -116,17 +116,7 @@
         >
           <template #bodyCell="{ column, record, index }">
             <template v-if="column.key === 'partName'">
-              <a-select
-                v-model:value="record.partName"
-                placeholder="选择或输入部位"
-                style="width: 100%"
-                show-search
-                allow-custom-input
-              >
-                <a-select-option v-for="p in allParts" :key="p.name" :value="p.name">
-                  {{ p.name }}
-                </a-select-option>
-              </a-select>
+              <a-input v-model:value="record.partName" placeholder="输入部位名称" />
             </template>
             <template v-else-if="column.key === 'fabric'">
               <a-select v-model:value="record.fabric" placeholder="选择面料" style="width: 100%">
@@ -136,7 +126,7 @@
               </a-select>
             </template>
             <template v-else-if="column.key === 'qtyPerPiece'">
-              <a-input-number v-model:value="record.qtyPerPiece" :min="0" :precision="2" style="width: 100%" />
+              <a-input-number v-model:value="record.qtyPerPiece" :min="0" :precision="0" style="width: 100%" />
             </template>
             <template v-else-if="column.key === 'remark'">
               <a-input v-model:value="record.remark" placeholder="备注" />
@@ -158,7 +148,7 @@
 import { ref, reactive, onMounted, onActivated } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { message } from 'ant-design-vue'
-import { styleApi, processApi, materialApi, partApi } from '../../api/base'
+import { styleApi, processApi, materialApi } from '../../api/base'
 
 const router = useRouter()
 const route = useRoute()
@@ -187,7 +177,6 @@ const allMaterials = ref<any[]>([])
 // 裁剪部位
 const savingParts = ref(false)
 const partList = ref<any[]>([])
-const allParts = ref<any[]>([])
 
 const processColumns = [
   { title: '工序', key: 'processId', width: 200 },
@@ -294,15 +283,6 @@ async function fetchParts() {
     }))
   } catch {
     partList.value = []
-  }
-}
-
-async function fetchAllParts() {
-  try {
-    const res: any = await partApi.list({ page: 1, size: 9999 })
-    allParts.value = res.data?.records || []
-  } catch {
-    // handled by interceptor
   }
 }
 
@@ -417,13 +397,11 @@ onMounted(() => {
   fetchParts()
   fetchAllProcesses()
   fetchAllMaterials()
-  fetchAllParts()
 })
 
 // 页面被 keep-alive 缓存后，再次进入时刷新下拉数据
 onActivated(() => {
   fetchAllProcesses()
   fetchAllMaterials()
-  fetchAllParts()
 })
 </script>

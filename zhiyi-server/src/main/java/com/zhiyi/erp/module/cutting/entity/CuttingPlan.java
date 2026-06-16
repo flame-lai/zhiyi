@@ -13,12 +13,10 @@ public class CuttingPlan {
     private Long factoryId;
     private Long orderId;
     private String fabric;          // 裁剪面料
-    private String part;            // 裁剪部位，默认"全套"
     private Integer bedNo;          // 床次
     private Integer layers;         // 铺料层数
     private Integer planQty;        // 总计划数（各明细plan_qty之和）
     private Integer actualQty;      // 总实际数（各明细actual_qty之和）
-    private Integer qtyPerBundle;   // 每扎件数
     private Integer bundleCount;    // 总扎数
     private LocalDate cuttingDate;  // 裁床日期
     private String barcode;         // 裁床条形码ID，如CUT202606050001

@@ -8,7 +8,7 @@ export const cuttingPlanApi = {
   create: (data: any) => request.post('/cutting/plans', data),
   update: (id: number, data: any) => request.put(`/cutting/plans/${id}`, data),
   delete: (id: number) => request.delete(`/cutting/plans/${id}`),
-  inputActualQty: (id: number, details: any[]) => request.post(`/cutting/plans/${id}/input-actual`, details),
+  inputActualQty: (id: number, data: { details: any[], cuttingDate?: string }) => request.post(`/cutting/plans/${id}/input-actual`, data),
   openBundle: (id: number) => request.post(`/cutting/plans/${id}/open-bundle`),
   getBundles: (id: number) => request.get(`/cutting/plans/${id}/bundles`),
   getBundleDetails: (id: number) => request.get(`/cutting/plans/${id}/bundle-details`),
@@ -19,5 +19,6 @@ export const cuttingPlanApi = {
 export const bundleApi = {
   list: (params: any) => request.get('/cutting/bundles', { params }),
   getById: (id: number) => request.get(`/cutting/bundles/${id}`),
+  getWorkDetails: (id: number) => request.get(`/cutting/bundles/${id}/work-details`),
   getByOrderId: (orderId: number) => request.get(`/cutting/bundles/by-order/${orderId}`),
 }

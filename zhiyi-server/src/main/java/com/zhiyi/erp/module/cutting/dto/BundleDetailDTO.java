@@ -20,8 +20,8 @@ public class BundleDetailDTO {
     private Integer bedNo;
     private String bundleNo;
     private String globalBundleNo;
-    private Integer qty;
-    private Integer status;
+    private Integer qty;            // 成衣件数
+    private Integer cuttingPieces;  // 裁片片数
     private Integer completedProcesses;
     private Integer totalProcesses;
     private LocalDateTime createdAt;

@@ -235,22 +235,70 @@ CREATE TABLE `shipment` (
 CREATE TABLE `cutting_plan` (
   `id` BIGINT NOT NULL AUTO_INCREMENT,
   `factory_id` BIGINT NOT NULL,
-  `order_item_id` BIGINT NOT NULL,
+  `order_id` BIGINT NOT NULL,
+  `fabric` VARCHAR(100) COMMENT '裁剪面料',
   `bed_no` INT NOT NULL COMMENT '床次',
-  `plan_qty` INT COMMENT '计划件数',
-  `actual_qty` INT COMMENT '实际件数',
-  `qty_per_bundle` INT COMMENT '每扎件数',
-  `bundle_count` INT COMMENT '扎数',
+  `layers` INT COMMENT '铺料层数',
+  `plan_qty` INT COMMENT '总计划件数',
+  `actual_qty` INT COMMENT '总实际件数',
+  `bundle_count` INT COMMENT '总扎数',
   `cutting_date` DATE COMMENT '裁床日期',
-  `barcode` VARCHAR(100) COMMENT '裁床条形码内容',
+  `barcode` VARCHAR(100) COMMENT '订单条形码内容',
   `status` TINYINT DEFAULT 0 COMMENT '0待裁剪 1已裁剪 2已开菲',
   `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
   `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `deleted` TINYINT DEFAULT 0,
   PRIMARY KEY (`id`),
   KEY `idx_factory_id` (`factory_id`),
-  KEY `idx_order_item_id` (`order_item_id`)
+  KEY `idx_order_id` (`order_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='裁床计划';
+
+-- 裁床计划配比明细
+CREATE TABLE `cutting_plan_detail` (
+  `id` BIGINT NOT NULL AUTO_INCREMENT,
+  `cutting_plan_id` BIGINT NOT NULL,
+  `part` VARCHAR(200) COMMENT '部位',
+  `color` VARCHAR(50) COMMENT '颜色',
+  `size` VARCHAR(20) COMMENT '尺码',
+  `qty_per_bundle` INT COMMENT '每扎件数',
+  `ratio` INT COMMENT '配比',
+  `plan_qty` INT COMMENT '计划成衣件数',
+  `plan_pieces` INT COMMENT '计划裁片片数',
+  `actual_qty` INT COMMENT '实际成衣件数',
+  `actual_pieces` INT COMMENT '实际裁片片数',
+  `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_cutting_plan_id` (`cutting_plan_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='裁床计划配比明细';
+
+-- 款号裁剪部位配置
+CREATE TABLE `style_part` (
+  `id` BIGINT NOT NULL AUTO_INCREMENT,
+  `style_id` BIGINT NOT NULL,
+  `part_name` VARCHAR(100) NOT NULL COMMENT '部位名称',
+  `fabric` VARCHAR(100) COMMENT '面料',
+  `qty_per_piece` INT COMMENT '单件裁片数',
+  `remark` VARCHAR(200) COMMENT '备注',
+  `sort` INT DEFAULT 0 COMMENT '排序号',
+  `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_style_id` (`style_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='款号裁剪部位配置';
+
+-- 订单颜色尺码明细
+CREATE TABLE `order_color_size` (
+  `id` BIGINT NOT NULL AUTO_INCREMENT,
+  `order_id` BIGINT NOT NULL,
+  `color` VARCHAR(50) COMMENT '颜色',
+  `size` VARCHAR(20) COMMENT '尺码',
+  `qty` INT COMMENT '数量',
+  `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_order_id` (`order_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='订单颜色尺码明细';
 
 -- 扎号表
 CREATE TABLE `bundle` (
@@ -258,17 +306,22 @@ CREATE TABLE `bundle` (
   `factory_id` BIGINT NOT NULL,
   `cutting_plan_id` BIGINT NOT NULL,
   `order_id` BIGINT NOT NULL,
-  `order_item_id` BIGINT NOT NULL,
+  `color` VARCHAR(50) COMMENT '颜色',
+  `size` VARCHAR(20) COMMENT '尺码',
+  `fabric` VARCHAR(100) COMMENT '面料',
+  `part` VARCHAR(200) COMMENT '部位',
   `bundle_no` VARCHAR(20) NOT NULL COMMENT '扎号',
   `global_bundle_no` VARCHAR(100) NOT NULL COMMENT '全局唯一标识',
-  `qty` INT NOT NULL COMMENT '件数',
-  `status` TINYINT DEFAULT 0 COMMENT '0生产中 1已完成',
+  `qty` INT NOT NULL COMMENT '成衣件数',
+  `cutting_pieces` INT COMMENT '裁片片数',
+  `cutting_date` DATE COMMENT '裁床日期',
   `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
   `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_global_no` (`global_bundle_no`),
   KEY `idx_factory_id` (`factory_id`),
-  KEY `idx_order_id` (`order_id`)
+  KEY `idx_order_id` (`order_id`),
+  KEY `idx_cutting_plan_id` (`cutting_plan_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='扎号表';
 
 -- 报工记录
@@ -396,19 +449,6 @@ CREATE TABLE `operation_log` (
   PRIMARY KEY (`id`),
   KEY `idx_factory_id` (`factory_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='操作日志';
-
--- 部位表
-CREATE TABLE `part` (
-  `id` BIGINT NOT NULL AUTO_INCREMENT,
-  `factory_id` BIGINT NOT NULL,
-  `name` VARCHAR(50) NOT NULL COMMENT '部位名称',
-  `sort` INT DEFAULT 0 COMMENT '排序号',
-  `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
-  `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  `deleted` TINYINT DEFAULT 0,
-  PRIMARY KEY (`id`),
-  KEY `idx_factory_id` (`factory_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='部位表';
 
 -- 初始数据：默认工厂
 INSERT INTO `factory` (`name`, `code`, `status`) VALUES ('默认工厂', 'DEFAULT', 1);

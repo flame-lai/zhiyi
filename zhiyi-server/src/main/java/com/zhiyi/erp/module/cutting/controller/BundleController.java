@@ -3,6 +3,7 @@ package com.zhiyi.erp.module.cutting.controller;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.zhiyi.erp.common.result.R;
 import com.zhiyi.erp.module.cutting.dto.BundleDetailDTO;
+import com.zhiyi.erp.module.cutting.dto.BundleWorkDetailDTO;
 import com.zhiyi.erp.module.cutting.entity.Bundle;
 import com.zhiyi.erp.module.cutting.service.CuttingService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -24,18 +25,24 @@ public class BundleController {
     public R<Page<BundleDetailDTO>> list(
             @Parameter(description = "页码") @RequestParam(defaultValue = "1") Integer page,
             @Parameter(description = "每页条数") @RequestParam(defaultValue = "10") Integer size,
+            @Parameter(description = "扎号") @RequestParam(required = false) String bundleNo,
             @Parameter(description = "订单号") @RequestParam(required = false) String orderNo,
             @Parameter(description = "款号") @RequestParam(required = false) String styleCode,
             @Parameter(description = "颜色") @RequestParam(required = false) String color,
-            @Parameter(description = "尺码") @RequestParam(required = false) String size2,
-            @Parameter(description = "状态") @RequestParam(required = false) Integer status) {
-        return R.ok(cuttingService.pageBundles(new Page<>(page, size), orderNo, styleCode, color, size2, status));
+            @Parameter(description = "尺码") @RequestParam(required = false) String size2) {
+        return R.ok(cuttingService.pageBundles(new Page<>(page, size), bundleNo, orderNo, styleCode, color, size2));
     }
 
     @Operation(summary = "根据ID查询扎号详情")
     @GetMapping("/{id}")
     public R<BundleDetailDTO> getById(@Parameter(description = "扎号ID") @PathVariable Long id) {
         return R.ok(cuttingService.getBundleDetailById(id));
+    }
+
+    @Operation(summary = "查询扎号的工序完成明细")
+    @GetMapping("/{id}/work-details")
+    public R<List<BundleWorkDetailDTO>> getWorkDetails(@Parameter(description = "扎号ID") @PathVariable Long id) {
+        return R.ok(cuttingService.getBundleWorkDetails(id));
     }
 
     @Operation(summary = "根据订单ID查询扎号列表")

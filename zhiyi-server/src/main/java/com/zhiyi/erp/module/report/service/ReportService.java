@@ -39,7 +39,6 @@ public class ReportService extends ServiceImpl<WorkReportMapper, WorkReport> {
     public Map<String, Object> reportByBundle(Long employeeId, Long bundleId, List<Long> processIds) {
         Bundle bundle = bundleMapper.selectById(bundleId);
         if (bundle == null) throw new BizException("扎号不存在");
-        if (bundle.getStatus() == 1) throw new BizException("该扎已全部完成");
 
         List<OrderProcess> orderProcesses = orderProcessMapper.selectList(
                 new LambdaQueryWrapper<OrderProcess>().eq(OrderProcess::getOrderId, bundle.getOrderId()));
@@ -78,9 +77,6 @@ public class ReportService extends ServiceImpl<WorkReportMapper, WorkReport> {
             totalAmount = totalAmount.add(report.getAmount());
             totalQty += bundle.getQty();
         }
-
-        // 检查是否所有工序完成
-        checkBundleComplete(bundleId, bundle.getOrderId());
 
         Map<String, Object> result = new HashMap<>();
         result.put("qty", totalQty);
@@ -143,24 +139,6 @@ public class ReportService extends ServiceImpl<WorkReportMapper, WorkReport> {
         result.put("qty", totalQty);
         result.put("amount", totalAmount);
         return result;
-    }
-
-    private void checkBundleComplete(Long bundleId, Long orderId) {
-        List<OrderProcess> orderProcesses = orderProcessMapper.selectList(
-                new LambdaQueryWrapper<OrderProcess>().eq(OrderProcess::getOrderId, orderId));
-        List<WorkReport> reports = list(new LambdaQueryWrapper<WorkReport>()
-                .eq(WorkReport::getBundleId, bundleId)
-                .eq(WorkReport::getStatus, 1));
-
-        boolean allComplete = orderProcesses.stream()
-                .allMatch(op -> reports.stream()
-                        .anyMatch(r -> r.getProcessId().equals(op.getProcessId())));
-
-        Bundle bundle = bundleMapper.selectById(bundleId);
-        if (allComplete && bundle.getStatus() != 1) {
-            bundle.setStatus(1);
-            bundleMapper.updateById(bundle);
-        }
     }
 
     public List<Map<String, Object>> getEmployeeWageSummary(Long employeeId, String yearMonth) {

@@ -5,18 +5,28 @@ import cn.hutool.crypto.digest.BCrypt;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.zhiyi.erp.common.exception.BizException;
 import com.zhiyi.erp.common.tenant.TenantContext;
+import com.zhiyi.erp.module.admin.entity.AnomalyAlert;
+import com.zhiyi.erp.module.admin.entity.TimedWage;
+import com.zhiyi.erp.module.admin.mapper.AnomalyAlertMapper;
+import com.zhiyi.erp.module.admin.mapper.TimedWageMapper;
+import com.zhiyi.erp.module.admin.service.AnomalyService;
+import com.zhiyi.erp.module.base.entity.Customer;
 import com.zhiyi.erp.module.base.entity.Process;
 import com.zhiyi.erp.module.base.entity.Style;
+import com.zhiyi.erp.module.base.mapper.CustomerMapper;
 import com.zhiyi.erp.module.base.mapper.ProcessMapper;
 import com.zhiyi.erp.module.base.mapper.StyleMapper;
 import com.zhiyi.erp.module.cutting.entity.Bundle;
 import com.zhiyi.erp.module.cutting.entity.CuttingPlan;
 import com.zhiyi.erp.module.cutting.mapper.BundleMapper;
 import com.zhiyi.erp.module.cutting.mapper.CuttingPlanMapper;
+import com.zhiyi.erp.module.mobile.dto.TimedWageRequest;
 import com.zhiyi.erp.module.mobile.dto.ReportSubmitRequest;
 import com.zhiyi.erp.module.mobile.vo.*;
 import com.zhiyi.erp.module.order.entity.Order;
+import com.zhiyi.erp.module.order.entity.OrderItem;
 import com.zhiyi.erp.module.order.entity.OrderProcess;
+import com.zhiyi.erp.module.order.mapper.OrderItemMapper;
 import com.zhiyi.erp.module.order.mapper.OrderMapper;
 import com.zhiyi.erp.module.order.mapper.OrderProcessMapper;
 import com.zhiyi.erp.module.report.entity.WorkReport;
@@ -70,6 +80,21 @@ public class MobileService {
 
     @Autowired
     private WorkReportMapper workReportMapper;
+
+    @Autowired
+    private AnomalyAlertMapper anomalyAlertMapper;
+
+    @Autowired
+    private AnomalyService anomalyService;
+
+    @Autowired
+    private TimedWageMapper timedWageMapper;
+
+    @Autowired
+    private CustomerMapper customerMapper;
+
+    @Autowired
+    private OrderItemMapper orderItemMapper;
 
     // ========== Auth methods (from Task 1) ==========
 
@@ -644,6 +669,417 @@ public class MobileService {
             Process process = processMapper.selectById(r.getProcessId());
             vo.setProcessName(process != null ? process.getName() : null);
         }
+
+        return vo;
+    }
+
+    // ========== Admin methods (Task 4) ==========
+
+    public List<DashboardOrderVO> getDashboardOrders(String date, Long orderId) {
+        Long factoryId = TenantContext.get();
+
+        // Load bundles, optionally filtered by orderId
+        LambdaQueryWrapper<Bundle> bundleWrapper = new LambdaQueryWrapper<Bundle>()
+                .eq(Bundle::getFactoryId, factoryId);
+        if (orderId != null) {
+            bundleWrapper.eq(Bundle::getOrderId, orderId);
+        }
+        List<Bundle> bundles = bundleMapper.selectList(bundleWrapper);
+
+        // Group bundles by orderId
+        Map<Long, List<Bundle>> bundlesByOrder = bundles.stream()
+                .filter(b -> b.getOrderId() != null)
+                .collect(Collectors.groupingBy(Bundle::getOrderId));
+
+        List<DashboardOrderVO> result = new ArrayList<>();
+        for (Map.Entry<Long, List<Bundle>> entry : bundlesByOrder.entrySet()) {
+            Long oid = entry.getKey();
+            List<Bundle> orderBundles = entry.getValue();
+
+            Order order = orderMapper.selectById(oid);
+            if (order == null) continue;
+
+            Style style = order.getStyleId() != null ? styleMapper.selectById(order.getStyleId()) : null;
+
+            // Get order processes
+            List<OrderProcess> orderProcesses = orderProcessMapper.selectList(
+                    new LambdaQueryWrapper<OrderProcess>()
+                            .eq(OrderProcess::getOrderId, oid)
+                            .orderByAsc(OrderProcess::getSort)
+            );
+
+            // Count total bundles for this order
+            int totalBundles = orderBundles.size();
+
+            // Get all work reports for bundles of this order
+            Set<Long> bundleIds = orderBundles.stream().map(Bundle::getId).collect(Collectors.toSet());
+
+            // Build per-process progress
+            List<DashboardOrderVO.ProcessProgress> processProgressList = new ArrayList<>();
+            BigDecimal lowestRate = BigDecimal.ONE;
+            String bottleneckProcess = null;
+
+            for (OrderProcess op : orderProcesses) {
+                // Count bundles that have a work report for this process
+                int completed = 0;
+                if (!bundleIds.isEmpty()) {
+                    Long completedCount = workReportMapper.selectCount(
+                            new LambdaQueryWrapper<WorkReport>()
+                                    .in(WorkReport::getBundleId, bundleIds)
+                                    .eq(WorkReport::getProcessId, op.getProcessId())
+                                    .eq(WorkReport::getStatus, 1)
+                    );
+                    completed = completedCount != null ? completedCount.intValue() : 0;
+                }
+                int total = totalBundles;
+                BigDecimal rate = total > 0
+                        ? BigDecimal.valueOf(completed).divide(BigDecimal.valueOf(total), 4, BigDecimal.ROUND_HALF_UP)
+                        : BigDecimal.ZERO;
+
+                Process proc = processMapper.selectById(op.getProcessId());
+
+                DashboardOrderVO.ProcessProgress pp = new DashboardOrderVO.ProcessProgress();
+                pp.setProcessId(op.getProcessId());
+                pp.setProcessName(proc != null ? proc.getName() : "未知工序");
+                pp.setCompleted(completed);
+                pp.setTotal(total);
+                pp.setRate(rate);
+                processProgressList.add(pp);
+
+                if (rate.compareTo(lowestRate) < 0) {
+                    lowestRate = rate;
+                    bottleneckProcess = proc != null ? proc.getName() : "未知工序";
+                }
+            }
+
+            // Overall completion rate = average of process rates, or 0 if no processes
+            BigDecimal completionRate = BigDecimal.ZERO;
+            if (!processProgressList.isEmpty()) {
+                BigDecimal sum = processProgressList.stream()
+                        .map(DashboardOrderVO.ProcessProgress::getRate)
+                        .reduce(BigDecimal.ZERO, BigDecimal::add);
+                completionRate = sum.divide(BigDecimal.valueOf(processProgressList.size()), 4, BigDecimal.ROUND_HALF_UP);
+            }
+
+            DashboardOrderVO vo = new DashboardOrderVO();
+            vo.setOrderId(oid);
+            vo.setOrderNo(order.getOrderNo());
+            vo.setStyleNo(style != null ? style.getStyleCode() : null);
+            vo.setTotalBundles(totalBundles);
+            vo.setCompletionRate(completionRate);
+            vo.setBottleneckProcess(bottleneckProcess);
+            vo.setProcessProgress(processProgressList);
+            result.add(vo);
+        }
+
+        return result;
+    }
+
+    public List<DashboardWorkerVO> getDashboardWorkers(String date) {
+        Long factoryId = TenantContext.get();
+
+        LambdaQueryWrapper<WorkReport> wrapper = new LambdaQueryWrapper<WorkReport>()
+                .eq(WorkReport::getFactoryId, factoryId)
+                .eq(WorkReport::getStatus, 1)
+                .apply("DATE(report_time) = {0}", date);
+
+        List<WorkReport> reports = workReportMapper.selectList(wrapper);
+
+        // Group by employee
+        Map<Long, List<WorkReport>> byEmployee = reports.stream()
+                .filter(r -> r.getEmployeeId() != null)
+                .collect(Collectors.groupingBy(WorkReport::getEmployeeId, LinkedHashMap::new, Collectors.toList()));
+
+        List<DashboardWorkerVO> result = new ArrayList<>();
+        for (Map.Entry<Long, List<WorkReport>> entry : byEmployee.entrySet()) {
+            Long empId = entry.getKey();
+            List<WorkReport> empReports = entry.getValue();
+
+            Employee emp = employeeMapper.selectById(empId);
+
+            DashboardWorkerVO vo = new DashboardWorkerVO();
+            vo.setEmployeeId(empId);
+            vo.setEmployeeNo(emp != null ? emp.getEmployeeNo() : null);
+            vo.setEmployeeName(emp != null ? emp.getName() : null);
+            vo.setTotalQty(empReports.stream().mapToInt(r -> r.getQty() != null ? r.getQty() : 0).sum());
+            vo.setTotalAmount(empReports.stream()
+                    .map(WorkReport::getAmount)
+                    .filter(Objects::nonNull)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add));
+            result.add(vo);
+        }
+
+        return result;
+    }
+
+    public List<AnomalyVO> getAnomalies(Integer status) {
+        Long factoryId = TenantContext.get();
+
+        LambdaQueryWrapper<AnomalyAlert> wrapper = new LambdaQueryWrapper<AnomalyAlert>()
+                .eq(AnomalyAlert::getFactoryId, factoryId);
+        if (status != null) {
+            wrapper.eq(AnomalyAlert::getStatus, status);
+        }
+        wrapper.orderByDesc(AnomalyAlert::getCreatedAt);
+
+        List<AnomalyAlert> alerts = anomalyAlertMapper.selectList(wrapper);
+
+        return alerts.stream().map(alert -> {
+            AnomalyVO vo = new AnomalyVO();
+            vo.setId(alert.getId());
+            vo.setStatus(alert.getStatus());
+            vo.setHandleType(alert.getHandleType());
+            vo.setHandleRemark(alert.getHandleRemark());
+
+            // Bundle info
+            if (alert.getBundleId() != null) {
+                Bundle bundle = bundleMapper.selectById(alert.getBundleId());
+                vo.setBundleNo(bundle != null ? bundle.getBundleNo() : null);
+            }
+
+            // Order info
+            if (alert.getOrderId() != null) {
+                Order order = orderMapper.selectById(alert.getOrderId());
+                vo.setOrderNo(order != null ? order.getOrderNo() : null);
+            }
+
+            // Process names
+            if (alert.getFrontProcessId() != null) {
+                Process frontProc = processMapper.selectById(alert.getFrontProcessId());
+                vo.setFrontProcessName(frontProc != null ? frontProc.getName() : null);
+            }
+            if (alert.getBackProcessId() != null) {
+                Process backProc = processMapper.selectById(alert.getBackProcessId());
+                vo.setBackProcessName(backProc != null ? backProc.getName() : null);
+            }
+
+            // Reporter info
+            if (alert.getReportEmployeeId() != null) {
+                Employee reporter = employeeMapper.selectById(alert.getReportEmployeeId());
+                vo.setReportEmployeeName(reporter != null ? reporter.getName() : null);
+            }
+
+            // Report time
+            vo.setReportTime(alert.getCreatedAt() != null
+                    ? alert.getCreatedAt().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"))
+                    : null);
+
+            // Description: front process worker != back process worker
+            vo.setDescription("工序报工人员异常：前工序与后工序报工人员不一致");
+
+            return vo;
+        }).collect(Collectors.toList());
+    }
+
+    public void ignoreAnomaly(Long id, String remark) {
+        anomalyService.ignore(id, remark);
+    }
+
+    public void clearAnomaly(Long id, String reason) {
+        anomalyService.clearReport(id, reason);
+    }
+
+    public void supplementAnomaly(Long id, Long employeeId, Integer qty) {
+        anomalyService.supplement(id, employeeId, qty);
+    }
+
+    public List<TimedWageVO> getTimedWages(String yearMonth) {
+        Long factoryId = TenantContext.get();
+
+        LambdaQueryWrapper<TimedWage> wrapper = new LambdaQueryWrapper<TimedWage>()
+                .eq(TimedWage::getFactoryId, factoryId);
+        if (yearMonth != null && !yearMonth.isEmpty()) {
+            wrapper.apply("DATE_FORMAT(work_date, '%Y-%m') = {0}", yearMonth);
+        }
+        wrapper.orderByDesc(TimedWage::getWorkDate);
+
+        List<TimedWage> wages = timedWageMapper.selectList(wrapper);
+
+        return wages.stream().map(w -> {
+            TimedWageVO vo = new TimedWageVO();
+            vo.setId(w.getId());
+            vo.setEmployeeId(w.getEmployeeId());
+            vo.setWorkDate(w.getWorkDate());
+            vo.setHours(w.getHours());
+            vo.setHourlyRate(w.getHourlyRate());
+            vo.setAmount(w.getAmount());
+            vo.setWorkContent(w.getWorkContent());
+
+            if (w.getEmployeeId() != null) {
+                Employee emp = employeeMapper.selectById(w.getEmployeeId());
+                if (emp != null) {
+                    vo.setEmployeeNo(emp.getEmployeeNo());
+                    vo.setEmployeeName(emp.getName());
+                }
+            }
+
+            return vo;
+        }).collect(Collectors.toList());
+    }
+
+    @Transactional
+    public void createTimedWage(TimedWageRequest req) {
+        Long factoryId = TenantContext.get();
+        Long currentUserId = StpUtil.getLoginIdAsLong();
+
+        TimedWage wage = new TimedWage();
+        wage.setFactoryId(factoryId);
+        wage.setEmployeeId(req.getEmployeeId());
+        if (req.getWorkDate() != null && !req.getWorkDate().isEmpty()) {
+            wage.setWorkDate(LocalDate.parse(req.getWorkDate()));
+        } else {
+            wage.setWorkDate(LocalDate.now());
+        }
+        wage.setHours(req.getHours());
+        wage.setHourlyRate(req.getHourlyRate());
+        wage.setAmount(req.getHours().multiply(req.getHourlyRate()));
+        wage.setWorkContent(req.getWorkContent());
+        wage.setCreatedBy(currentUserId);
+        timedWageMapper.insert(wage);
+    }
+
+    @Transactional
+    public void updateTimedWage(Long id, TimedWageRequest req) {
+        TimedWage wage = timedWageMapper.selectById(id);
+        if (wage == null) {
+            throw new BizException("计时工资记录不存在");
+        }
+        wage.setEmployeeId(req.getEmployeeId());
+        if (req.getWorkDate() != null && !req.getWorkDate().isEmpty()) {
+            wage.setWorkDate(LocalDate.parse(req.getWorkDate()));
+        }
+        wage.setHours(req.getHours());
+        wage.setHourlyRate(req.getHourlyRate());
+        wage.setAmount(req.getHours().multiply(req.getHourlyRate()));
+        wage.setWorkContent(req.getWorkContent());
+        timedWageMapper.updateById(wage);
+    }
+
+    @Transactional
+    public void deleteTimedWage(Long id) {
+        timedWageMapper.deleteById(id);
+    }
+
+    public BundleDetailVO searchBundle(String code) {
+        Bundle bundle;
+        String upperCode = code.trim().toUpperCase();
+        if (upperCode.startsWith("BUN")) {
+            bundle = bundleMapper.selectOne(
+                    new LambdaQueryWrapper<Bundle>()
+                            .eq(Bundle::getGlobalBundleNo, code.trim())
+            );
+        } else {
+            bundle = bundleMapper.selectOne(
+                    new LambdaQueryWrapper<Bundle>()
+                            .eq(Bundle::getBundleNo, code.trim())
+            );
+        }
+
+        if (bundle == null) {
+            throw new BizException("扎号不存在：" + code);
+        }
+
+        Order order = bundle.getOrderId() != null ? orderMapper.selectById(bundle.getOrderId()) : null;
+        Style style = (order != null && order.getStyleId() != null) ? styleMapper.selectById(order.getStyleId()) : null;
+
+        BundleDetailVO vo = new BundleDetailVO();
+        vo.setId(bundle.getId());
+        vo.setGlobalBundleNo(bundle.getGlobalBundleNo());
+        vo.setBundleNo(bundle.getBundleNo());
+        vo.setQty(bundle.getQty());
+        vo.setOrderNo(order != null ? order.getOrderNo() : null);
+        vo.setStyleNo(style != null ? style.getStyleCode() : null);
+        vo.setColor(bundle.getColor());
+        vo.setSize(bundle.getSize());
+
+        // Build process status list
+        List<ProcessReportStatusVO> processes = buildProcessStatusList(bundle.getOrderId(), bundle.getId());
+        vo.setProcesses(processes);
+
+        // Determine status: 已完成 if all processes are DONE, else 生产中
+        boolean allDone = !processes.isEmpty() && processes.stream().allMatch(p -> "DONE".equals(p.getStatus()));
+        vo.setStatus(allDone ? "已完成" : "生产中");
+
+        return vo;
+    }
+
+    public OrderSearchVO searchOrder(String orderNo) {
+        Order order = orderMapper.selectOne(
+                new LambdaQueryWrapper<Order>()
+                        .eq(Order::getOrderNo, orderNo)
+        );
+        if (order == null) {
+            throw new BizException("订单不存在：" + orderNo);
+        }
+
+        OrderSearchVO vo = new OrderSearchVO();
+        vo.setId(order.getId());
+        vo.setOrderNo(order.getOrderNo());
+        vo.setTotalAmount(order.getTotalAmount());
+        vo.setDeliveryDate(order.getDeliveryDate());
+        vo.setStatus(order.getStatus());
+
+        // Customer name
+        if (order.getCustomerId() != null) {
+            Customer customer = customerMapper.selectById(order.getCustomerId());
+            vo.setCustomerName(customer != null ? customer.getName() : null);
+        }
+
+        // Order items
+        List<OrderItem> items = orderItemMapper.selectList(
+                new LambdaQueryWrapper<OrderItem>()
+                        .eq(OrderItem::getOrderId, order.getId())
+        );
+
+        // Get all bundles for this order to calculate progress
+        List<Bundle> orderBundles = bundleMapper.selectList(
+                new LambdaQueryWrapper<Bundle>()
+                        .eq(Bundle::getOrderId, order.getId())
+        );
+
+        // Get order processes for completion calculation
+        List<OrderProcess> orderProcesses = orderProcessMapper.selectList(
+                new LambdaQueryWrapper<OrderProcess>()
+                        .eq(OrderProcess::getOrderId, order.getId())
+                        .orderByAsc(OrderProcess::getSort)
+        );
+
+        // Calculate overall completion rate
+        BigDecimal completionRate = BigDecimal.ZERO;
+        if (!orderBundles.isEmpty() && !orderProcesses.isEmpty()) {
+            Set<Long> bundleIds = orderBundles.stream().map(Bundle::getId).collect(Collectors.toSet());
+            int totalExpected = orderBundles.size() * orderProcesses.size();
+            int completedCount = 0;
+            if (!bundleIds.isEmpty()) {
+                Long completedCountLong = workReportMapper.selectCount(
+                        new LambdaQueryWrapper<WorkReport>()
+                                .in(WorkReport::getBundleId, bundleIds)
+                                .eq(WorkReport::getStatus, 1)
+                );
+                completedCount = completedCountLong != null ? completedCountLong.intValue() : 0;
+            }
+            if (totalExpected > 0) {
+                completionRate = BigDecimal.valueOf(completedCount)
+                        .divide(BigDecimal.valueOf(totalExpected), 4, BigDecimal.ROUND_HALF_UP);
+            }
+        }
+        vo.setCompletionRate(completionRate);
+
+        // Build order items
+        List<OrderSearchVO.OrderItemVO> itemVOs = items.stream().map(item -> {
+            OrderSearchVO.OrderItemVO itemVO = new OrderSearchVO.OrderItemVO();
+            if (item.getStyleId() != null) {
+                Style s = styleMapper.selectById(item.getStyleId());
+                itemVO.setStyleNo(s != null ? s.getStyleCode() : null);
+            }
+            itemVO.setColor(item.getColor());
+            itemVO.setSize(item.getSize());
+            itemVO.setQty(item.getQty());
+            itemVO.setShippedQty(0); // No shipment tracking yet
+            itemVO.setProgress(BigDecimal.ZERO);
+            return itemVO;
+        }).collect(Collectors.toList());
+        vo.setItems(itemVOs);
 
         return vo;
     }

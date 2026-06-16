@@ -81,12 +81,6 @@ const routes = [
         component: () => import('../views/base/MaterialList.vue'),
         meta: { title: '物料管理' },
       },
-      {
-        path: 'base/parts',
-        name: 'Parts',
-        component: () => import('../views/base/PartList.vue'),
-        meta: { title: '部位管理' },
-      },
       // 订单管理
       {
         path: 'order/list',
