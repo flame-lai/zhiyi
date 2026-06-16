@@ -6,6 +6,8 @@ import com.zhiyi.erp.module.mobile.dto.ReportSubmitRequest;
 import com.zhiyi.erp.module.mobile.dto.ScanResolveRequest;
 import com.zhiyi.erp.module.mobile.service.MobileService;
 import com.zhiyi.erp.module.mobile.vo.ReportSubmitResultVO;
+import com.zhiyi.erp.module.mobile.vo.WageSummaryVO;
+import com.zhiyi.erp.module.mobile.vo.WorkReportRecordVO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -31,5 +33,21 @@ public class MobileReportController {
     public R<ReportSubmitResultVO> submitReport(@Valid @RequestBody ReportSubmitRequest req) {
         Long employeeId = StpUtil.getSession().getLong("employeeId");
         return R.ok(mobileService.submitReport(employeeId, req));
+    }
+
+    @Operation(summary = "工资汇总")
+    @GetMapping("/wage-summary")
+    public R<WageSummaryVO> getWageSummary() {
+        Long employeeId = StpUtil.getSession().getLong("employeeId");
+        return R.ok(mobileService.getWageSummary(employeeId));
+    }
+
+    @Operation(summary = "报工记录")
+    @GetMapping("/records")
+    public R<java.util.List<WorkReportRecordVO>> getReportRecords(
+            @RequestParam(required = false) String startDate,
+            @RequestParam(required = false) String endDate) {
+        Long employeeId = StpUtil.getSession().getLong("employeeId");
+        return R.ok(mobileService.getReportRecords(employeeId, startDate, endDate));
     }
 }

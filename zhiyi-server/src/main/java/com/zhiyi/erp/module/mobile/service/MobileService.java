@@ -32,6 +32,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
@@ -535,5 +536,115 @@ public class MobileService {
         result.setSkippedItems(skippedItems);
 
         return result;
+    }
+
+    // ========== Wage & Records methods (Task 3) ==========
+
+    public WageSummaryVO getWageSummary(Long employeeId) {
+        String yearMonth = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM"));
+        String today = LocalDate.now().toString();
+
+        List<WorkReport> reports = workReportMapper.selectList(
+                new LambdaQueryWrapper<WorkReport>()
+                        .eq(WorkReport::getEmployeeId, employeeId)
+                        .eq(WorkReport::getStatus, 1)
+                        .apply("DATE_FORMAT(report_time, '%Y-%m') = {0}", yearMonth)
+        );
+
+        BigDecimal todayAmount = BigDecimal.ZERO;
+        BigDecimal monthAmount = BigDecimal.ZERO;
+
+        // Group by date
+        Map<String, List<WorkReport>> grouped = reports.stream()
+                .collect(Collectors.groupingBy(
+                        r -> r.getReportTime().toLocalDate().toString(),
+                        LinkedHashMap::new,
+                        Collectors.toList()
+                ));
+
+        List<WageSummaryVO.DailyGroup> dailyGroups = new ArrayList<>();
+        for (Map.Entry<String, List<WorkReport>> entry : grouped.entrySet()) {
+            String date = entry.getKey();
+            List<WorkReport> dayReports = entry.getValue();
+
+            BigDecimal dayAmount = dayReports.stream()
+                    .map(WorkReport::getAmount)
+                    .filter(Objects::nonNull)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+            if (date.equals(today)) {
+                todayAmount = dayAmount;
+            }
+            monthAmount = monthAmount.add(dayAmount);
+
+            WageSummaryVO.DailyGroup dg = new WageSummaryVO.DailyGroup();
+            dg.setDate(date);
+            dg.setAmount(dayAmount);
+            dg.setRecords(dayReports.stream()
+                    .map(this::buildWorkReportRecordVO)
+                    .collect(Collectors.toList()));
+            dailyGroups.add(dg);
+        }
+
+        // Sort by date descending
+        dailyGroups.sort(Comparator.comparing(WageSummaryVO.DailyGroup::getDate).reversed());
+
+        WageSummaryVO vo = new WageSummaryVO();
+        vo.setTodayAmount(todayAmount);
+        vo.setMonthAmount(monthAmount);
+        vo.setDailyGroups(dailyGroups);
+        return vo;
+    }
+
+    public List<WorkReportRecordVO> getReportRecords(Long employeeId, String startDate, String endDate) {
+        LambdaQueryWrapper<WorkReport> wrapper = new LambdaQueryWrapper<WorkReport>()
+                .eq(WorkReport::getEmployeeId, employeeId)
+                .eq(WorkReport::getStatus, 1);
+
+        if (startDate != null && !startDate.isEmpty()) {
+            wrapper.apply("DATE(report_time) >= {0}", startDate);
+        }
+        if (endDate != null && !endDate.isEmpty()) {
+            wrapper.apply("DATE(report_time) <= {0}", endDate);
+        }
+
+        wrapper.orderByDesc(WorkReport::getReportTime);
+
+        List<WorkReport> reports = workReportMapper.selectList(wrapper);
+        return reports.stream()
+                .map(this::buildWorkReportRecordVO)
+                .collect(Collectors.toList());
+    }
+
+    private WorkReportRecordVO buildWorkReportRecordVO(WorkReport r) {
+        WorkReportRecordVO vo = new WorkReportRecordVO();
+        vo.setId(r.getId());
+        vo.setReportTime(r.getReportTime() != null ? r.getReportTime().toString() : null);
+        vo.setQty(r.getQty());
+        vo.setPrice(r.getPrice());
+        vo.setAmount(r.getAmount());
+
+        if (r.getOrderId() != null) {
+            Order order = orderMapper.selectById(r.getOrderId());
+            if (order != null) {
+                vo.setOrderNo(order.getOrderNo());
+                if (order.getStyleId() != null) {
+                    Style style = styleMapper.selectById(order.getStyleId());
+                    vo.setStyleNo(style != null ? style.getStyleCode() : null);
+                }
+            }
+        }
+
+        if (r.getBundleId() != null) {
+            Bundle bundle = bundleMapper.selectById(r.getBundleId());
+            vo.setBundleNo(bundle != null ? bundle.getBundleNo() : null);
+        }
+
+        if (r.getProcessId() != null) {
+            Process process = processMapper.selectById(r.getProcessId());
+            vo.setProcessName(process != null ? process.getName() : null);
+        }
+
+        return vo;
     }
 }
