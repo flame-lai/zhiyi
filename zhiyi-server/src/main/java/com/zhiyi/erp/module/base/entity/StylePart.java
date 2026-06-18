@@ -2,7 +2,6 @@ package com.zhiyi.erp.module.base.entity;
 
 import com.baomidou.mybatisplus.annotation.*;
 import lombok.Data;
-import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
 @Data
@@ -13,7 +12,7 @@ public class StylePart {
     private Long styleId;
     private String partName;
     private String fabric;
-    private BigDecimal qtyPerPiece;
+    private Integer qtyPerPiece;    // 单件裁片数（整数）
     private String remark;
     private Integer sort;
     @TableField(fill = FieldFill.INSERT)

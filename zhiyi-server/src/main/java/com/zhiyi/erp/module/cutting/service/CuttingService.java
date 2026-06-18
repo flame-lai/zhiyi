@@ -9,6 +9,7 @@ import com.zhiyi.erp.module.base.entity.StylePart;
 import com.zhiyi.erp.module.base.mapper.StyleMapper;
 import com.zhiyi.erp.module.base.service.StylePartService;
 import com.zhiyi.erp.module.cutting.dto.BundleDetailDTO;
+import com.zhiyi.erp.module.cutting.dto.BundleWorkDetailDTO;
 import com.zhiyi.erp.module.cutting.dto.CuttingPlanDetailDTO;
 import com.zhiyi.erp.module.cutting.dto.CuttingProgressDTO;
 import com.zhiyi.erp.module.cutting.entity.Bundle;
@@ -82,10 +83,12 @@ public class CuttingService extends ServiceImpl<CuttingPlanMapper, CuttingPlan> 
 
         plan.setFactoryId(TenantContext.get());
 
-        // 计算总计划数
+        // 计算总计划数（使用每行明细的planQty，如果没有则按层数×配比计算）
         int totalPlanQty = 0;
         for (CuttingPlanDetail detail : details) {
-            detail.setPlanQty(plan.getLayers() * detail.getRatio());
+            if (detail.getPlanQty() == null || detail.getPlanQty() <= 0) {
+                detail.setPlanQty(plan.getLayers() * detail.getRatio());
+            }
             totalPlanQty += detail.getPlanQty();
         }
         plan.setPlanQty(totalPlanQty);
@@ -123,7 +126,7 @@ public class CuttingService extends ServiceImpl<CuttingPlanMapper, CuttingPlan> 
      * 录入实际件数（按颜色尺码明细录入）
      */
     @Transactional
-    public void inputActualQty(Long planId, List<CuttingPlanDetail> details) {
+    public void inputActualQty(Long planId, List<CuttingPlanDetail> details, String cuttingDate) {
         CuttingPlan plan = getById(planId);
         if (plan == null) throw new BizException("裁床计划不存在");
 
@@ -137,11 +140,15 @@ public class CuttingService extends ServiceImpl<CuttingPlanMapper, CuttingPlan> 
         }
 
         plan.setActualQty(totalActualQty);
+        // 更新裁床日期（如果提供了新日期）
+        if (cuttingDate != null && !cuttingDate.isEmpty()) {
+            plan.setCuttingDate(LocalDate.parse(cuttingDate));
+        }
         updateById(plan);
     }
 
     /**
-     * 开菲：按部位+颜色+尺码独立分扎
+     * 开菲：按部位+颜色+尺码独立分扎，一扎多部位时按部位分别生成菲仔
      */
     @Transactional
     public List<Bundle> openBundle(Long planId) {
@@ -157,40 +164,61 @@ public class CuttingService extends ServiceImpl<CuttingPlanMapper, CuttingPlan> 
         boolean hasActual = details.stream().anyMatch(d -> d.getActualQty() != null && d.getActualQty() > 0);
         if (!hasActual) throw new BizException("请先录入实际件数");
 
-        int qtyPerBundle = plan.getQtyPerBundle();
-        int totalBundleCount = 0;
+        int physicalBundleCount = 0;
         List<Bundle> allBundles = new ArrayList<>();
 
-        // 按部位+颜色+尺码独立分扎
+        // 获取款号部位配置（用于计算裁片片数）
+        Order order = orderMapper.selectById(plan.getOrderId());
+        Long styleId = order != null ? order.getStyleId() : null;
+        List<StylePart> styleParts = styleId != null ? stylePartService.getByStyleId(styleId) : new ArrayList<>();
+
+        // 按配比明细独立分扎，一扎多部位时按部位分别生成菲仔
         for (CuttingPlanDetail detail : details) {
             if (detail.getActualQty() == null || detail.getActualQty() <= 0) continue;
 
+            int qtyPerBundle = detail.getQtyPerBundle() != null ? detail.getQtyPerBundle() : detail.getActualQty();
             int actualQty = detail.getActualQty();
-            int bundleCount = (int) Math.ceil((double) actualQty / qtyPerBundle);
 
-            for (int i = 1; i <= bundleCount; i++) {
-                int qty = (i < bundleCount) ? qtyPerBundle : (actualQty - (bundleCount - 1) * qtyPerBundle);
-                totalBundleCount++;
+            // 解析部位列表
+            String[] partNames = detail.getPart() != null ? detail.getPart().split(",") : new String[]{""};
 
-                Bundle bundle = new Bundle();
-                bundle.setFactoryId(TenantContext.get());
-                bundle.setCuttingPlanId(planId);
-                bundle.setOrderId(plan.getOrderId());
-                bundle.setPart(detail.getPart());      // 从明细获取部位
-                bundle.setColor(detail.getColor());
-                bundle.setSize(detail.getSize());
-                bundle.setFabric(plan.getFabric());
-                bundle.setBundleNo(plan.getBedNo() + "-" + String.format("%03d", totalBundleCount));
-                bundle.setGlobalBundleNo(generateBundleBarcode());
-                bundle.setQty(qty);
-                bundle.setStatus(0);
-                bundleMapper.insert(bundle);
-                allBundles.add(bundle);
+            // 先计算物理扎数（同色同码的扎数，不含部位拆分）
+            int physicalZhaCount = (int) Math.ceil((double) actualQty / qtyPerBundle);
+
+            // 为每个部位分别生成 bundle 记录
+            for (String partName : partNames) {
+                String trimmedPart = partName.trim();
+                int piecesPerPart = calcPiecesForSinglePart(trimmedPart, styleParts);
+
+                for (int i = 1; i <= physicalZhaCount; i++) {
+                    int qty = (i < physicalZhaCount) ? qtyPerBundle : (actualQty - (physicalZhaCount - 1) * qtyPerBundle);
+
+                    // 物理扎号只在第一个部位时递增
+                    if (partNames.length > 0 && partName.equals(partNames[0])) {
+                        physicalBundleCount++;
+                    }
+
+                    Bundle bundle = new Bundle();
+                    bundle.setFactoryId(TenantContext.get());
+                    bundle.setCuttingPlanId(planId);
+                    bundle.setOrderId(plan.getOrderId());
+                    bundle.setPart(trimmedPart);          // 单个部位
+                    bundle.setColor(detail.getColor());
+                    bundle.setSize(detail.getSize());
+                    bundle.setFabric(plan.getFabric());
+                    bundle.setBundleNo(plan.getBedNo() + "-" + String.format("%03d", physicalBundleCount));
+                    bundle.setGlobalBundleNo(generateBundleBarcode());  // 每条独立，用于二维码
+                    bundle.setQty(qty);
+                    bundle.setCuttingPieces(qty * piecesPerPart);  // 按部位单独计算裁片片数
+                    bundle.setCuttingDate(plan.getCuttingDate() != null ? plan.getCuttingDate() : LocalDate.now());
+                    bundleMapper.insert(bundle);
+                    allBundles.add(bundle);
+                }
             }
         }
 
-        // 更新裁床计划状态
-        plan.setBundleCount(totalBundleCount);
+        // 更新裁床计划状态，bundleCount 为物理扎数
+        plan.setBundleCount(physicalBundleCount);
         plan.setStatus(2);
         updateById(plan);
 
@@ -228,6 +256,10 @@ public class CuttingService extends ServiceImpl<CuttingPlanMapper, CuttingPlan> 
         String styleCode = style != null ? style.getStyleCode() : "";
         String styleName = style != null ? style.getStyleName() : "";
 
+        // 获取裁床计划信息（获取床次）
+        CuttingPlan cuttingPlan = cuttingPlanMapper.selectById(cuttingPlanId);
+        Integer bedNo = cuttingPlan != null ? cuttingPlan.getBedNo() : null;
+
         // 转换为BundleDetailDTO
         List<BundleDetailDTO> result = new ArrayList<>();
         for (Bundle bundle : bundles) {
@@ -244,25 +276,35 @@ public class CuttingService extends ServiceImpl<CuttingPlanMapper, CuttingPlan> 
             dto.setSize(bundle.getSize());
             dto.setFabric(bundle.getFabric());
             dto.setPart(bundle.getPart());
+            dto.setBedNo(bedNo);
             dto.setBundleNo(bundle.getBundleNo());
             dto.setGlobalBundleNo(bundle.getGlobalBundleNo());
             dto.setQty(bundle.getQty());
-            dto.setStatus(bundle.getStatus());
+            dto.setCuttingPieces(bundle.getCuttingPieces());
             dto.setCreatedAt(bundle.getCreatedAt());
             result.add(dto);
         }
         return result;
     }
 
-    public Page<BundleDetailDTO> pageBundles(Page<BundleDetailDTO> page, String orderNo, String styleCode, String color, String size, Integer status) {
+    public Page<BundleDetailDTO> pageBundles(Page<BundleDetailDTO> page, String bundleNo, String orderNo, String styleCode, String color, String size) {
         List<BundleDetailDTO> records = bundleMapper.selectBundleDetailsPage(
-                page, TenantContext.get(), orderNo, styleCode, color, size, status);
+                page, TenantContext.get(), bundleNo, orderNo, styleCode, color, size);
         page.setRecords(records);
         return page;
     }
 
     public BundleDetailDTO getBundleDetailById(Long id) {
         return bundleMapper.selectBundleDetailById(id);
+    }
+
+    /**
+     * 查询扎号的工序完成明细
+     */
+    public List<BundleWorkDetailDTO> getBundleWorkDetails(Long bundleId) {
+        Bundle bundle = bundleMapper.selectById(bundleId);
+        if (bundle == null) return new ArrayList<>();
+        return bundleMapper.selectBundleWorkDetails(bundleId, bundle.getOrderId());
     }
 
     public List<Bundle> getBundlesByOrderId(Long orderId) {
@@ -377,5 +419,37 @@ public class CuttingService extends ServiceImpl<CuttingPlanMapper, CuttingPlan> 
             }
         }
         return String.format("%s%05d", prefix, nextSeq);
+    }
+
+    /**
+     * 计算单个部位的单件裁片数
+     */
+    private int calcPiecesForSinglePart(String partName, List<StylePart> styleParts) {
+        if (partName == null || partName.isEmpty() || styleParts.isEmpty()) return 0;
+        for (StylePart sp : styleParts) {
+            if (partName.equals(sp.getPartName()) && sp.getQtyPerPiece() != null) {
+                return sp.getQtyPerPiece().intValue();
+            }
+        }
+        return 0;
+    }
+
+    /**
+     * 计算单件裁片数（根据部位名称汇总款号部位配置的单件用量）
+     */
+    private int calcPiecesPerGarment(String partStr, List<StylePart> styleParts) {
+        if (partStr == null || partStr.isEmpty() || styleParts.isEmpty()) return 0;
+        String[] parts = partStr.split(",");
+        int total = 0;
+        for (String partName : parts) {
+            String trimmed = partName.trim();
+            for (StylePart sp : styleParts) {
+                if (trimmed.equals(sp.getPartName()) && sp.getQtyPerPiece() != null) {
+                    total += sp.getQtyPerPiece().intValue();
+                    break;
+                }
+            }
+        }
+        return total;
     }
 }

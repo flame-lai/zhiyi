@@ -12,12 +12,10 @@
         <result property="styleCode" column="style_code"/>
         <result property="styleName" column="style_name"/>
         <result property="fabric" column="fabric"/>
-        <result property="part" column="part"/>
         <result property="bedNo" column="bed_no"/>
         <result property="layers" column="layers"/>
         <result property="planQty" column="plan_qty"/>
         <result property="actualQty" column="actual_qty"/>
-        <result property="qtyPerBundle" column="qty_per_bundle"/>
         <result property="bundleCount" column="bundle_count"/>
         <result property="cuttingDate" column="cutting_date"/>
         <result property="barcode" column="barcode"/>
@@ -36,12 +34,10 @@
             s.style_code,
             s.style_name,
             cp.fabric,
-            cp.part,
             cp.bed_no,
             cp.layers,
             cp.plan_qty,
             cp.actual_qty,
-            cp.qty_per_bundle,
             cp.bundle_count,
             cp.cutting_date,
             cp.barcode,
@@ -75,12 +71,10 @@
             s.style_code,
             s.style_name,
             cp.fabric,
-            cp.part,
             cp.bed_no,
             cp.layers,
             cp.plan_qty,
             cp.actual_qty,
-            cp.qty_per_bundle,
             cp.bundle_count,
             cp.cutting_date,
             cp.barcode,

@@ -69,8 +69,8 @@ public class CuttingPlanController {
 
     @Operation(summary = "录入实际裁剪数量（按颜色尺码明细）")
     @PostMapping("/{id}/input-actual")
-    public R<Void> inputActualQty(@Parameter(description = "裁床计划ID") @PathVariable Long id, @RequestBody List<CuttingPlanDetail> details) {
-        cuttingService.inputActualQty(id, details);
+    public R<Void> inputActualQty(@Parameter(description = "裁床计划ID") @PathVariable Long id, @RequestBody InputActualQtyDTO dto) {
+        cuttingService.inputActualQty(id, dto.getDetails(), dto.getCuttingDate());
         return R.ok();
     }
 
@@ -107,5 +107,14 @@ public class CuttingPlanController {
         public void setPlan(CuttingPlan plan) { this.plan = plan; }
         public List<CuttingPlanDetail> getDetails() { return details; }
         public void setDetails(List<CuttingPlanDetail> details) { this.details = details; }
+    }
+
+    public static class InputActualQtyDTO {
+        private List<CuttingPlanDetail> details;
+        private String cuttingDate;
+        public List<CuttingPlanDetail> getDetails() { return details; }
+        public void setDetails(List<CuttingPlanDetail> details) { this.details = details; }
+        public String getCuttingDate() { return cuttingDate; }
+        public void setCuttingDate(String cuttingDate) { this.cuttingDate = cuttingDate; }
     }
 }

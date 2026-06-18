@@ -61,6 +61,7 @@ CREATE TABLE `menu` (
   `component` VARCHAR(200) COMMENT '前端组件路径',
   `icon` VARCHAR(50) COMMENT '图标',
   `type` TINYINT COMMENT '1目录 2菜单 3按钮',
+  `platform` VARCHAR(20) DEFAULT 'web' COMMENT '所属平台 web/mobile',
   `permission` VARCHAR(100) COMMENT '权限标识',
   `sort` INT DEFAULT 0,
   `status` TINYINT DEFAULT 1,
@@ -235,22 +236,70 @@ CREATE TABLE `shipment` (
 CREATE TABLE `cutting_plan` (
   `id` BIGINT NOT NULL AUTO_INCREMENT,
   `factory_id` BIGINT NOT NULL,
-  `order_item_id` BIGINT NOT NULL,
+  `order_id` BIGINT NOT NULL,
+  `fabric` VARCHAR(100) COMMENT '裁剪面料',
   `bed_no` INT NOT NULL COMMENT '床次',
-  `plan_qty` INT COMMENT '计划件数',
-  `actual_qty` INT COMMENT '实际件数',
-  `qty_per_bundle` INT COMMENT '每扎件数',
-  `bundle_count` INT COMMENT '扎数',
+  `layers` INT COMMENT '铺料层数',
+  `plan_qty` INT COMMENT '总计划件数',
+  `actual_qty` INT COMMENT '总实际件数',
+  `bundle_count` INT COMMENT '总扎数',
   `cutting_date` DATE COMMENT '裁床日期',
-  `barcode` VARCHAR(100) COMMENT '裁床条形码内容',
+  `barcode` VARCHAR(100) COMMENT '订单条形码内容',
   `status` TINYINT DEFAULT 0 COMMENT '0待裁剪 1已裁剪 2已开菲',
   `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
   `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   `deleted` TINYINT DEFAULT 0,
   PRIMARY KEY (`id`),
   KEY `idx_factory_id` (`factory_id`),
-  KEY `idx_order_item_id` (`order_item_id`)
+  KEY `idx_order_id` (`order_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='裁床计划';
+
+-- 裁床计划配比明细
+CREATE TABLE `cutting_plan_detail` (
+  `id` BIGINT NOT NULL AUTO_INCREMENT,
+  `cutting_plan_id` BIGINT NOT NULL,
+  `part` VARCHAR(200) COMMENT '部位',
+  `color` VARCHAR(50) COMMENT '颜色',
+  `size` VARCHAR(20) COMMENT '尺码',
+  `qty_per_bundle` INT COMMENT '每扎件数',
+  `ratio` INT COMMENT '配比',
+  `plan_qty` INT COMMENT '计划成衣件数',
+  `plan_pieces` INT COMMENT '计划裁片片数',
+  `actual_qty` INT COMMENT '实际成衣件数',
+  `actual_pieces` INT COMMENT '实际裁片片数',
+  `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_cutting_plan_id` (`cutting_plan_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='裁床计划配比明细';
+
+-- 款号裁剪部位配置
+CREATE TABLE `style_part` (
+  `id` BIGINT NOT NULL AUTO_INCREMENT,
+  `style_id` BIGINT NOT NULL,
+  `part_name` VARCHAR(100) NOT NULL COMMENT '部位名称',
+  `fabric` VARCHAR(100) COMMENT '面料',
+  `qty_per_piece` INT COMMENT '单件裁片数',
+  `remark` VARCHAR(200) COMMENT '备注',
+  `sort` INT DEFAULT 0 COMMENT '排序号',
+  `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_style_id` (`style_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='款号裁剪部位配置';
+
+-- 订单颜色尺码明细
+CREATE TABLE `order_color_size` (
+  `id` BIGINT NOT NULL AUTO_INCREMENT,
+  `order_id` BIGINT NOT NULL,
+  `color` VARCHAR(50) COMMENT '颜色',
+  `size` VARCHAR(20) COMMENT '尺码',
+  `qty` INT COMMENT '数量',
+  `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  KEY `idx_order_id` (`order_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='订单颜色尺码明细';
 
 -- 扎号表
 CREATE TABLE `bundle` (
@@ -258,17 +307,22 @@ CREATE TABLE `bundle` (
   `factory_id` BIGINT NOT NULL,
   `cutting_plan_id` BIGINT NOT NULL,
   `order_id` BIGINT NOT NULL,
-  `order_item_id` BIGINT NOT NULL,
+  `color` VARCHAR(50) COMMENT '颜色',
+  `size` VARCHAR(20) COMMENT '尺码',
+  `fabric` VARCHAR(100) COMMENT '面料',
+  `part` VARCHAR(200) COMMENT '部位',
   `bundle_no` VARCHAR(20) NOT NULL COMMENT '扎号',
   `global_bundle_no` VARCHAR(100) NOT NULL COMMENT '全局唯一标识',
-  `qty` INT NOT NULL COMMENT '件数',
-  `status` TINYINT DEFAULT 0 COMMENT '0生产中 1已完成',
+  `qty` INT NOT NULL COMMENT '成衣件数',
+  `cutting_pieces` INT COMMENT '裁片片数',
+  `cutting_date` DATE COMMENT '裁床日期',
   `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
   `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_global_no` (`global_bundle_no`),
   KEY `idx_factory_id` (`factory_id`),
-  KEY `idx_order_id` (`order_id`)
+  KEY `idx_order_id` (`order_id`),
+  KEY `idx_cutting_plan_id` (`cutting_plan_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='扎号表';
 
 -- 报工记录
@@ -397,19 +451,6 @@ CREATE TABLE `operation_log` (
   KEY `idx_factory_id` (`factory_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='操作日志';
 
--- 部位表
-CREATE TABLE `part` (
-  `id` BIGINT NOT NULL AUTO_INCREMENT,
-  `factory_id` BIGINT NOT NULL,
-  `name` VARCHAR(50) NOT NULL COMMENT '部位名称',
-  `sort` INT DEFAULT 0 COMMENT '排序号',
-  `created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,
-  `updated_at` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  `deleted` TINYINT DEFAULT 0,
-  PRIMARY KEY (`id`),
-  KEY `idx_factory_id` (`factory_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='部位表';
-
 -- 初始数据：默认工厂
 INSERT INTO `factory` (`name`, `code`, `status`) VALUES ('默认工厂', 'DEFAULT', 1);
 
@@ -419,3 +460,27 @@ INSERT INTO `role` (`factory_id`, `name`, `code`, `sort`, `status`) VALUES (1, '
 -- 初始数据：默认超级管理员（密码: admin123 BCrypt加密）
 INSERT INTO `employee` (`factory_id`, `employee_no`, `name`, `role_id`, `login_account`, `login_password`, `login_code`, `status`)
 VALUES (1, 'A001', '管理员', 1, 'admin', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iKTVKIUi', 'ADMIN001', 1);
+
+-- 初始数据：移动端菜单（platform='mobile'）
+-- 员工端菜单
+INSERT INTO `menu` (`parent_id`, `name`, `code`, `path`, `icon`, `type`, `platform`, `permission`, `sort`, `status`) VALUES
+(0, '扫码报工', 'mobile:scan',       '/pages/scan/index',           'scan',       2, 'mobile', 'mobile:scan',               10, 1),
+(0, '我的工资', 'mobile:wage',       '/pages/wage/index',           'wage',       2, 'mobile', 'mobile:wage',               20, 1),
+(0, '报工记录', 'mobile:report-records','/pages/report-records/index','records',   2, 'mobile', 'mobile:report-records',     30, 1);
+
+-- 管理员端菜单（code 以 mobile:admin 开头，用于后端区分 admin 分组）
+INSERT INTO `menu` (`parent_id`, `name`, `code`, `path`, `icon`, `type`, `platform`, `permission`, `sort`, `status`) VALUES
+(0, '生产看板', 'mobile:admin:dashboard',  '/pages/admin/dashboard/index',     'dashboard',  2, 'mobile', 'mobile:dashboard',         110, 1),
+(0, '异常预警', 'mobile:admin:anomaly',    '/pages/admin/anomaly/index',       'anomaly',    2, 'mobile', 'mobile:anomaly',           120, 1),
+(0, '计时录入', 'mobile:admin:timed-wage', '/pages/admin/timed-wage/index',    'timed-wage', 2, 'mobile', 'mobile:timed-wage',        130, 1),
+(0, '扎号查询', 'mobile:admin:bundle-query','/pages/admin/bundle-query/index', 'bundle',     2, 'mobile', 'mobile:bundle-query',      140, 1),
+(0, '订单查询', 'mobile:admin:order-query','/pages/admin/order-query/index',   'order',      2, 'mobile', 'mobile:order-query',       150, 1);
+
+-- 管理员端操作权限（按钮类，type=3）
+INSERT INTO `menu` (`parent_id`, `name`, `code`, `path`, `icon`, `type`, `platform`, `permission`, `sort`, `status`) VALUES
+(0, '清除报工', 'mobile:admin:report-clear',      '', '', 3, 'mobile', 'mobile:report-clear',      210, 1),
+(0, '补录报工', 'mobile:admin:report-supplement', '', '', 3, 'mobile', 'mobile:report-supplement', 220, 1);
+
+-- 为超级管理员角色（id=1）绑定所有移动端菜单
+INSERT INTO `role_menu` (`role_id`, `menu_id`)
+SELECT 1, `id` FROM `menu` WHERE `platform` = 'mobile';

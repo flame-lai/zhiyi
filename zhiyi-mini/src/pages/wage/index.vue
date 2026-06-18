@@ -1,91 +1,65 @@
 <template>
   <View class="wage-page">
+    <!-- Header with gradient -->
     <View class="wage-header">
-      <Text class="wage-month">{{ currentMonth }}</Text>
-    </View>
-
-    <View class="summary-cards" v-if="summary">
-      <View class="summary-card">
-        <Text class="summary-label">今日工资</Text>
-        <Text class="summary-value">{{ formatMoney(summary.todayWage) }}</Text>
-      </View>
-      <View class="summary-card">
-        <Text class="summary-label">本月计件工资</Text>
-        <Text class="summary-value">{{ formatMoney(summary.pieceWage) }}</Text>
-      </View>
-      <View class="summary-card">
-        <Text class="summary-label">本月计时工资</Text>
-        <Text class="summary-value">{{ formatMoney(summary.timeWage) }}</Text>
-      </View>
-      <View class="summary-card total">
-        <Text class="summary-label">本月总计</Text>
-        <Text class="summary-value total-value">{{ formatMoney(summary.totalWage) }}</Text>
+      <View class="summary-row">
+        <View class="summary-item">
+          <Text class="summary-label">今日已赚</Text>
+          <Text class="summary-value">{{ formatAmount(summary?.todayAmount ?? 0) }}</Text>
+        </View>
+        <View class="summary-divider" />
+        <View class="summary-item">
+          <Text class="summary-label">本月累计</Text>
+          <Text class="summary-value">{{ formatAmount(summary?.monthAmount ?? 0) }}</Text>
+        </View>
       </View>
     </View>
 
-    <View class="loading-tip" v-if="loading">
+    <!-- Loading -->
+    <View class="loading-wrap" v-if="loading">
       <Text class="loading-text">加载中...</Text>
     </View>
 
-    <View class="detail-section" v-if="details.length > 0">
-      <Text class="section-title">工资明细</Text>
-      <ScrollView scroll-y class="detail-list">
-        <View class="detail-row" v-for="(item, index) in details" :key="index">
-          <View class="detail-left">
-            <Text class="detail-date">{{ item.date }}</Text>
-            <Text class="detail-type">{{ item.type === 'piece' ? '计件' : '计时' }}</Text>
+    <!-- Empty state -->
+    <EmptyState v-else-if="!summary || !summary.dailyGroups || summary.dailyGroups.length === 0" text="暂无工资记录" />
+
+    <!-- Daily groups -->
+    <ScrollView v-else scroll-y class="daily-list" refresher-enabled :refresher-triggered="refreshing" @refresherrefresh="onRefresh">
+      <View v-for="group in summary.dailyGroups" :key="group.date" class="daily-group">
+        <View class="group-header">
+          <Text class="group-date">{{ group.date }}</Text>
+          <Text class="group-amount">{{ formatAmount(group.amount) }}</Text>
+        </View>
+        <View v-for="record in group.records" :key="record.id" class="record-card">
+          <View class="record-main">
+            <Text class="record-process">{{ record.processName }}</Text>
+            <Text class="record-bundle">扎号: {{ record.bundleNo }}</Text>
           </View>
-          <View class="detail-right">
-            <Text class="detail-amount">{{ formatMoney(item.amount) }}</Text>
-            <Text class="detail-qty" v-if="item.quantity">x{{ item.quantity }}</Text>
+          <View class="record-detail">
+            <Text class="record-calc">{{ record.qty }} x {{ formatAmount(record.price).replace('¥', '') }}</Text>
+            <Text class="record-amount">{{ formatAmount(record.amount) }}</Text>
           </View>
         </View>
-      </ScrollView>
-    </View>
-
-    <View class="empty-tip" v-if="!loading && details.length === 0 && summary">
-      <Text class="empty-text">暂无工资明细</Text>
-    </View>
+      </View>
+    </ScrollView>
   </View>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref } from 'vue'
 import Taro, { useDidShow } from '@tarojs/taro'
-import { getWageSummary } from '../../api/report'
+import { getWageSummary } from '../../api/mobileReport'
+import { formatAmount } from '../../utils/format'
+import EmptyState from '../../components/EmptyState.vue'
+import type { WageSummary } from '../../api/types'
 
 definePageConfig({
   navigationBarTitleText: '我的工资',
 })
 
-interface WageDetail {
-  date: string
-  type: 'piece' | 'time'
-  amount: number
-  quantity?: number
-}
-
-interface WageSummary {
-  todayWage: number
-  pieceWage: number
-  timeWage: number
-  totalWage: number
-  details: WageDetail[]
-}
-
 const loading = ref(false)
+const refreshing = ref(false)
 const summary = ref<WageSummary | null>(null)
-const details = ref<WageDetail[]>([])
-
-const currentMonth = computed(() => {
-  const now = new Date()
-  return `${now.getFullYear()}年${now.getMonth() + 1}月`
-})
-
-function formatMoney(val: number | undefined): string {
-  if (val === undefined || val === null) return '0.00'
-  return val.toFixed(2)
-}
 
 async function fetchWage() {
   const token = Taro.getStorageSync('satoken')
@@ -94,24 +68,26 @@ async function fetchWage() {
     return
   }
 
-  const now = new Date()
-  const yearMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
-
   loading.value = true
   try {
-    const res = await getWageSummary(yearMonth)
-    const data = res.data || {}
-    summary.value = {
-      todayWage: data.todayWage || 0,
-      pieceWage: data.pieceWage || 0,
-      timeWage: data.timeWage || 0,
-      totalWage: data.totalWage || 0,
-    }
-    details.value = data.details || []
-  } catch (err) {
+    const res = await getWageSummary()
+    summary.value = res
+  } catch {
     // handled by request util
   } finally {
     loading.value = false
+  }
+}
+
+async function onRefresh() {
+  refreshing.value = true
+  try {
+    const res = await getWageSummary()
+    summary.value = res
+  } catch {
+    // handled by request util
+  } finally {
+    refreshing.value = false
   }
 }
 
@@ -123,146 +99,138 @@ useDidShow(() => {
 <style lang="scss">
 .wage-page {
   min-height: 100vh;
-  background: #F5F7FA;
-  padding: 24px;
-  box-sizing: border-box;
+  background: #f5f7fa;
+  display: flex;
+  flex-direction: column;
 }
 
 .wage-header {
-  margin-bottom: 24px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  padding: 48px 32px 40px;
 }
 
-.wage-month {
-  font-size: 32px;
-  font-weight: bold;
-  color: #333333;
-}
-
-.summary-cards {
+.summary-row {
   display: flex;
-  flex-wrap: wrap;
-  gap: 16px;
-  margin-bottom: 32px;
+  align-items: center;
+  justify-content: space-around;
 }
 
-.summary-card {
-  width: calc(50% - 8px);
-  background: #ffffff;
-  border-radius: 12px;
-  padding: 24px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-  box-sizing: border-box;
-}
-
-.summary-card.total {
-  width: 100%;
-  background: #4A6FA5;
+.summary-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
 }
 
 .summary-label {
-  display: block;
-  font-size: 24px;
-  color: #999999;
-  margin-bottom: 8px;
-}
-
-.summary-card.total .summary-label {
+  font-size: 26px;
   color: rgba(255, 255, 255, 0.8);
+  margin-bottom: 12px;
 }
 
 .summary-value {
-  display: block;
-  font-size: 36px;
-  font-weight: bold;
-  color: #333333;
-}
-
-.total-value {
-  color: #ffffff;
   font-size: 44px;
+  font-weight: 700;
+  color: #ffffff;
 }
 
-.loading-tip {
-  text-align: center;
-  padding: 48px 0;
+.summary-divider {
+  width: 2px;
+  height: 64px;
+  background: rgba(255, 255, 255, 0.3);
+  border-radius: 1px;
+}
+
+.loading-wrap {
+  display: flex;
+  justify-content: center;
+  padding: 80px 0;
 }
 
 .loading-text {
   font-size: 28px;
-  color: #999999;
+  color: #9ca3af;
 }
 
-.detail-section {
-  background: #ffffff;
-  border-radius: 12px;
-  padding: 24px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+.daily-list {
+  flex: 1;
+  padding: 24px 24px 40px;
 }
 
-.section-title {
-  display: block;
-  font-size: 28px;
-  font-weight: bold;
-  color: #333333;
-  margin-bottom: 16px;
+.daily-group {
+  margin-bottom: 24px;
 }
 
-.detail-list {
-  max-height: 600px;
-}
-
-.detail-row {
+.group-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 16px 0;
-  border-bottom: 1px solid #F0F0F0;
+  padding: 16px 24px;
+  background: #ffffff;
+  border-radius: 16px 16px 0 0;
+  border-bottom: 1px solid #f3f4f6;
 }
 
-.detail-row:last-child {
-  border-bottom: none;
+.group-date {
+  font-size: 28px;
+  font-weight: 600;
+  color: #1a1a2e;
 }
 
-.detail-left {
+.group-amount {
+  font-size: 30px;
+  font-weight: 700;
+  color: #667eea;
+}
+
+.record-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  background: #ffffff;
+
+  &:last-child {
+    border-radius: 0 0 16px 16px;
+  }
+
+  &:not(:last-child) {
+    border-bottom: 1px solid #f3f4f6;
+  }
+}
+
+.record-main {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
 }
 
-.detail-date {
+.record-process {
   font-size: 28px;
-  color: #333333;
+  font-weight: 500;
+  color: #1a1a2e;
 }
 
-.detail-type {
-  font-size: 22px;
-  color: #999999;
+.record-bundle {
+  font-size: 24px;
+  color: #9ca3af;
 }
 
-.detail-right {
+.record-detail {
   display: flex;
-  align-items: center;
-  gap: 8px;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
 }
 
-.detail-amount {
+.record-calc {
+  font-size: 24px;
+  color: #9ca3af;
+}
+
+.record-amount {
   font-size: 30px;
-  font-weight: bold;
-  color: #4A6FA5;
-}
-
-.detail-qty {
-  font-size: 22px;
-  color: #999999;
-}
-
-.empty-tip {
-  text-align: center;
-  padding: 48px 0;
-}
-
-.empty-text {
-  font-size: 28px;
-  color: #999999;
+  font-weight: 600;
+  color: #667eea;
 }
 </style>

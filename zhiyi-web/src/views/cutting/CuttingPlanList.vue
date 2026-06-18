@@ -79,26 +79,60 @@
       @ok="handleActualQtySubmit"
       :confirm-loading="submitLoading"
       width="700px"
+      :body-style="{ padding: '16px 24px' }"
     >
-      <a-table
-        :columns="actualQtyColumns"
-        :data-source="actualQtyData"
-        :pagination="false"
-        size="small"
-        bordered
-      >
-        <template #bodyCell="{ column, record }">
-          <template v-if="column.dataIndex === 'actualQty'">
-            <a-input-number
-              v-model:value="record.actualQty"
-              :min="0"
-              size="small"
-              style="width: 100%"
-              :disabled="actualQtyReadonly"
-            />
+      <div class="actual-qty-header">
+        <div class="header-field">
+          <span class="header-label">裁床日期</span>
+          <a-date-picker
+            v-model:value="actualCuttingDate"
+            size="middle"
+            style="width: 200px"
+            format="YYYY-MM-DD"
+            value-format="YYYY-MM-DD"
+            :disabled="actualQtyReadonly"
+            placeholder="选择裁床日期"
+          />
+        </div>
+        <div class="header-summary" v-if="actualQtyData.length > 0">
+          <span class="summary-item">
+            <span class="summary-label">总计划数</span>
+            <span class="summary-value">{{ actualQtyData.reduce((sum: number, d: any) => sum + (d.planQty || 0), 0) }}</span>
+          </span>
+          <span class="summary-divider">|</span>
+          <span class="summary-item">
+            <span class="summary-label">总实际数</span>
+            <span class="summary-value highlight">{{ actualQtyData.reduce((sum: number, d: any) => sum + (d.actualQty || 0), 0) }}</span>
+          </span>
+        </div>
+      </div>
+      <div class="actual-qty-table">
+        <a-table
+          :columns="actualQtyColumns"
+          :data-source="actualQtyData"
+          :pagination="false"
+          size="middle"
+          bordered
+          :scroll="{ y: 350 }"
+          :row-class-name="(_record: any, index: number) => index % 2 === 0 ? 'table-row-even' : 'table-row-odd'"
+        >
+          <template #bodyCell="{ column, record }">
+            <template v-if="column.dataIndex === 'actualQty'">
+              <a-input-number
+                v-model:value="record.actualQty"
+                :min="0"
+                size="middle"
+                style="width: 100%"
+                :disabled="actualQtyReadonly"
+                :class="{ 'input-highlight': !actualQtyReadonly }"
+              />
+            </template>
+            <template v-if="column.dataIndex === 'planQty'">
+              <span class="plan-qty-cell">{{ record.planQty || 0 }}</span>
+            </template>
           </template>
-        </template>
-      </a-table>
+        </a-table>
+      </div>
     </a-modal>
 
     <!-- 查看扎号弹窗 -->
@@ -116,13 +150,6 @@
         :pagination="false"
         bordered
       >
-        <template #bodyCell="{ column, record }">
-          <template v-if="column.dataIndex === 'status'">
-            <a-tag :color="record.status === 1 ? 'success' : 'processing'">
-              {{ record.status === 1 ? '已完成' : '生产中' }}
-            </a-tag>
-          </template>
-        </template>
       </a-table>
     </a-modal>
 
@@ -130,7 +157,7 @@
     <BundlePrint
       v-model:visible="printModalVisible"
       :bundles="printBundles"
-      :order-barcode="printOrderBarcode"
+      :cutting-barcode="printCuttingBarcode"
     />
   </div>
 </template>
@@ -153,7 +180,6 @@ const columns = [
   { title: '层数', dataIndex: 'layers', width: 70 },
   { title: '总计划数', dataIndex: 'planQty', width: 90 },
   { title: '总实际数', dataIndex: 'actualQty', width: 90 },
-  { title: '每扎件数', dataIndex: 'qtyPerBundle', width: 90 },
   { title: '总扎数', dataIndex: 'bundleCount', width: 80 },
   { title: '裁床码', dataIndex: 'barcode', width: 160 },
   { title: '裁床日期', dataIndex: 'cuttingDate', width: 110 },
@@ -162,19 +188,19 @@ const columns = [
 ]
 
 const actualQtyColumns = [
-  { title: '部位', dataIndex: 'part', width: 100 },
-  { title: '颜色', dataIndex: 'color', width: 100 },
-  { title: '尺码', dataIndex: 'size', width: 80 },
-  { title: '计划数', dataIndex: 'planQty', width: 80 },
-  { title: '实际数', dataIndex: 'actualQty', width: 120 },
+  { title: '部位', dataIndex: 'part', width: 120, align: 'center' },
+  { title: '颜色', dataIndex: 'color', width: 100, align: 'center' },
+  { title: '尺码', dataIndex: 'size', width: 80, align: 'center' },
+  { title: '计划成衣件数', dataIndex: 'planQty', width: 120, align: 'center' },
+  { title: '实际成衣件数', dataIndex: 'actualQty', width: 140, align: 'center' },
 ]
 
 const bundleColumns = [
   { title: '扎号', dataIndex: 'bundleNo', width: 100 },
+  { title: '部位', dataIndex: 'part', width: 120 },
   { title: '颜色', dataIndex: 'color', width: 80 },
   { title: '尺码', dataIndex: 'size', width: 70 },
   { title: '件数', dataIndex: 'qty', width: 70 },
-  { title: '状态', dataIndex: 'status', width: 80 },
 ]
 
 // 状态映射
@@ -209,6 +235,7 @@ const actualQtyModalVisible = ref(false)
 const actualQtyReadonly = ref(false)
 const actualQtyData = ref<any[]>([])
 const currentPlanId = ref<number | null>(null)
+const actualCuttingDate = ref<string | undefined>(undefined)
 
 // 扎号列表相关
 const bundleListVisible = ref(false)
@@ -218,7 +245,7 @@ const bundleList = ref<any[]>([])
 // 打印菲仔相关
 const printModalVisible = ref(false)
 const printBundles = ref<any[]>([])
-const printOrderBarcode = ref('')
+const printCuttingBarcode = ref('')
 
 // 加载表格数据
 async function loadData() {
@@ -284,6 +311,7 @@ async function handleDelete(id: number) {
 async function openActualQtyModal(record: any, readonly: boolean = false) {
   currentPlanId.value = record.id
   actualQtyReadonly.value = readonly
+  actualCuttingDate.value = record.cuttingDate || undefined
   try {
     const res = await cuttingPlanApi.getDetails(record.id)
     actualQtyData.value = (res.data || []).map((d: any) => ({
@@ -299,7 +327,10 @@ async function handleActualQtySubmit() {
   if (!currentPlanId.value) return
   submitLoading.value = true
   try {
-    await cuttingPlanApi.inputActualQty(currentPlanId.value, actualQtyData.value)
+    await cuttingPlanApi.inputActualQty(currentPlanId.value, {
+      details: actualQtyData.value,
+      cuttingDate: actualCuttingDate.value,
+    })
     message.success('录入成功')
     actualQtyModalVisible.value = false
     loadData()
@@ -339,9 +370,8 @@ async function openPrintModal(record: any) {
       message.warning('暂无扎号数据')
       return
     }
-    // 构建订单条码（ORD + 订单号）
-    const orderNo = bundles[0].orderNo || ''
-    printOrderBarcode.value = `ORD${orderNo.replace('ORD', '')}`
+    // 使用裁床码（从裁床计划获取）
+    printCuttingBarcode.value = record.barcode || ''
     printBundles.value = bundles.map((b: any) => ({
       id: b.id,
       orderNo: b.orderNo,
@@ -353,6 +383,8 @@ async function openPrintModal(record: any) {
       bundleNo: b.bundleNo,
       globalBundleNo: b.globalBundleNo,
       qty: b.qty,
+      cuttingPieces: b.cuttingPieces,
+      bedNo: b.bedNo,
     }))
     printModalVisible.value = true
   } catch (e) {
@@ -363,3 +395,116 @@ async function openPrintModal(record: any) {
 // 初始化加载
 loadData()
 </script>
+
+<style scoped>
+/* 录入实际数弹窗样式 */
+.actual-qty-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+  padding: 12px 16px;
+  background: #f6f8fa;
+  border-radius: 8px;
+  border: 1px solid #e8e8e8;
+}
+
+.header-field {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.header-label {
+  font-weight: 600;
+  font-size: 14px;
+  color: #333;
+}
+
+.header-summary {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.summary-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.summary-label {
+  font-size: 12px;
+  color: #8c8c8c;
+}
+
+.summary-value {
+  font-size: 18px;
+  font-weight: 700;
+  color: #333;
+}
+
+.summary-value.highlight {
+  color: #1890ff;
+}
+
+.summary-divider {
+  color: #e8e8e8;
+  font-size: 18px;
+}
+
+.actual-qty-table {
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid #e8e8e8;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.actual-qty-table :deep(.ant-table) {
+  border-radius: 8px;
+}
+
+.actual-qty-table :deep(.ant-table-thead > tr > th) {
+  background: #fafafa;
+  font-weight: 600;
+  font-size: 13px;
+  color: #595959;
+  padding: 12px 16px;
+  text-align: center;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.actual-qty-table :deep(.ant-table-tbody > tr > td) {
+  padding: 10px 16px;
+  text-align: center;
+}
+
+.actual-qty-table :deep(.table-row-even) {
+  background: #fff;
+}
+
+.actual-qty-table :deep(.table-row-odd) {
+  background: #fafafa;
+}
+
+.actual-qty-table :deep(.ant-table-tbody > tr:hover > td) {
+  background: #e6f7ff !important;
+}
+
+.plan-qty-cell {
+  font-weight: 500;
+  color: #595959;
+}
+
+.input-highlight :deep(.ant-input-number) {
+  border-color: #1890ff;
+}
+
+.input-highlight :deep(.ant-input-number:focus) {
+  box-shadow: 0 0 0 2px rgba(24, 144, 255, 0.2);
+}
+</style>

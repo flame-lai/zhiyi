@@ -27,6 +27,12 @@
           @click="toggleSelect(bundle.id)"
         >
           <div class="bundle-label" :id="'label-' + bundle.id">
+            <!-- 顶部条形码（裁床码） -->
+            <div class="label-barcode-top">
+              <svg :id="'barcode-cutting-' + bundle.id"></svg>
+              <div class="code-text">裁床码</div>
+            </div>
+
             <div class="label-header">
               <div class="label-row">
                 <span class="label-key">订单号：</span>
@@ -36,45 +42,41 @@
                 <span class="label-key">款号：</span>
                 <span class="label-value">{{ bundle.styleCode }}</span>
               </div>
-            </div>
-            <div class="label-body">
-              <div class="label-row">
-                <span class="label-key">颜色：</span>
-                <span class="label-value">{{ bundle.color }}</span>
-              </div>
-              <div class="label-row">
-                <span class="label-key">尺码：</span>
-                <span class="label-value">{{ bundle.size }}</span>
-              </div>
-              <div class="label-row">
-                <span class="label-key">部位：</span>
-                <span class="label-value">{{ bundle.part }}</span>
-              </div>
               <div class="label-row">
                 <span class="label-key">面料：</span>
-                <span class="label-value">{{ bundle.fabric }}</span>
+                <span class="label-value bold">{{ bundle.fabric }}</span>
+              </div>
+            </div>
+            <div class="label-body">
+              <div class="label-row-2col">
+                <div class="label-col">
+                  <span class="label-key">颜色：</span>
+                  <span class="label-value">{{ bundle.color }}</span>
+                </div>
+                <div class="label-col">
+                  <span class="label-key">尺码：</span>
+                  <span class="label-value">{{ bundle.size }}</span>
+                </div>
+              </div>
+              <div class="label-row-2col">
+                <div class="label-col">
+                  <span class="label-key">部位：</span>
+                  <span class="label-value">{{ bundle.part }}</span>
+                </div>
+                <div class="label-col">
+                  <span class="label-key">件数：</span>
+                  <span class="label-value bold">{{ bundle.qty }}件</span>
+                </div>
               </div>
             </div>
             <div class="label-info">
-              <div class="label-row">
-                <span class="label-key">扎号：</span>
-                <span class="label-value bold">{{ bundle.bundleNo }}</span>
-              </div>
-              <div class="label-row">
-                <span class="label-key">件数：</span>
-                <span class="label-value bold">{{ bundle.qty }}件</span>
-              </div>
+              <span class="bundle-no">{{ bundle.bundleNo }}</span>
             </div>
-            <div class="label-codes">
-              <div class="code-item">
-                <svg :id="'barcode-order-' + bundle.id"></svg>
-                <div class="code-text">订单码</div>
-              </div>
-              <div class="code-item">
-                <img v-if="qrCodeUrls[bundle.id]" :src="qrCodeUrls[bundle.id]" class="qr-code-img" />
-                <svg v-else :id="'barcode-bundle-' + bundle.id"></svg>
-                <div class="code-text">扎号码</div>
-              </div>
+            <!-- 底部二维码（扎号码） -->
+            <div class="label-qrcode-bottom">
+              <img v-if="qrCodeUrls[bundle.id]" :src="qrCodeUrls[bundle.id]" class="qr-code-img" />
+              <svg v-else :id="'barcode-bundle-' + bundle.id"></svg>
+              <div class="code-text">扎号码</div>
             </div>
           </div>
         </div>
@@ -99,12 +101,14 @@ interface BundleData {
   bundleNo: string
   globalBundleNo: string
   qty: number
+  cuttingPieces?: number
+  bedNo?: number
 }
 
 const props = defineProps<{
   visible: boolean
   bundles: BundleData[]
-  orderBarcode: string
+  cuttingBarcode: string
 }>()
 
 const emit = defineEmits<{
@@ -133,7 +137,7 @@ async function generateAllBarcodes() {
   for (const bundle of props.bundles) {
     try {
       const dataUrl = await QRCode.toDataURL(bundle.globalBundleNo || 'UNKNOWN', {
-        width: 80,
+        width: 120,
         margin: 1,
         errorCorrectionLevel: 'M'
       })
@@ -147,18 +151,18 @@ async function generateAllBarcodes() {
   // 生成条形码
   nextTick(() => {
     props.bundles.forEach(bundle => {
-      const barcodeEl = document.getElementById(`barcode-order-${bundle.id}`)
+      const barcodeEl = document.getElementById(`barcode-cutting-${bundle.id}`)
       if (barcodeEl) {
         try {
-          JsBarcode(barcodeEl, props.orderBarcode, {
+          JsBarcode(barcodeEl, props.cuttingBarcode, {
             format: 'CODE128',
             width: 1.5,
-            height: 30,
+            height: 35,
             displayValue: false,
             margin: 2,
           })
         } catch (e) {
-          console.error('生成订单条形码失败:', e)
+          console.error('生成裁床条形码失败:', e)
         }
       }
     })
@@ -184,12 +188,12 @@ function handlePrintSelected() {
 }
 
 async function printBundles(bundlesToPrint: BundleData[]) {
-  // 先生成所有二维码的data URL
+  // 先生成所有二维码的data URL（高分辨率）
   const qrCodeUrls: Record<number, string> = {}
   for (const bundle of bundlesToPrint) {
     try {
       const dataUrl = await QRCode.toDataURL(bundle.globalBundleNo || 'UNKNOWN', {
-        width: 80,
+        width: 200,
         margin: 1,
         errorCorrectionLevel: 'M'
       })
@@ -210,7 +214,7 @@ async function printBundles(bundlesToPrint: BundleData[]) {
       <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"><\/script>
       <style>
         @page {
-          size: 70mm 50mm;
+          size: 50mm 70mm;
           margin: 0;
         }
         * {
@@ -219,16 +223,16 @@ async function printBundles(bundlesToPrint: BundleData[]) {
           box-sizing: border-box;
         }
         html, body {
-          width: 70mm;
+          width: 50mm;
           font-family: sans-serif;
-          font-size: 9px;
-          line-height: 1.2;
+          font-size: 10px;
+          line-height: 1.35;
         }
         .label-page {
-          width: 70mm;
-          height: 50mm;
-          padding: 2mm;
-          border: 0.5pt solid #000;
+          width: 50mm;
+          height: 70mm;
+          padding: 1.5mm;
+          border: 1px solid #333;
           page-break-after: always;
           page-break-inside: avoid;
           overflow: hidden;
@@ -239,114 +243,120 @@ async function printBundles(bundlesToPrint: BundleData[]) {
           page-break-after: auto;
         }
         .label-header {
-          border-bottom: 0.5pt solid #000;
-          padding-bottom: 1mm;
-          margin-bottom: 1mm;
+          border-bottom: 1px dashed #ccc;
+          padding-bottom: 0.8mm;
+          margin-bottom: 0.8mm;
           flex-shrink: 0;
         }
         .label-row {
           display: flex;
-          line-height: 1.3;
+          line-height: 1.35;
+        }
+        .label-row-2col {
+          display: flex;
+          line-height: 1.35;
+        }
+        .label-row-2col .label-col {
+          flex: 1;
+          display: flex;
         }
         .label-key {
-          width: 30px;
-          color: #333;
+          width: 50px;
+          color: #666;
           flex-shrink: 0;
+          margin-right: 1px;
         }
         .label-value {
           flex: 1;
         }
+        .label-value.bold {
+          font-weight: bold;
+        }
+        .fabric-bold {
+          font-weight: bold;
+        }
         .label-body {
           flex: 1;
-          margin-bottom: 1mm;
-          overflow: hidden;
+          margin-bottom: 0.8mm;
         }
         .label-info {
-          border-top: 0.5pt dashed #000;
-          border-bottom: 0.5pt dashed #000;
+          text-align: center;
+          font-size: 15px;
+          font-weight: bold;
           padding: 1mm 0;
           margin-bottom: 1mm;
+          border-top: 1px dashed #ccc;
+          border-bottom: 1px dashed #ccc;
           flex-shrink: 0;
         }
-        .bundle-no { font-size: 12px; font-weight: bold; }
-        .qty { font-size: 11px; font-weight: bold; }
-        .label-codes {
+        .label-barcode-top {
           display: flex;
-          justify-content: space-between;
-          align-items: flex-end;
+          flex-direction: column;
+          align-items: center;
+          border-bottom: 1px dashed #ccc;
+          padding-bottom: 0.8mm;
+          margin-bottom: 0.8mm;
           flex-shrink: 0;
         }
-        .code-item {
-          text-align: center;
+        .label-barcode-top svg {
+          width: 35mm;
+          height: 9mm;
         }
-        .code-item svg {
-          width: 25mm;
-          height: 8mm;
+        .label-qrcode-bottom {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          margin-top: auto;
+          flex-shrink: 0;
         }
-        .code-item img {
-          width: 12mm;
-          height: 12mm;
+        .label-qrcode-bottom img {
+          width: 15mm;
+          height: 15mm;
         }
         .code-text {
-          font-size: 6px;
+          font-size: 9px;
           color: #666;
-          margin-top: 0.5mm;
+          margin-top: 0.3mm;
         }
       </style>
     </head>
     <body>
   `
 
-  bundlesToPrint.forEach((bundle, index) => {
+  bundlesToPrint.forEach((bundle) => {
     html += `
       <div class="label-page">
+        <div class="label-barcode-top">
+          <svg class="print-barcode" data-value="${props.cuttingBarcode}"></svg>
+          <div class="code-text">裁床码</div>
+        </div>
         <div class="label-header">
           <div class="label-row">
-            <span class="label-key">订单号：</span>
-            <span class="label-value">${bundle.orderNo}</span>
+            <span class="label-key">订单号：</span><span class="label-value">${bundle.orderNo}</span>
           </div>
           <div class="label-row">
-            <span class="label-key">款号：</span>
-            <span class="label-value">${bundle.styleCode}</span>
+            <span class="label-key">款号：</span><span class="label-value">${bundle.styleCode}</span>
+          </div>
+          <div class="label-row">
+            <span class="label-key">面料：</span><span class="label-value fabric-bold">${bundle.fabric || ''}</span>
           </div>
         </div>
         <div class="label-body">
-          <div class="label-row">
-            <span class="label-key">颜色：</span>
-            <span class="label-value">${bundle.color}</span>
+          <div class="label-row-2col">
+            <div class="label-col"><span class="label-key">颜色：</span><span class="label-value">${bundle.color}</span></div>
+            <div class="label-col"><span class="label-key">尺码：</span><span class="label-value">${bundle.size}</span></div>
           </div>
-          <div class="label-row">
-            <span class="label-key">尺码：</span>
-            <span class="label-value">${bundle.size}</span>
-          </div>
-          <div class="label-row">
-            <span class="label-key">部位：</span>
-            <span class="label-value">${bundle.part}</span>
-          </div>
-          <div class="label-row">
-            <span class="label-key">面料：</span>
-            <span class="label-value">${bundle.fabric}</span>
+          <div class="label-row-2col">
+            <div class="label-col"><span class="label-key">部位：</span><span class="label-value">${bundle.part}</span></div>
+            <div class="label-col"><span class="label-key">件数：</span><span class="label-value bold">${bundle.qty}件</span></div>
           </div>
         </div>
         <div class="label-info">
-          <div class="label-row">
-            <span class="label-key">扎号：</span>
-            <span class="label-value bundle-no">${bundle.bundleNo}</span>
-          </div>
-          <div class="label-row">
-            <span class="label-key">件数：</span>
-            <span class="label-value qty">${bundle.qty}件</span>
-          </div>
+          ${bundle.bundleNo}
         </div>
-        <div class="label-codes">
-          <div class="code-item">
-            <svg class="print-barcode" data-value="${props.orderBarcode}"></svg>
-            <div class="code-text">订单码</div>
-          </div>
-          <div class="code-item">
-            <img src="${qrCodeUrls[bundle.id] || ''}" />
-            <div class="code-text">扎号码</div>
-          </div>
+        <div class="label-qrcode-bottom">
+          <img src="${qrCodeUrls[bundle.id] || ''}" />
+          <div class="code-text">扎号码</div>
         </div>
       </div>
     `
@@ -358,7 +368,7 @@ async function printBundles(bundlesToPrint: BundleData[]) {
           JsBarcode(el, el.getAttribute('data-value'), {
             format: 'CODE128',
             width: 1.5,
-            height: 25,
+            height: 30,
             displayValue: false,
             margin: 1
           });
@@ -414,40 +424,40 @@ function handleClose() {
 }
 
 .bundle-label {
-  width: 280px;
-  padding: 12px;
+  width: 200px;
+  padding: 8px;
   border: 1px solid #333;
-  font-size: 12px;
-  line-height: 1.5;
+  font-size: 11px;
+  line-height: 1.4;
 }
 
 .label-header {
-  margin-bottom: 8px;
-  padding-bottom: 8px;
+  margin-bottom: 6px;
+  padding-bottom: 6px;
   border-bottom: 1px dashed #ccc;
 }
 
 .label-body {
-  margin-bottom: 8px;
-}
-
-.label-info {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 8px;
-  padding: 4px 0;
-  border-top: 1px dashed #ccc;
-  border-bottom: 1px dashed #ccc;
+  margin-bottom: 6px;
 }
 
 .label-row {
   display: flex;
 }
 
+.label-row-2col {
+  display: flex;
+}
+
+.label-row-2col .label-col {
+  flex: 1;
+  display: flex;
+}
+
 .label-key {
   width: 50px;
   color: #666;
+  flex-shrink: 0;
 }
 
 .label-value {
@@ -456,35 +466,51 @@ function handleClose() {
 
 .label-value.bold {
   font-weight: bold;
-  font-size: 14px;
 }
 
-.label-codes {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-end;
-  margin-top: 8px;
+.fabric-bold {
+  font-weight: bold;
 }
 
-.code-item {
+.label-info {
+  text-align: center;
+  font-size: 16px;
+  font-weight: bold;
+  margin-bottom: 6px;
+  padding: 4px 0;
+  border-top: 1px dashed #ccc;
+  border-bottom: 1px dashed #ccc;
+}
+
+.label-barcode-top {
   display: flex;
   flex-direction: column;
   align-items: center;
+  margin-bottom: 6px;
+  padding-bottom: 6px;
+  border-bottom: 1px dashed #ccc;
 }
 
-.code-item svg,
-.code-item img {
-  max-width: 120px;
+.label-barcode-top svg {
+  max-width: 150px;
+  height: 35px;
 }
 
-.qr-code-img {
-  width: 60px;
-  height: 60px;
+.label-qrcode-bottom {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-top: 4px;
+}
+
+.label-qrcode-bottom img {
+  width: 50px;
+  height: 50px;
 }
 
 .code-text {
   font-size: 10px;
   color: #666;
-  margin-top: 4px;
+  margin-top: 2px;
 }
 </style>
