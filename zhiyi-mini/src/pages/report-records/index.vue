@@ -1,6 +1,6 @@
 <template>
   <View class="records-page">
-    <!-- Header with gradient -->
+    <!-- Header -->
     <View class="records-header">
       <Text class="header-title">报工记录</Text>
     </View>
@@ -216,7 +216,7 @@ useDidShow(() => {
 }
 
 .records-header {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #4A6FA5;
   padding: 40px 32px 32px;
 }
 
@@ -244,7 +244,7 @@ useDidShow(() => {
 }
 
 .quick-btn.active {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #4A6FA5;
 }
 
 .quick-btn-text {
@@ -294,7 +294,7 @@ useDidShow(() => {
 
 .picker-value-text {
   font-size: 28px;
-  color: #667eea;
+  color: #4A6FA5;
 }
 
 .picker-actions {
@@ -315,7 +315,7 @@ useDidShow(() => {
 }
 
 .picker-btn.confirm {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #4A6FA5;
 }
 
 .picker-btn-text {
@@ -369,7 +369,7 @@ useDidShow(() => {
 .record-amount {
   font-size: 32px;
   font-weight: 700;
-  color: #667eea;
+  color: #4A6FA5;
 }
 
 .record-info {
@@ -393,7 +393,7 @@ useDidShow(() => {
 
 .info-value {
   font-size: 26px;
-  color: #1a1a2e;
+  color: #4A6FA5;
   font-weight: 500;
   text-align: right;
   flex: 1;

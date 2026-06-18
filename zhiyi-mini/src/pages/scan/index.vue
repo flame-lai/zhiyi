@@ -350,7 +350,7 @@ function resetScan() {
   width: 160px;
   height: 160px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #4A6FA5;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -365,7 +365,7 @@ function resetScan() {
 .scan-hero-title {
   font-size: 36px;
   font-weight: 700;
-  color: #1a1a2e;
+  color: #4A6FA5;
   margin-bottom: 8px;
 }
 
@@ -385,7 +385,7 @@ function resetScan() {
   display: block;
   font-size: 30px;
   font-weight: 600;
-  color: #1a1a2e;
+  color: #4A6FA5;
   margin-bottom: 20px;
 }
 
@@ -409,7 +409,7 @@ function resetScan() {
   width: 100%;
   height: 88px;
   line-height: 88px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #4A6FA5;
   color: #ffffff;
   font-size: 32px;
   font-weight: 600;
@@ -429,7 +429,7 @@ function resetScan() {
   padding: 24px;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
   margin-bottom: 24px;
-  border-left: 6px solid #667eea;
+  border-left: 6px solid #4A6FA5;
 }
 
 .info-row {
@@ -451,7 +451,7 @@ function resetScan() {
 
 .info-value {
   font-size: 28px;
-  color: #1a1a2e;
+  color: #4A6FA5;
   font-weight: 500;
 }
 
@@ -482,7 +482,7 @@ function resetScan() {
 
 .select-all-text {
   font-size: 24px;
-  color: #667eea;
+  color: #4A6FA5;
   font-weight: 500;
 }
 
@@ -502,7 +502,7 @@ function resetScan() {
 }
 
 .bundle-item.selected {
-  border-color: #667eea;
+  border-color: #4A6FA5;
   background: #f0f0ff;
 }
 
@@ -526,7 +526,7 @@ function resetScan() {
 }
 
 .checked-box {
-  background: #667eea;
+  background: #4A6FA5;
 }
 
 .check-checked-icon {
@@ -557,7 +557,7 @@ function resetScan() {
 .bundle-no {
   font-size: 28px;
   font-weight: 500;
-  color: #1a1a2e;
+  color: #4A6FA5;
 }
 
 .bundle-qty {
@@ -610,7 +610,7 @@ function resetScan() {
   flex: 2;
   height: 88px;
   line-height: 88px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #4A6FA5;
   color: #ffffff;
   font-size: 32px;
   font-weight: 600;
@@ -647,14 +647,14 @@ function resetScan() {
   padding: 24px;
   box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
   margin-bottom: 24px;
-  border-left: 6px solid #667eea;
+  border-left: 6px solid #4A6FA5;
 }
 
 .summary-title {
   display: block;
   font-size: 30px;
   font-weight: 600;
-  color: #1a1a2e;
+  color: #4A6FA5;
   margin-bottom: 16px;
 }
 
@@ -677,12 +677,12 @@ function resetScan() {
 
 .summary-value {
   font-size: 28px;
-  color: #1a1a2e;
+  color: #4A6FA5;
   font-weight: 500;
 }
 
 .summary-value.highlight {
-  color: #667eea;
+  color: #4A6FA5;
   font-weight: 700;
   font-size: 32px;
 }
@@ -715,7 +715,7 @@ function resetScan() {
 .breakdown-name {
   font-size: 28px;
   font-weight: 500;
-  color: #1a1a2e;
+  color: #4A6FA5;
 }
 
 .breakdown-detail {
@@ -727,7 +727,7 @@ function resetScan() {
 .breakdown-amount {
   font-size: 30px;
   font-weight: 600;
-  color: #667eea;
+  color: #4A6FA5;
 }
 
 .skipped-section {
@@ -766,7 +766,7 @@ function resetScan() {
   width: 100%;
   height: 88px;
   line-height: 88px;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #4A6FA5;
   color: #ffffff;
   font-size: 32px;
   font-weight: 600;

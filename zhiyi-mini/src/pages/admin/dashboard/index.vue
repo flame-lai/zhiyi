@@ -1,6 +1,6 @@
 <template>
   <View class="dashboard-page">
-    <!-- Header with gradient -->
+    <!-- Header -->
     <View class="page-header">
       <Text class="page-title">生产看板</Text>
     </View>
@@ -247,7 +247,7 @@ useDidShow(() => {
 }
 
 .page-header {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #4A6FA5;
   padding: 32px 32px 28px;
 }
 
@@ -276,7 +276,7 @@ useDidShow(() => {
 }
 
 .tab-active .tab-text {
-  color: #667eea;
+  color: #4A6FA5;
   font-weight: 600;
 }
 
@@ -288,7 +288,7 @@ useDidShow(() => {
   transform: translateX(-50%);
   width: 48px;
   height: 4px;
-  background: #667eea;
+  background: #4A6FA5;
   border-radius: 2px;
 }
 
@@ -318,7 +318,7 @@ useDidShow(() => {
 
 .filter-value {
   font-size: 26px;
-  color: #1a1a2e;
+  color: #4A6FA5;
   font-weight: 500;
 }
 
@@ -368,7 +368,7 @@ useDidShow(() => {
 .card-title {
   font-size: 30px;
   font-weight: 600;
-  color: #1a1a2e;
+  color: #4A6FA5;
 }
 
 .card-sub {
@@ -397,11 +397,11 @@ useDidShow(() => {
 .stat-value {
   font-size: 30px;
   font-weight: 600;
-  color: #1a1a2e;
+  color: #4A6FA5;
 }
 
 .stat-value.highlight {
-  color: #667eea;
+  color: #4A6FA5;
 }
 
 .bottleneck {
@@ -438,7 +438,7 @@ useDidShow(() => {
 
 .progress-fill {
   height: 100%;
-  background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+  background: #4A6FA5;
   border-radius: 6px;
   transition: width 0.3s ease;
 }
@@ -453,12 +453,12 @@ useDidShow(() => {
 
 .expand-text {
   font-size: 24px;
-  color: #667eea;
+  color: #4A6FA5;
 }
 
 .expand-icon {
   font-size: 20px;
-  color: #667eea;
+  color: #4A6FA5;
 }
 
 .process-rows {
@@ -493,7 +493,7 @@ useDidShow(() => {
 
 .process-bar-fill {
   height: 100%;
-  background: #667eea;
+  background: #4A6FA5;
   border-radius: 5px;
 }
 

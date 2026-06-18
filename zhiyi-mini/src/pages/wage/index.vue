@@ -1,6 +1,6 @@
 <template>
   <View class="wage-page">
-    <!-- Header with gradient -->
+    <!-- Header -->
     <View class="wage-header">
       <View class="summary-row">
         <View class="summary-item">
@@ -105,7 +105,7 @@ useDidShow(() => {
 }
 
 .wage-header {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #4A6FA5;
   padding: 48px 32px 40px;
 }
 
@@ -174,13 +174,13 @@ useDidShow(() => {
 .group-date {
   font-size: 28px;
   font-weight: 600;
-  color: #1a1a2e;
+  color: #4A6FA5;
 }
 
 .group-amount {
   font-size: 30px;
   font-weight: 700;
-  color: #667eea;
+  color: #4A6FA5;
 }
 
 .record-card {
@@ -208,7 +208,7 @@ useDidShow(() => {
 .record-process {
   font-size: 28px;
   font-weight: 500;
-  color: #1a1a2e;
+  color: #4A6FA5;
 }
 
 .record-bundle {
@@ -231,6 +231,6 @@ useDidShow(() => {
 .record-amount {
   font-size: 30px;
   font-weight: 600;
-  color: #667eea;
+  color: #4A6FA5;
 }
 </style>

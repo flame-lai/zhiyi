@@ -40,15 +40,15 @@ function toggleProcess(p: ProcessReportStatus) {
 <style lang="scss">
 .process-list { display: flex; flex-direction: column; gap: 16px; }
 .process-item { display: flex; align-items: center; padding: 20px 16px; background: #f9fafb; border-radius: 12px; border: 2px solid transparent; }
-.process-item.selected { border-color: #667eea; background: #f0f0ff; }
+.process-item.selected { border-color: #4A6FA5; background: #f0f0ff; }
 .process-item.done { opacity: 0.5; background: #f3f4f6; }
 .process-check { margin-right: 16px; flex-shrink: 0; }
 .check-box { width: 40px; height: 40px; border-radius: 8px; background: #10b981; display: flex; align-items: center; justify-content: center; }
 .check-icon { color: #fff; font-size: 24px; }
 .check-box.unchecked { background: #fff; border: 2px solid #d1d5db; display: flex; align-items: center; justify-content: center; }
-.check-inner { width: 24px; height: 24px; border-radius: 4px; background: #667eea; }
+.check-inner { width: 24px; height: 24px; border-radius: 4px; background: #4A6FA5; }
 .process-info { flex: 1; }
-.process-name { display: block; font-size: 28px; font-weight: 500; color: #1a1a2e; }
+.process-name { display: block; font-size: 28px; font-weight: 500; color: #4A6FA5; }
 .process-price { display: block; font-size: 24px; color: #9ca3af; margin-top: 4px; }
 .process-done-info { display: block; font-size: 24px; color: #6b7280; margin-top: 4px; }
 </style>

@@ -86,7 +86,7 @@ async function handleLogout() {
 
 <style lang="scss">
 .home-page { min-height: 100vh; background: #f5f7fa; padding-bottom: 120px; }
-.home-header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 48px 32px 32px; display: flex; align-items: center; justify-content: space-between; }
+.home-header { background: #4A6FA5; padding: 48px 32px 32px; display: flex; align-items: center; justify-content: space-between; }
 .header-info { flex: 1; }
 .header-name { display: block; font-size: 40px; font-weight: 700; color: #fff; }
 .header-code { display: block; font-size: 26px; color: rgba(255,255,255,0.8); margin-top: 4px; }
@@ -96,8 +96,8 @@ async function handleLogout() {
 .section-title { display: block; font-size: 30px; font-weight: 600; color: #374151; margin-bottom: 20px; }
 .menu-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; }
 .menu-item { display: flex; flex-direction: column; align-items: center; padding: 20px 0; }
-.menu-icon { width: 96px; height: 96px; border-radius: 24px; display: flex; align-items: center; justify-content: center; margin-bottom: 12px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
-.menu-icon.admin { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
+.menu-icon { width: 96px; height: 96px; border-radius: 24px; display: flex; align-items: center; justify-content: center; margin-bottom: 12px; background: #4A6FA5; }
+.menu-icon.admin { background: #dc2626; }
 .menu-icon-text { font-size: 40px; }
 .menu-title { font-size: 24px; color: #374151; font-weight: 500; }
 </style>

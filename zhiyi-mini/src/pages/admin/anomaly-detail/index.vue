@@ -1,6 +1,6 @@
 <template>
   <View class="anomaly-page">
-    <!-- Header with gradient -->
+    <!-- Header -->
     <View class="page-header">
       <Text class="page-title">异常预警</Text>
     </View>
@@ -127,7 +127,7 @@ useDidShow(() => {
 }
 
 .page-header {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #4A6FA5;
   padding: 32px 32px 28px;
 }
 
@@ -156,7 +156,7 @@ useDidShow(() => {
 }
 
 .status-tab-active .status-tab-text {
-  color: #667eea;
+  color: #4A6FA5;
   font-weight: 600;
 }
 
@@ -168,7 +168,7 @@ useDidShow(() => {
   transform: translateX(-50%);
   width: 48px;
   height: 4px;
-  background: #667eea;
+  background: #4A6FA5;
   border-radius: 2px;
 }
 
@@ -214,7 +214,7 @@ useDidShow(() => {
 .card-bundle {
   font-size: 30px;
   font-weight: 600;
-  color: #1a1a2e;
+  color: #4A6FA5;
 }
 
 .info-row {
@@ -236,7 +236,7 @@ useDidShow(() => {
 .info-value {
   flex: 1;
   font-size: 26px;
-  color: #1a1a2e;
+  color: #4A6FA5;
 }
 
 .info-value.desc {

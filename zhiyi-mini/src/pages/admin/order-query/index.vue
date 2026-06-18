@@ -1,6 +1,6 @@
 <template>
   <View class="order-page">
-    <!-- Header with gradient -->
+    <!-- Header -->
     <View class="page-header">
       <Text class="page-title">订单查询</Text>
     </View>
@@ -163,7 +163,7 @@ useDidShow(() => {
 }
 
 .page-header {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #4A6FA5;
   padding: 32px 32px 28px;
 }
 
@@ -189,7 +189,7 @@ useDidShow(() => {
   background: #f5f7fa;
   border-radius: 10px;
   font-size: 28px;
-  color: #1a1a2e;
+  color: #4A6FA5;
 }
 
 .search-btn {
@@ -198,7 +198,7 @@ useDidShow(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #4A6FA5;
   border-radius: 10px;
 }
 
@@ -250,7 +250,7 @@ useDidShow(() => {
 .card-title {
   font-size: 32px;
   font-weight: 600;
-  color: #1a1a2e;
+  color: #4A6FA5;
 }
 
 .info-row {
@@ -272,11 +272,11 @@ useDidShow(() => {
 .info-value {
   flex: 1;
   font-size: 26px;
-  color: #1a1a2e;
+  color: #4A6FA5;
 }
 
 .info-value.highlight {
-  color: #667eea;
+  color: #4A6FA5;
   font-weight: 600;
 }
 
@@ -293,7 +293,7 @@ useDidShow(() => {
 
 .progress-fill {
   height: 100%;
-  background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+  background: #4A6FA5;
   border-radius: 7px;
   transition: width 0.3s ease;
 }
@@ -302,7 +302,7 @@ useDidShow(() => {
   display: block;
   font-size: 28px;
   font-weight: 600;
-  color: #1a1a2e;
+  color: #4A6FA5;
   margin-bottom: 20px;
 }
 
@@ -338,12 +338,12 @@ useDidShow(() => {
 .item-style {
   font-size: 28px;
   font-weight: 600;
-  color: #1a1a2e;
+  color: #4A6FA5;
 }
 
 .item-progress {
   font-size: 26px;
-  color: #667eea;
+  color: #4A6FA5;
   font-weight: 600;
 }
 
@@ -372,7 +372,7 @@ useDidShow(() => {
 
 .item-bar-fill {
   height: 100%;
-  background: #667eea;
+  background: #4A6FA5;
   border-radius: 4px;
 }
 </style>

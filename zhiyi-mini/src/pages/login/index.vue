@@ -6,10 +6,10 @@
     </View>
 
     <View class="login-tabs">
-      <View class="tab-item" :class="{ active: activeTab === 'employee' }" @tap="activeTab = 'employee'">
+      <View class="tab-item" :class="{ active: activeTab === 'employee' }" @tap="switchTab('employee')">
         <Text class="tab-text">员工登录</Text>
       </View>
-      <View class="tab-item" :class="{ active: activeTab === 'admin' }" @tap="activeTab = 'admin'">
+      <View class="tab-item" :class="{ active: activeTab === 'admin' }" @tap="switchTab('admin')">
         <Text class="tab-text">管理员登录</Text>
       </View>
     </View>
@@ -18,8 +18,15 @@
       <View v-if="activeTab === 'employee'" class="login-form">
         <View class="input-group">
           <Text class="input-label">工号 / 登录码</Text>
-          <Input class="login-input" type="text" placeholder="请输入工号"
-            :value="loginCode" @input="loginCode = $event.detail.value" @confirm="handleLogin" />
+          <Input
+            class="login-input"
+            type="text"
+            placeholder="请输入工号"
+            placeholder-class="input-placeholder"
+            :value="loginCode"
+            @input="onCodeInput"
+            @confirm="handleLogin"
+          />
         </View>
         <Button class="login-btn" :loading="loading" @tap="handleLogin">登 录</Button>
       </View>
@@ -27,13 +34,26 @@
       <View v-if="activeTab === 'admin'" class="login-form">
         <View class="input-group">
           <Text class="input-label">账号</Text>
-          <Input class="login-input" type="text" placeholder="请输入账号"
-            :value="account" @input="account = $event.detail.value" />
+          <Input
+            class="login-input"
+            type="text"
+            placeholder="请输入账号"
+            placeholder-class="input-placeholder"
+            :value="account"
+            @input="onAccountInput"
+          />
         </View>
         <View class="input-group">
           <Text class="input-label">密码</Text>
-          <Input class="login-input" type="password" placeholder="请输入密码"
-            :value="password" @input="password = $event.detail.value" @confirm="handleLogin" />
+          <Input
+            class="login-input"
+            password
+            placeholder="请输入密码"
+            placeholder-class="input-placeholder"
+            :value="password"
+            @input="onPasswordInput"
+            @confirm="handleLogin"
+          />
         </View>
         <Button class="login-btn" :loading="loading" @tap="handleLogin">登 录</Button>
       </View>
@@ -44,6 +64,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import Taro from '@tarojs/taro'
+import { View, Text, Input, Button } from '@tarojs/components'
 import { loginByCode, loginByAccount } from '../../api/mobileAuth'
 import { saveAuth } from '../../utils/request'
 
@@ -54,6 +75,21 @@ const loginCode = ref('')
 const account = ref('')
 const password = ref('')
 const loading = ref(false)
+
+function switchTab(tab: 'employee' | 'admin') {
+  if (activeTab.value !== tab) activeTab.value = tab
+}
+
+// 用显式事件处理函数，避免 $event.detail.value 在部分机型/渲染时机下取不到值
+function onCodeInput(e: any) {
+  loginCode.value = e.detail.value
+}
+function onAccountInput(e: any) {
+  account.value = e.detail.value
+}
+function onPasswordInput(e: any) {
+  password.value = e.detail.value
+}
 
 async function handleLogin() {
   if (activeTab.value === 'employee') {
@@ -82,19 +118,121 @@ async function handleLogin() {
 </script>
 
 <style lang="scss">
-.login-page { min-height: 100vh; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); padding: 0 40px; box-sizing: border-box; display: flex; flex-direction: column; }
-.login-header { padding-top: 120px; margin-bottom: 48px; text-align: center; }
-.login-logo { display: block; font-size: 56px; font-weight: 700; color: #fff; margin-bottom: 12px; }
-.login-subtitle { display: block; font-size: 28px; color: rgba(255,255,255,0.8); }
-.login-tabs { display: flex; background: rgba(255,255,255,0.15); border-radius: 16px 16px 0 0; overflow: hidden; }
-.tab-item { flex: 1; text-align: center; padding: 24px 0; }
-.tab-item.active { background: #fff; }
-.tab-text { font-size: 30px; font-weight: 500; color: rgba(255,255,255,0.7); }
-.tab-item.active .tab-text { color: #667eea; }
-.login-card { background: #fff; border-radius: 0 0 16px 16px; padding: 40px 32px; }
-.login-form { display: flex; flex-direction: column; gap: 24px; }
-.input-group { display: flex; flex-direction: column; gap: 8px; }
-.input-label { font-size: 26px; color: #6b7280; font-weight: 500; }
-.login-input { width: 100%; height: 88px; border: 2px solid #e5e7eb; border-radius: 12px; padding: 0 24px; font-size: 30px; box-sizing: border-box; }
-.login-btn { width: 100%; height: 88px; line-height: 88px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #fff; font-size: 32px; font-weight: 600; border-radius: 12px; border: none; margin-top: 16px; }
+.login-page {
+  min-height: 100vh;
+  background: #f5f7fa;
+  padding: 0 48px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+}
+
+.login-header {
+  padding-top: 140px;
+  margin-bottom: 56px;
+  text-align: center;
+}
+
+.login-logo {
+  display: block;
+  font-size: 56px;
+  font-weight: 700;
+  color: #4A6FA5;
+  margin-bottom: 14px;
+}
+
+.login-subtitle {
+  display: block;
+  font-size: 26px;
+  color: #9ca3af;
+}
+
+.login-tabs {
+  display: flex;
+  background: #fff;
+  border-radius: 16px;
+  overflow: hidden;
+  margin-bottom: 32px;
+  border: 2px solid #e5e7eb;
+}
+
+.tab-item {
+  flex: 1;
+  text-align: center;
+  padding: 24px 0;
+}
+
+.tab-item.active {
+  background: #4A6FA5;
+}
+
+.tab-text {
+  font-size: 30px;
+  font-weight: 500;
+  color: #6b7280;
+}
+
+.tab-item.active .tab-text {
+  color: #ffffff;
+}
+
+.login-card {
+  background: #fff;
+  border-radius: 16px;
+  padding: 48px 36px;
+  border: 2px solid #e5e7eb;
+}
+
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+}
+
+.input-group {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.input-label {
+  font-size: 26px;
+  color: #4b5563;
+  font-weight: 500;
+}
+
+.login-input {
+  width: 100%;
+  height: 96px;
+  line-height: 96px;
+  border: 2px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 0 24px;
+  font-size: 30px;
+  color: #4A6FA5;
+  box-sizing: border-box;
+  background: #ffffff;
+}
+
+.input-placeholder {
+  color: #c0c4cc;
+  font-size: 28px;
+}
+
+.login-btn {
+  width: 100%;
+  height: 96px;
+  line-height: 96px;
+  background: #4A6FA5;
+  color: #ffffff;
+  font-size: 32px;
+  font-weight: 600;
+  border-radius: 12px;
+  border: none;
+  margin-top: 16px;
+}
+
+.login-btn::after {
+  border: none;
+}
 </style>

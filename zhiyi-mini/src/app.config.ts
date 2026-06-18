@@ -14,13 +14,13 @@ export default defineAppConfig({
   ],
   window: {
     backgroundTextStyle: 'light',
-    navigationBarBackgroundColor: '#667eea',
+    navigationBarBackgroundColor: '#4A6FA5',
     navigationBarTitleText: '智衣ERP',
     navigationBarTextStyle: 'white',
   },
   tabBar: {
-    color: '#9ca3af',
-    selectedColor: '#667eea',
+    color: '#999999',
+    selectedColor: '#4A6FA5',
     backgroundColor: '#ffffff',
     borderStyle: 'black',
     list: [

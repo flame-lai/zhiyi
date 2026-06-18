@@ -1,6 +1,6 @@
 <template>
   <View class="timed-page">
-    <!-- Header with gradient -->
+    <!-- Header -->
     <View class="page-header">
       <Text class="page-title">计时工资录入</Text>
     </View>
@@ -274,7 +274,7 @@ useDidShow(() => {
 }
 
 .page-header {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #4A6FA5;
   padding: 32px 32px 28px;
 }
 
@@ -309,7 +309,7 @@ useDidShow(() => {
 
 .filter-value {
   font-size: 26px;
-  color: #1a1a2e;
+  color: #4A6FA5;
   font-weight: 500;
 }
 
@@ -360,7 +360,7 @@ useDidShow(() => {
 .card-title {
   font-size: 30px;
   font-weight: 600;
-  color: #1a1a2e;
+  color: #4A6FA5;
 }
 
 .card-sub {
@@ -381,7 +381,7 @@ useDidShow(() => {
 
 .edit-text {
   font-size: 24px;
-  color: #667eea;
+  color: #4A6FA5;
 }
 
 .delete-btn {
@@ -417,11 +417,11 @@ useDidShow(() => {
 .stat-value {
   font-size: 28px;
   font-weight: 600;
-  color: #1a1a2e;
+  color: #4A6FA5;
 }
 
 .stat-value.highlight {
-  color: #667eea;
+  color: #4A6FA5;
 }
 
 .card-footer {
@@ -450,7 +450,7 @@ useDidShow(() => {
   width: 100px;
   height: 100px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #4A6FA5;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -483,7 +483,7 @@ useDidShow(() => {
   background: #f5f7fa;
   border-radius: 10px;
   font-size: 28px;
-  color: #1a1a2e;
+  color: #4A6FA5;
 }
 
 .form-picker {
@@ -497,7 +497,7 @@ useDidShow(() => {
 
 .form-picker-text {
   font-size: 28px;
-  color: #1a1a2e;
+  color: #4A6FA5;
 }
 
 .form-picker-text.placeholder {
@@ -521,7 +521,7 @@ useDidShow(() => {
 
 .calc-value {
   font-size: 36px;
-  color: #667eea;
+  color: #4A6FA5;
   font-weight: 700;
 }
 </style>
