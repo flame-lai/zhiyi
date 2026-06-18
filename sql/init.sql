@@ -61,6 +61,7 @@ CREATE TABLE `menu` (
   `component` VARCHAR(200) COMMENT '前端组件路径',
   `icon` VARCHAR(50) COMMENT '图标',
   `type` TINYINT COMMENT '1目录 2菜单 3按钮',
+  `platform` VARCHAR(20) DEFAULT 'web' COMMENT '所属平台 web/mobile',
   `permission` VARCHAR(100) COMMENT '权限标识',
   `sort` INT DEFAULT 0,
   `status` TINYINT DEFAULT 1,
@@ -459,3 +460,27 @@ INSERT INTO `role` (`factory_id`, `name`, `code`, `sort`, `status`) VALUES (1, '
 -- 初始数据：默认超级管理员（密码: admin123 BCrypt加密）
 INSERT INTO `employee` (`factory_id`, `employee_no`, `name`, `role_id`, `login_account`, `login_password`, `login_code`, `status`)
 VALUES (1, 'A001', '管理员', 1, 'admin', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iAt6Z5EHsM8lE9lBOsl7iKTVKIUi', 'ADMIN001', 1);
+
+-- 初始数据：移动端菜单（platform='mobile'）
+-- 员工端菜单
+INSERT INTO `menu` (`parent_id`, `name`, `code`, `path`, `icon`, `type`, `platform`, `permission`, `sort`, `status`) VALUES
+(0, '扫码报工', 'mobile:scan',       '/pages/scan/index',           'scan',       2, 'mobile', 'mobile:scan',               10, 1),
+(0, '我的工资', 'mobile:wage',       '/pages/wage/index',           'wage',       2, 'mobile', 'mobile:wage',               20, 1),
+(0, '报工记录', 'mobile:report-records','/pages/report-records/index','records',   2, 'mobile', 'mobile:report-records',     30, 1);
+
+-- 管理员端菜单（code 以 mobile:admin 开头，用于后端区分 admin 分组）
+INSERT INTO `menu` (`parent_id`, `name`, `code`, `path`, `icon`, `type`, `platform`, `permission`, `sort`, `status`) VALUES
+(0, '生产看板', 'mobile:admin:dashboard',  '/pages/admin/dashboard/index',     'dashboard',  2, 'mobile', 'mobile:dashboard',         110, 1),
+(0, '异常预警', 'mobile:admin:anomaly',    '/pages/admin/anomaly/index',       'anomaly',    2, 'mobile', 'mobile:anomaly',           120, 1),
+(0, '计时录入', 'mobile:admin:timed-wage', '/pages/admin/timed-wage/index',    'timed-wage', 2, 'mobile', 'mobile:timed-wage',        130, 1),
+(0, '扎号查询', 'mobile:admin:bundle-query','/pages/admin/bundle-query/index', 'bundle',     2, 'mobile', 'mobile:bundle-query',      140, 1),
+(0, '订单查询', 'mobile:admin:order-query','/pages/admin/order-query/index',   'order',      2, 'mobile', 'mobile:order-query',       150, 1);
+
+-- 管理员端操作权限（按钮类，type=3）
+INSERT INTO `menu` (`parent_id`, `name`, `code`, `path`, `icon`, `type`, `platform`, `permission`, `sort`, `status`) VALUES
+(0, '清除报工', 'mobile:admin:report-clear',      '', '', 3, 'mobile', 'mobile:report-clear',      210, 1),
+(0, '补录报工', 'mobile:admin:report-supplement', '', '', 3, 'mobile', 'mobile:report-supplement', 220, 1);
+
+-- 为超级管理员角色（id=1）绑定所有移动端菜单
+INSERT INTO `role_menu` (`role_id`, `menu_id`)
+SELECT 1, `id` FROM `menu` WHERE `platform` = 'mobile';
