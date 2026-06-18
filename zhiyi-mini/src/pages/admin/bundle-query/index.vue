@@ -93,12 +93,12 @@
 import { ref } from 'vue'
 import Taro, { useDidShow } from '@tarojs/taro'
 import { View, Text, Input, ScrollView } from '@tarojs/components'
-import { searchBundle } from '../../api/mobileAdmin'
-import { formatDateTime } from '../../utils/format'
-import { checkAuthAndRedirect } from '../../utils/auth'
-import EmptyState from '../../components/EmptyState.vue'
-import StatusTag from '../../components/StatusTag.vue'
-import type { BundleDetail, ProcessReportStatus } from '../../api/types'
+import { searchBundle } from '../../../api/mobileAdmin'
+import { formatDateTime } from '../../../utils/format'
+import { checkAuthAndRedirect } from '../../../utils/auth'
+import EmptyState from '../../../components/EmptyState.vue'
+import StatusTag from '../../../components/StatusTag.vue'
+import type { BundleDetail, ProcessReportStatus } from '../../../api/types'
 
 definePageConfig({
   navigationBarTitleText: '扎号查询',

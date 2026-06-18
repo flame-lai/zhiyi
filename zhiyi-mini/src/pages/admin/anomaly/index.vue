@@ -53,12 +53,12 @@
 import { ref } from 'vue'
 import Taro, { useDidShow } from '@tarojs/taro'
 import { View, Text, ScrollView } from '@tarojs/components'
-import { getAnomalies } from '../../api/mobileAdmin'
-import { formatDateTime } from '../../utils/format'
-import { checkAuthAndRedirect } from '../../utils/auth'
-import EmptyState from '../../components/EmptyState.vue'
-import StatusTag from '../../components/StatusTag.vue'
-import type { AnomalyRecord } from '../../api/types'
+import { getAnomalies } from '../../../api/mobileAdmin'
+import { formatDateTime } from '../../../utils/format'
+import { checkAuthAndRedirect } from '../../../utils/auth'
+import EmptyState from '../../../components/EmptyState.vue'
+import StatusTag from '../../../components/StatusTag.vue'
+import type { AnomalyRecord } from '../../../api/types'
 
 definePageConfig({
   navigationBarTitleText: '异常预警',

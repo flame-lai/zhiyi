@@ -90,12 +90,12 @@
 import { ref } from 'vue'
 import Taro, { useDidShow } from '@tarojs/taro'
 import { View, Text, Input, ScrollView } from '@tarojs/components'
-import { searchOrder } from '../../api/mobileAdmin'
-import { formatAmount, formatDate, formatPercent } from '../../utils/format'
-import { checkAuthAndRedirect } from '../../utils/auth'
-import EmptyState from '../../components/EmptyState.vue'
-import StatusTag from '../../components/StatusTag.vue'
-import type { OrderSearchResult } from '../../api/types'
+import { searchOrder } from '../../../api/mobileAdmin'
+import { formatAmount, formatDate, formatPercent } from '../../../utils/format'
+import { checkAuthAndRedirect } from '../../../utils/auth'
+import EmptyState from '../../../components/EmptyState.vue'
+import StatusTag from '../../../components/StatusTag.vue'
+import type { OrderSearchResult } from '../../../api/types'
 
 definePageConfig({
   navigationBarTitleText: '订单查询',

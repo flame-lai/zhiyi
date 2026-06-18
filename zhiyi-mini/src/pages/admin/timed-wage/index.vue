@@ -108,12 +108,12 @@
 import { ref, reactive, computed } from 'vue'
 import Taro, { useDidShow } from '@tarojs/taro'
 import { View, Text, ScrollView, Input, Picker } from '@tarojs/components'
-import { getTimedWages, createTimedWage, updateTimedWage, deleteTimedWage } from '../../api/mobileAdmin'
-import { formatAmount, formatDate } from '../../utils/format'
-import { checkAuthAndRedirect } from '../../utils/auth'
-import EmptyState from '../../components/EmptyState.vue'
-import ConfirmPanel from '../../components/ConfirmPanel.vue'
-import type { TimedWageRecord } from '../../api/types'
+import { getTimedWages, createTimedWage, updateTimedWage, deleteTimedWage } from '../../../api/mobileAdmin'
+import { formatAmount, formatDate } from '../../../utils/format'
+import { checkAuthAndRedirect } from '../../../utils/auth'
+import EmptyState from '../../../components/EmptyState.vue'
+import ConfirmPanel from '../../../components/ConfirmPanel.vue'
+import type { TimedWageRecord } from '../../../api/types'
 
 definePageConfig({
   navigationBarTitleText: '计时工资',

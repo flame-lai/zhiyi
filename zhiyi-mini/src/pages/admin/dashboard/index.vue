@@ -126,12 +126,12 @@
 import { ref, computed } from 'vue'
 import Taro, { useDidShow } from '@tarojs/taro'
 import { View, Text, ScrollView, Picker } from '@tarojs/components'
-import { getDashboardOrders, getDashboardWorkers } from '../../api/mobileAdmin'
-import { formatAmount, formatPercent } from '../../utils/format'
-import { checkAuthAndRedirect } from '../../utils/auth'
-import EmptyState from '../../components/EmptyState.vue'
-import StatusTag from '../../components/StatusTag.vue'
-import type { DashboardOrder, DashboardWorker } from '../../api/types'
+import { getDashboardOrders, getDashboardWorkers } from '../../../api/mobileAdmin'
+import { formatAmount, formatPercent } from '../../../utils/format'
+import { checkAuthAndRedirect } from '../../../utils/auth'
+import EmptyState from '../../../components/EmptyState.vue'
+import StatusTag from '../../../components/StatusTag.vue'
+import type { DashboardOrder, DashboardWorker } from '../../../api/types'
 
 definePageConfig({
   navigationBarTitleText: '生产看板',
