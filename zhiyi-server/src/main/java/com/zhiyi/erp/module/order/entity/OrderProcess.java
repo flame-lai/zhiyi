@@ -14,4 +14,5 @@ public class OrderProcess {
     private Long processId;
     private BigDecimal processPrice;
     private Integer sort;
+    private Integer batchReport;
 }

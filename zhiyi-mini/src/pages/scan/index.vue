@@ -4,10 +4,19 @@
     <View v-if="step === 1" class="step-1">
       <View class="scan-hero">
         <View class="scan-icon-wrap" @tap="handleScan">
-          <Text class="scan-icon-text">📷</Text>
+          <View class="scan-frame">
+            <View class="scan-corner tl" />
+            <View class="scan-corner tr" />
+            <View class="scan-corner bl" />
+            <View class="scan-corner br" />
+            <View class="scan-line" />
+          </View>
         </View>
-        <Text class="scan-hero-title">扫码识别</Text>
-        <Text class="scan-hero-desc">扫描扎号QR码或裁床条形码</Text>
+        <Text class="scan-hero-title">扫码报工</Text>
+        <Text class="scan-hero-desc">扫描扎号二维码或裁床条形码</Text>
+        <View class="scan-btn-wrap" @tap="handleScan">
+          <Text class="scan-btn-text">开始扫码</Text>
+        </View>
       </View>
 
       <View class="manual-section">
@@ -40,11 +49,11 @@
           <Text class="info-label">款号</Text>
           <Text class="info-value">{{ currentStyleNo }}</Text>
         </View>
-        <View class="info-row">
+        <View v-if="scanResult?.scanType === 'BUNDLE'" class="info-row">
           <Text class="info-label">颜色</Text>
           <Text class="info-value">{{ currentColor }}</Text>
         </View>
-        <View class="info-row">
+        <View v-if="scanResult?.scanType === 'BUNDLE'" class="info-row">
           <Text class="info-label">尺码</Text>
           <Text class="info-value">{{ currentSize }}</Text>
         </View>
@@ -61,41 +70,46 @@
           <Text class="info-value">{{ (scanResult as CuttingScanResult).cutting.bedNo }}</Text>
         </View>
         <View v-if="scanResult?.scanType === 'CUTTING'" class="info-row">
-          <Text class="info-label">总扎数</Text>
-          <Text class="info-value">{{ (scanResult as CuttingScanResult).cutting.totalBundleCount }}</Text>
+          <Text class="info-label">总数量</Text>
+          <Text class="info-value">{{ (scanResult as CuttingScanResult).cutting.totalQty }}</Text>
+        </View>
+        <!-- 颜色尺码汇总 -->
+        <View v-if="scanResult?.scanType === 'CUTTING'" class="color-size-summary">
+          <Text class="summary-label">颜色尺码</Text>
+          <View class="color-size-tags">
+            <Text v-for="cs in (scanResult as CuttingScanResult).colorSizeMatrix" :key="cs.color + cs.size" class="color-size-tag">
+              {{ cs.color }}{{ cs.size }}: {{ cs.qty }}件
+            </Text>
+          </View>
         </View>
       </View>
 
-      <!-- Bundle Selection (cutting only) -->
+      <!-- Color/Size Selection (cutting only) -->
       <View v-if="scanResult?.scanType === 'CUTTING'" class="bundle-section">
         <View class="section-header">
-          <Text class="section-title">选择扎号</Text>
+          <Text class="section-title">选择颜色尺码</Text>
           <View class="select-all-btn" @tap="toggleSelectAll">
-            <Text class="select-all-text">{{ allBundlesSelected ? '取消全选' : '全选' }}</Text>
+            <Text class="select-all-text">{{ allColorSizeSelected ? '取消全选' : '全选' }}</Text>
           </View>
         </View>
-        <View class="bundle-list">
+        <View class="color-size-list">
           <View
-            v-for="b in (scanResult as CuttingScanResult).bundles"
-            :key="b.id"
-            class="bundle-item"
-            :class="{ disabled: b.disabled, selected: selectedBundleIds.includes(b.id) }"
-            @tap="toggleBundle(b)"
+            v-for="cs in (scanResult as CuttingScanResult).colorSizeMatrix"
+            :key="cs.color + cs.size"
+            class="color-size-item"
+            :class="{ selected: isColorSizeSelected(cs) }"
+            @tap="toggleColorSize(cs)"
           >
-            <View class="bundle-check">
-              <View v-if="b.disabled" class="check-box disabled-box">
-                <Text class="check-disabled-icon">✗</Text>
-              </View>
-              <View v-else-if="selectedBundleIds.includes(b.id)" class="check-box checked-box">
+            <View class="cs-check">
+              <View v-if="isColorSizeSelected(cs)" class="check-box checked-box">
                 <Text class="check-checked-icon">✓</Text>
               </View>
               <View v-else class="check-box unchecked-box" />
             </View>
-            <View class="bundle-info">
-              <Text class="bundle-no">{{ b.bundleNo }}</Text>
-              <Text class="bundle-qty">{{ b.qty }}件</Text>
+            <View class="cs-info">
+              <Text class="cs-name">{{ cs.color }} {{ cs.size }}</Text>
+              <Text class="cs-qty">{{ cs.qty }}件</Text>
             </View>
-            <Text v-if="b.disabled" class="bundle-reason">{{ b.disabledReason }}</Text>
           </View>
         </View>
       </View>
@@ -103,7 +117,7 @@
       <!-- Process Checklist -->
       <View class="process-section">
         <Text class="section-title">工序选择</Text>
-        <ProcessCheckList :processes="processes" @change="onProcessChange" />
+        <ProcessCheckList :processes="processes" :showMobilePrice="scanResult?.showMobilePrice" :scanType="scanResult?.scanType" @change="onProcessChange" />
       </View>
 
       <!-- Confirm Button -->
@@ -153,7 +167,10 @@
         </View>
       </View>
 
-      <Button class="continue-btn" @tap="resetScan">继续扫码</Button>
+      <View class="result-btns">
+        <Button class="continue-btn" @tap="resetScan">继续扫码</Button>
+        <Button class="home-btn" @tap="goHome">返回首页</Button>
+      </View>
     </View>
   </View>
 </template>
@@ -174,6 +191,7 @@ const manualCode = ref('')
 const scanCode = ref('')
 const scanResult = ref<BundleScanResult | CuttingScanResult | null>(null)
 const selectedBundleIds = ref<number[]>([])
+const selectedColorSizes = ref<Array<{ color: string; size: string }>>([])
 const selectedProcessIds = ref<number[]>([])
 const submitResult = ref<ReportSubmitResult | null>(null)
 
@@ -195,20 +213,19 @@ const currentColor = computed(() => {
   if (!scanResult.value) return ''
   return scanResult.value.scanType === 'BUNDLE'
     ? (scanResult.value as BundleScanResult).bundle.color
-    : (scanResult.value as CuttingScanResult).cutting.color
+    : ''
 })
 const currentSize = computed(() => {
   if (!scanResult.value) return ''
   return scanResult.value.scanType === 'BUNDLE'
     ? (scanResult.value as BundleScanResult).bundle.size
-    : (scanResult.value as CuttingScanResult).cutting.size
+    : ''
 })
 
-const allBundlesSelected = computed(() => {
+const allColorSizeSelected = computed(() => {
   if (scanResult.value?.scanType !== 'CUTTING') return false
-  const cutting = scanResult.value as CuttingScanResult
-  const selectable = cutting.bundles.filter(b => !b.disabled)
-  return selectable.length > 0 && selectable.every(b => selectedBundleIds.value.includes(b.id))
+  const matrix = (scanResult.value as CuttingScanResult).colorSizeMatrix
+  return matrix.length > 0 && matrix.every(cs => isColorSizeSelected(cs))
 })
 
 async function handleScan() {
@@ -237,13 +254,14 @@ async function resolveCode(code: string) {
     const result = await resolveScan(code)
     scanCode.value = code
     scanResult.value = result
-    // Default: for cutting scans, select all non-disabled bundles
+    // Default: for cutting scans, select all color/size combinations
     if (result.scanType === 'CUTTING') {
-      selectedBundleIds.value = (result as CuttingScanResult).bundles
-        .filter(b => !b.disabled)
-        .map(b => b.id)
+      const matrix = (result as CuttingScanResult).colorSizeMatrix
+      selectedColorSizes.value = matrix.map(cs => ({ color: cs.color, size: cs.size }))
+      selectedBundleIds.value = matrix.flatMap(cs => cs.bundleIds)
     } else {
       selectedBundleIds.value = [(result as BundleScanResult).bundle.id]
+      selectedColorSizes.value = []
     }
     selectedProcessIds.value = []
     step.value = 2
@@ -258,30 +276,45 @@ function onProcessChange(ids: number[]) {
   selectedProcessIds.value = ids
 }
 
-function toggleBundle(b: { id: number; disabled?: boolean }) {
-  if (b.disabled) return
-  const idx = selectedBundleIds.value.indexOf(b.id)
+function isColorSizeSelected(cs: { color: string; size: string }): boolean {
+  return selectedColorSizes.value.some(s => s.color === cs.color && s.size === cs.size)
+}
+
+function toggleColorSize(cs: { color: string; size: string; bundleIds: number[] }) {
+  const idx = selectedColorSizes.value.findIndex(s => s.color === cs.color && s.size === cs.size)
   if (idx > -1) {
-    selectedBundleIds.value.splice(idx, 1)
+    selectedColorSizes.value.splice(idx, 1)
+    // Remove bundle IDs for this color/size
+    cs.bundleIds.forEach(id => {
+      const bIdx = selectedBundleIds.value.indexOf(id)
+      if (bIdx > -1) selectedBundleIds.value.splice(bIdx, 1)
+    })
   } else {
-    selectedBundleIds.value.push(b.id)
+    selectedColorSizes.value.push({ color: cs.color, size: cs.size })
+    // Add bundle IDs for this color/size
+    cs.bundleIds.forEach(id => {
+      if (!selectedBundleIds.value.includes(id)) {
+        selectedBundleIds.value.push(id)
+      }
+    })
   }
 }
 
 function toggleSelectAll() {
   if (scanResult.value?.scanType !== 'CUTTING') return
-  const cutting = scanResult.value as CuttingScanResult
-  const selectable = cutting.bundles.filter(b => !b.disabled)
-  if (allBundlesSelected.value) {
+  const matrix = (scanResult.value as CuttingScanResult).colorSizeMatrix
+  if (allColorSizeSelected.value) {
+    selectedColorSizes.value = []
     selectedBundleIds.value = []
   } else {
-    selectedBundleIds.value = selectable.map(b => b.id)
+    selectedColorSizes.value = matrix.map(cs => ({ color: cs.color, size: cs.size }))
+    selectedBundleIds.value = matrix.flatMap(cs => cs.bundleIds)
   }
 }
 
 async function handleConfirm() {
   if (selectedBundleIds.value.length === 0) {
-    Taro.showToast({ title: '请至少选择一个扎号', icon: 'none' })
+    Taro.showToast({ title: '请至少选择一个颜色尺码', icon: 'none' })
     return
   }
   if (selectedProcessIds.value.length === 0) {
@@ -298,7 +331,9 @@ async function handleConfirm() {
       selectedProcessIds: selectedProcessIds.value,
     })
     submitResult.value = result
-    step.value = 3
+    Taro.showToast({ title: '上报成功', icon: 'success' })
+    // 重置扫码页面，准备下一次扫码
+    resetScan()
   } catch {
     // error handled by request util
   } finally {
@@ -315,11 +350,16 @@ function goBack() {
   manualCode.value = ''
 }
 
+function goHome() {
+  Taro.switchTab({ url: '/pages/index/index' })
+}
+
 function resetScan() {
   step.value = 1
   scanResult.value = null
   scanCode.value = ''
   selectedBundleIds.value = []
+  selectedColorSizes.value = []
   selectedProcessIds.value = []
   submitResult.value = null
   manualCode.value = ''
@@ -336,42 +376,78 @@ function resetScan() {
 
 /* ---- Step 1 ---- */
 .step-1 {
-  padding: 40px 32px;
+  padding: 0 32px 40px;
 }
 
 .scan-hero {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 64px 0 48px;
+  padding: 120px 0 48px;
 }
 
 .scan-icon-wrap {
-  width: 160px;
-  height: 160px;
-  border-radius: 50%;
-  background: #4A6FA5;
+  width: 200px;
+  height: 200px;
+  border-radius: 40px;
+  background: linear-gradient(135deg, #4A6FA5 0%, #3a5f95 100%);
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 24px;
-  box-shadow: 0 8px 32px rgba(102, 126, 234, 0.4);
+  margin-bottom: 32px;
+  box-shadow: 0 12px 40px rgba(74, 111, 165, 0.35);
 }
 
-.scan-icon-text {
-  font-size: 72px;
+/* 扫码框图标 */
+.scan-frame {
+  width: 100px;
+  height: 100px;
+  position: relative;
+}
+.scan-corner {
+  position: absolute;
+  width: 24px;
+  height: 24px;
+  border: 4px solid #fff;
+}
+.scan-corner.tl { top: 0; left: 0; border-right: none; border-bottom: none; border-radius: 4px 0 0 0; }
+.scan-corner.tr { top: 0; right: 0; border-left: none; border-bottom: none; border-radius: 0 4px 0 0; }
+.scan-corner.bl { bottom: 0; left: 0; border-right: none; border-top: none; border-radius: 0 0 0 4px; }
+.scan-corner.br { bottom: 0; right: 0; border-left: none; border-top: none; border-radius: 0 0 4px 0; }
+.scan-line {
+  position: absolute;
+  top: 50%;
+  left: 10%;
+  width: 80%;
+  height: 3px;
+  background: rgba(255,255,255,0.8);
+  border-radius: 2px;
+  transform: translateY(-50%);
 }
 
 .scan-hero-title {
-  font-size: 36px;
+  font-size: 40px;
   font-weight: 700;
-  color: #4A6FA5;
-  margin-bottom: 8px;
+  color: #1f2937;
+  margin-bottom: 12px;
 }
 
 .scan-hero-desc {
-  font-size: 26px;
+  font-size: 28px;
   color: #9ca3af;
+  margin-bottom: 40px;
+}
+
+.scan-btn-wrap {
+  padding: 20px 80px;
+  background: linear-gradient(135deg, #4A6FA5 0%, #3a5f95 100%);
+  border-radius: 48px;
+  box-shadow: 0 8px 24px rgba(74, 111, 165, 0.3);
+}
+.scan-btn-text {
+  font-size: 32px;
+  font-weight: 600;
+  color: #ffffff;
 }
 
 .manual-section {
@@ -573,6 +649,70 @@ function resetScan() {
   flex-shrink: 0;
 }
 
+.color-size-summary {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #f3f4f6;
+}
+
+.color-size-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.color-size-tag {
+  font-size: 24px;
+  color: #4A6FA5;
+  background: #f0f0ff;
+  padding: 6px 12px;
+  border-radius: 6px;
+}
+
+.color-size-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.color-size-item {
+  display: flex;
+  align-items: center;
+  padding: 16px;
+  background: #f9fafb;
+  border-radius: 10px;
+  border: 2px solid transparent;
+}
+
+.color-size-item.selected {
+  border-color: #4A6FA5;
+  background: #f0f0ff;
+}
+
+.cs-check {
+  margin-right: 16px;
+  flex-shrink: 0;
+}
+
+.cs-info {
+  flex: 1;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.cs-name {
+  font-size: 28px;
+  font-weight: 500;
+  color: #4A6FA5;
+}
+
+.cs-qty {
+  font-size: 26px;
+  color: #6b7280;
+}
+
 .process-section {
   background: #ffffff;
   border-radius: 16px;
@@ -762,16 +902,41 @@ function resetScan() {
   margin-top: 4px;
 }
 
+.result-btns {
+  display: flex;
+  gap: 20px;
+  margin-top: 16px;
+}
+
 .continue-btn {
-  width: 100%;
+  flex: 1;
   height: 88px;
   line-height: 88px;
   background: #4A6FA5;
   color: #ffffff;
-  font-size: 32px;
+  font-size: 30px;
   font-weight: 600;
   border-radius: 12px;
   border: none;
-  margin-top: 16px;
+}
+
+.continue-btn::after {
+  border: none;
+}
+
+.home-btn {
+  flex: 1;
+  height: 88px;
+  line-height: 88px;
+  background: #f3f4f6;
+  color: #374151;
+  font-size: 30px;
+  font-weight: 600;
+  border-radius: 12px;
+  border: none;
+}
+
+.home-btn::after {
+  border: none;
 }
 </style>

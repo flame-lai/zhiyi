@@ -13,4 +13,5 @@ public class StyleProcess {
     private Long processId;
     private BigDecimal refPrice;
     private Integer sort;
+    private Integer batchReport;
 }

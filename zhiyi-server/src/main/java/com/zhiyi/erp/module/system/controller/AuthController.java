@@ -40,22 +40,10 @@ public class AuthController {
         private String password;
     }
 
-    @Data
-    public static class LoginByCodeDTO {
-        @NotBlank(message = "登录码不能为空")
-        private String loginCode;
-    }
-
     @Operation(summary = "账号密码登录")
     @PostMapping("/login")
     public R<Map<String, Object>> loginByAccount(@RequestBody LoginByAccountDTO dto) {
         return R.ok(authService.loginByAccount(dto.getAccount(), dto.getPassword()));
-    }
-
-    @Operation(summary = "登录码登录")
-    @PostMapping("/login-by-code")
-    public R<Map<String, Object>> loginByCode(@RequestBody LoginByCodeDTO dto) {
-        return R.ok(authService.loginByCode(dto.getLoginCode()));
     }
 
     @Operation(summary = "登出")

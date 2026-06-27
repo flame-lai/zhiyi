@@ -18,6 +18,7 @@ public class BundleDetailDTO {
     private String fabric;          // 面料
     private String part;            // 部位
     private Integer bedNo;
+    private String barcode;         // 裁床码
     private String bundleNo;
     private String globalBundleNo;
     private Integer qty;            // 成衣件数

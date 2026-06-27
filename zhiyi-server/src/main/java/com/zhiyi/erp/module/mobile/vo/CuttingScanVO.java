@@ -9,7 +9,9 @@ public class CuttingScanVO {
     private String code;
     private CuttingInfo cutting;
     private List<BundleItem> bundles;
+    private List<ColorSizeItem> colorSizeMatrix;
     private List<ProcessReportStatusVO> processes;
+    private Integer showMobilePrice;
 
     @Data
     public static class CuttingInfo {
@@ -20,8 +22,6 @@ public class CuttingScanVO {
         private Integer totalQty;
         private String orderNo;
         private String styleNo;
-        private String color;
-        private String size;
     }
 
     @Data
@@ -32,5 +32,13 @@ public class CuttingScanVO {
         private Integer qty;
         private Boolean disabled;
         private String disabledReason;
+    }
+
+    @Data
+    public static class ColorSizeItem {
+        private String color;
+        private String size;
+        private Integer qty;
+        private List<Long> bundleIds;
     }
 }

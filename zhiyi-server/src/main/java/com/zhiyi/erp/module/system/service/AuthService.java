@@ -43,18 +43,6 @@ public class AuthService extends ServiceImpl<EmployeeMapper, Employee> {
         return doLogin(employee);
     }
 
-    public Map<String, Object> loginByCode(String loginCode) {
-        Employee employee = employeeMapper.selectByLoginCode(loginCode);
-        if (employee == null) {
-            throw new BizException("登录码无效");
-        }
-        if (employee.getStatus() != 1) {
-            throw new BizException("账号已停用，请联系管理员");
-        }
-
-        return doLogin(employee);
-    }
-
     private Map<String, Object> doLogin(Employee employee) {
         StpUtil.login(employee.getId());
 

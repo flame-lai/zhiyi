@@ -1,10 +1,5 @@
 <template>
   <View class="timed-page">
-    <!-- Header -->
-    <View class="page-header">
-      <Text class="page-title">计时工资录入</Text>
-    </View>
-
     <!-- Month filter -->
     <View class="filter-bar">
       <Picker mode="date" fields="month" :value="filterMonth" @change="onMonthChange">
@@ -15,7 +10,7 @@
       </Picker>
     </View>
 
-    <ScrollView scroll-y class="content" refresher-enabled :refresher-triggered="refreshing" @refresherrefresh="onRefresh">
+    <View class="content">
       <View v-if="loading" class="loading"><Text class="loading-text">加载中...</Text></View>
       <EmptyState v-else-if="list.length === 0" text="暂无计时工资记录" />
       <View v-else class="card-list">
@@ -56,7 +51,7 @@
           </View>
         </View>
       </View>
-    </ScrollView>
+    </View>
 
     <!-- Floating add button -->
     <View class="fab" @tap="openAdd">
@@ -73,8 +68,8 @@
       @cancel="closePanel"
     >
       <View class="form-item">
-        <Text class="form-label">工人ID</Text>
-        <Input class="form-input" type="number" placeholder="请输入工人ID" :value="form.employeeId" @input="(e: any) => (form.employeeId = e.detail.value)" />
+        <Text class="form-label">工号</Text>
+        <Input class="form-input" placeholder="请输入工号" :value="form.employeeNo" @input="(e: any) => (form.employeeNo = e.detail.value)" />
       </View>
       <View class="form-item">
         <Text class="form-label">日期</Text>
@@ -107,7 +102,7 @@
 <script setup lang="ts">
 import { ref, reactive, computed } from 'vue'
 import Taro, { useDidShow } from '@tarojs/taro'
-import { View, Text, ScrollView, Input, Picker } from '@tarojs/components'
+import { View, Text, Input, Picker } from '@tarojs/components'
 import { getTimedWages, createTimedWage, updateTimedWage, deleteTimedWage } from '../../../api/mobileAdmin'
 import { formatAmount, formatDate } from '../../../utils/format'
 import { checkAuthAndRedirect } from '../../../utils/auth'
@@ -133,7 +128,6 @@ function currentMonthStr() {
 }
 
 const filterMonth = ref(currentMonthStr())
-const refreshing = ref(false)
 const loading = ref(false)
 const submitting = ref(false)
 const list = ref<TimedWageRecord[]>([])
@@ -141,7 +135,7 @@ const panelVisible = ref(false)
 const editingId = ref(0)
 
 const form = reactive({
-  employeeId: '',
+  employeeNo: '',
   workDate: todayStr(),
   hours: '',
   hourlyRate: '',
@@ -161,7 +155,7 @@ function onMonthChange(e: any) {
 
 function openAdd() {
   editingId.value = 0
-  form.employeeId = ''
+  form.employeeNo = ''
   form.workDate = todayStr()
   form.hours = ''
   form.hourlyRate = ''
@@ -171,7 +165,7 @@ function openAdd() {
 
 function openEdit(item: TimedWageRecord) {
   editingId.value = item.id
-  form.employeeId = String(item.employeeId)
+  form.employeeNo = item.employeeNo || ''
   form.workDate = formatDate(item.workDate) || todayStr()
   form.hours = String(item.hours)
   form.hourlyRate = String(item.hourlyRate)
@@ -203,8 +197,8 @@ function onDelete(item: TimedWageRecord) {
 
 async function submitForm() {
   if (submitting.value) return
-  if (!form.employeeId) {
-    Taro.showToast({ title: '请输入工人ID', icon: 'none' })
+  if (!form.employeeNo.trim()) {
+    Taro.showToast({ title: '请输入工号', icon: 'none' })
     return
   }
   if (!form.hours || Number(form.hours) <= 0) {
@@ -218,7 +212,7 @@ async function submitForm() {
 
   submitting.value = true
   const payload = {
-    employeeId: Number(form.employeeId),
+    employeeNo: form.employeeNo.trim(),
     workDate: form.workDate,
     hours: Number(form.hours),
     hourlyRate: Number(form.hourlyRate),
@@ -252,12 +246,6 @@ async function loadList() {
   }
 }
 
-async function onRefresh() {
-  refreshing.value = true
-  await loadList()
-  refreshing.value = false
-}
-
 useDidShow(() => {
   if (!checkAuthAndRedirect()) return
   loadList()
@@ -273,16 +261,7 @@ useDidShow(() => {
   position: relative;
 }
 
-.page-header {
-  background: #4A6FA5;
-  padding: 32px 32px 28px;
-}
 
-.page-title {
-  font-size: 36px;
-  font-weight: 700;
-  color: #fff;
-}
 
 .filter-bar {
   display: flex;

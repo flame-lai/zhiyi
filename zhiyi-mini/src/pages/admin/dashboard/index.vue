@@ -1,10 +1,5 @@
 <template>
   <View class="dashboard-page">
-    <!-- Header -->
-    <View class="page-header">
-      <Text class="page-title">生产看板</Text>
-    </View>
-
     <!-- Tab switch -->
     <View class="tab-bar">
       <View :class="['tab-item', activeTab === 'order' && 'tab-active']" @tap="switchTab('order')">
@@ -17,32 +12,45 @@
 
     <!-- Filters -->
     <View class="filter-bar">
-      <Picker mode="date" :value="filterDate" @change="onDateChange">
-        <View class="filter-item">
-          <Text class="filter-label">日期</Text>
-          <Text class="filter-value">{{ filterDate || '选择日期' }}</Text>
+      <View class="filter-row">
+        <Picker mode="date" :value="startDate" @change="onStartDateChange">
+          <View class="filter-item">
+            <Text class="filter-value">{{ startDate || '开始日期' }}</Text>
+          </View>
+        </Picker>
+        <Text class="filter-sep">~</Text>
+        <Picker mode="date" :value="endDate" @change="onEndDateChange">
+          <View class="filter-item">
+            <Text class="filter-value">{{ endDate || '结束日期' }}</Text>
+          </View>
+        </Picker>
+      </View>
+      <View class="filter-row">
+        <View class="search-wrap">
+          <Input
+            class="search-input"
+            :placeholder="activeTab === 'order' ? '搜索订单号' : '搜索工号/姓名'"
+            :value="keyword"
+            @input="onKeywordInput"
+            @confirm="onSearch"
+          />
+          <View class="search-btn" @tap="onSearch"><Text class="search-btn-text">搜索</Text></View>
         </View>
-      </Picker>
-      <Picker v-if="activeTab === 'order'" mode="selector" :range="orderOptions" range-key="label" :value="orderPickerIndex" @change="onOrderChange">
-        <View class="filter-item">
-          <Text class="filter-label">订单</Text>
-          <Text class="filter-value">{{ orderOptions[orderPickerIndex] ? orderOptions[orderPickerIndex].label : '全部' }}</Text>
-        </View>
-      </Picker>
+      </View>
     </View>
 
     <!-- Content -->
-    <ScrollView scroll-y class="content" refresher-enabled :refresher-triggered="refreshing" @refresherrefresh="onRefresh">
+    <View class="content">
       <!-- Order tab -->
       <View v-if="activeTab === 'order'">
-        <View v-if="loading" class="loading"><Text class="loading-text">加载中...</Text></View>
-        <EmptyState v-else-if="orderList.length === 0" text="暂无订单数据" />
+        <View v-if="loading && orderList.length === 0" class="loading"><Text class="loading-text">加载中...</Text></View>
+        <EmptyState v-else-if="!loading && orderList.length === 0" text="暂无订单数据" />
         <View v-else class="card-list">
           <View v-for="item in orderList" :key="item.orderId" class="card">
             <View class="card-head">
               <View class="card-head-left">
                 <Text class="card-title">{{ item.orderNo }}</Text>
-                <Text class="card-sub">{{ item.styleNo }}</Text>
+                <Text class="card-sub">{{ item.styleNo }} · {{ item.orderDate || '-' }}</Text>
               </View>
               <StatusTag :text="formatPercent(item.completionRate)" :type="completionType(item.completionRate)" />
             </View>
@@ -63,20 +71,17 @@
               <Text class="bottleneck-name">{{ item.bottleneckProcess }}</Text>
             </View>
 
-            <!-- Progress bar -->
             <View class="progress-wrap">
               <View class="progress-bar">
                 <View class="progress-fill" :style="{ width: progressWidth(item.completionRate) }"></View>
               </View>
             </View>
 
-            <!-- Expand toggle -->
             <View class="expand-toggle" @tap="toggleExpand(item.orderId)">
               <Text class="expand-text">{{ expandedIds.includes(item.orderId) ? '收起工序' : '展开工序' }}</Text>
               <Text class="expand-icon">{{ expandedIds.includes(item.orderId) ? '▲' : '▼' }}</Text>
             </View>
 
-            <!-- Process progress rows -->
             <View v-if="expandedIds.includes(item.orderId)" class="process-rows">
               <View v-for="p in item.processProgress" :key="p.processId" class="process-row">
                 <Text class="process-name">{{ p.processName }}</Text>
@@ -90,15 +95,31 @@
               </View>
             </View>
           </View>
+
+          <View class="load-more" v-if="orderList.length > 0">
+            <Text class="load-more-text">{{ loading ? '加载中...' : orderHasMore ? '上拉加载更多' : '没有更多了' }}</Text>
+          </View>
         </View>
       </View>
 
       <!-- Worker tab -->
       <View v-else>
-        <View v-if="loading" class="loading"><Text class="loading-text">加载中...</Text></View>
-        <EmptyState v-else-if="workerList.length === 0" text="暂无工人数据" />
+        <View v-if="workerSummary" class="summary-cards">
+          <View class="summary-card">
+            <Text class="card-label">总数量</Text>
+            <Text class="card-value">{{ workerSummary.totalQty }}</Text>
+            <Text class="card-unit">件</Text>
+          </View>
+          <View class="summary-card">
+            <Text class="card-label">总金额</Text>
+            <Text class="card-value">{{ formatAmount(workerSummary.totalAmount) }}</Text>
+          </View>
+        </View>
+
+        <View v-if="loading && !workerSummary" class="loading"><Text class="loading-text">加载中...</Text></View>
+        <EmptyState v-else-if="!loading && (!workerSummary || workerList.length === 0)" text="暂无工人数据" />
         <View v-else class="card-list">
-          <View v-for="item in workerList" :key="item.employeeId" class="card">
+          <View v-for="item in workerList" :key="item.employeeId" class="card" @tap="goWorkerDetail(item.employeeId)">
             <View class="card-head">
               <View class="card-head-left">
                 <Text class="card-title">{{ item.employeeName }}</Text>
@@ -116,43 +137,50 @@
               </View>
             </View>
           </View>
+
+          <View class="load-more" v-if="workerList.length > 0">
+            <Text class="load-more-text">{{ loading ? '加载中...' : workerHasMore ? '上拉加载更多' : '没有更多了' }}</Text>
+          </View>
         </View>
       </View>
-    </ScrollView>
+    </View>
   </View>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue'
-import Taro, { useDidShow } from '@tarojs/taro'
-import { View, Text, ScrollView, Picker } from '@tarojs/components'
+import { ref } from 'vue'
+import Taro, { useDidShow, useReachBottom } from '@tarojs/taro'
+import { View, Text, Picker, Input } from '@tarojs/components'
 import { getDashboardOrders, getDashboardWorkers } from '../../../api/mobileAdmin'
 import { formatAmount, formatPercent } from '../../../utils/format'
 import { checkAuthAndRedirect } from '../../../utils/auth'
 import EmptyState from '../../../components/EmptyState.vue'
 import StatusTag from '../../../components/StatusTag.vue'
-import type { DashboardOrder, DashboardWorker } from '../../../api/types'
+import type { DashboardOrder, DashboardWorker, DashboardWorkerPage } from '../../../api/types'
 
 definePageConfig({
   navigationBarTitleText: '生产看板',
 })
 
 const activeTab = ref<'order' | 'worker'>('order')
-const filterDate = ref('')
-const orderId = ref<number | undefined>(undefined)
-const orderPickerIndex = ref(0)
-const refreshing = ref(false)
+const startDate = ref('')
+const endDate = ref('')
+const keyword = ref('')
 const loading = ref(false)
+
+// 订单看板
 const orderList = ref<DashboardOrder[]>([])
-const workerList = ref<DashboardWorker[]>([])
+const orderPage = ref(1)
+const orderHasMore = ref(true)
 const expandedIds = ref<number[]>([])
 
-// Order options for filter dropdown
-const orderOptions = computed(() => {
-  const opts: Array<{ label: string; value: number | undefined }> = [{ label: '全部', value: undefined }]
-  orderList.value.forEach(o => opts.push({ label: o.orderNo, value: o.orderId }))
-  return opts
-})
+// 工人看板
+const workerList = ref<DashboardWorker[]>([])
+const workerSummary = ref<DashboardWorkerPage | null>(null)
+const workerPage = ref(1)
+const workerHasMore = ref(true)
+
+const pageSize = 20
 
 function todayStr() {
   const d = new Date()
@@ -161,23 +189,44 @@ function todayStr() {
   return `${d.getFullYear()}-${m}-${day}`
 }
 
-filterDate.value = todayStr()
+function monthStartStr() {
+  const d = new Date()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  return `${d.getFullYear()}-${m}-01`
+}
+
+startDate.value = monthStartStr()
+endDate.value = todayStr()
 
 function switchTab(tab: 'order' | 'worker') {
   if (activeTab.value === tab) return
   activeTab.value = tab
+  keyword.value = ''
   loadData()
 }
 
-function onDateChange(e: any) {
-  filterDate.value = e.detail.value
+function onStartDateChange(e: any) {
+  startDate.value = e.detail.value
   loadData()
 }
 
-function onOrderChange(e: any) {
-  orderPickerIndex.value = Number(e.detail.value)
-  orderId.value = orderOptions.value[orderPickerIndex.value] ? orderOptions.value[orderPickerIndex.value].value : undefined
-  loadOrders()
+function onEndDateChange(e: any) {
+  endDate.value = e.detail.value
+  loadData()
+}
+
+function onKeywordInput(e: any) {
+  keyword.value = e.detail.value
+}
+
+function onSearch() {
+  loadData()
+}
+
+function goWorkerDetail(employeeId: number) {
+  Taro.navigateTo({
+    url: `/pages/admin/worker-detail/index?employeeId=${employeeId}&startDate=${startDate.value}&endDate=${endDate.value}`
+  })
 }
 
 function toggleExpand(id: number) {
@@ -197,11 +246,26 @@ function progressWidth(rate: number): string {
   return Math.min(100, Math.max(0, (rate || 0) * 100)) + '%'
 }
 
-async function loadOrders() {
+async function loadOrders(reset = false) {
+  if (reset) {
+    orderPage.value = 1
+    orderHasMore.value = true
+    orderList.value = []
+  }
+  if (!orderHasMore.value || loading.value) return
+
   loading.value = true
   try {
-    const res = await getDashboardOrders(filterDate.value, orderId.value)
-    orderList.value = res || []
+    const res = await getDashboardOrders(
+      startDate.value || undefined,
+      endDate.value || undefined,
+      keyword.value.trim() || undefined,
+      orderPage.value,
+      pageSize
+    )
+    const newRecords = res?.records || []
+    orderList.value = reset ? newRecords : [...orderList.value, ...newRecords]
+    orderHasMore.value = res?.hasMore ?? false
   } catch {
     orderList.value = []
   } finally {
@@ -209,28 +273,60 @@ async function loadOrders() {
   }
 }
 
-async function loadWorkers() {
+async function loadWorkers(reset = false) {
+  if (reset) {
+    workerPage.value = 1
+    workerHasMore.value = true
+    workerList.value = []
+    workerSummary.value = null
+  }
+  if (!workerHasMore.value || loading.value) return
+
   loading.value = true
   try {
-    const res = await getDashboardWorkers(filterDate.value)
-    workerList.value = res || []
+    const res = await getDashboardWorkers(
+      startDate.value || undefined,
+      endDate.value || undefined,
+      keyword.value.trim() || undefined,
+      workerPage.value,
+      pageSize
+    )
+    if (res) {
+      const newWorkers = res.workers || []
+      workerList.value = reset ? newWorkers : [...workerList.value, ...newWorkers]
+      workerHasMore.value = res.hasMore ?? false
+      // 汇总始终用首次返回的
+      if (reset || !workerSummary.value) {
+        workerSummary.value = res
+      }
+    }
   } catch {
     workerList.value = []
+    workerSummary.value = null
   } finally {
     loading.value = false
   }
 }
 
 async function loadData() {
-  if (activeTab.value === 'order') await loadOrders()
-  else await loadWorkers()
+  if (activeTab.value === 'order') await loadOrders(true)
+  else await loadWorkers(true)
 }
 
-async function onRefresh() {
-  refreshing.value = true
-  await loadData()
-  refreshing.value = false
-}
+useReachBottom(() => {
+  if (loading.value) return
+  if (activeTab.value === 'order') {
+    if (orderHasMore.value) {
+      orderPage.value++
+      loadOrders(false)
+    }
+  } else {
+    if (workerHasMore.value) {
+      workerPage.value++
+      loadWorkers(false)
+    }
+  }
+})
 
 useDidShow(() => {
   if (!checkAuthAndRedirect()) return
@@ -246,16 +342,7 @@ useDidShow(() => {
   flex-direction: column;
 }
 
-.page-header {
-  background: #4A6FA5;
-  padding: 32px 32px 28px;
-}
 
-.page-title {
-  font-size: 36px;
-  font-weight: 700;
-  color: #fff;
-}
 
 .tab-bar {
   display: flex;
@@ -293,32 +380,69 @@ useDidShow(() => {
 }
 
 .filter-bar {
-  display: flex;
-  gap: 16px;
-  padding: 20px 24px;
+  padding: 16px 24px;
   background: #fff;
   border-bottom: 1px solid #f0f0f0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.filter-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
 .filter-item {
   flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
   height: 64px;
   padding: 0 20px;
   background: #f5f7fa;
   border-radius: 10px;
-}
-
-.filter-label {
-  font-size: 24px;
-  color: #9ca3af;
+  display: flex;
+  align-items: center;
 }
 
 .filter-value {
   font-size: 26px;
   color: #4A6FA5;
+  font-weight: 500;
+}
+
+.filter-sep {
+  font-size: 24px;
+  color: #9ca3af;
+}
+
+.search-wrap {
+  flex: 1;
+  display: flex;
+  gap: 12px;
+}
+
+.search-input {
+  flex: 1;
+  height: 64px;
+  padding: 0 20px;
+  background: #f5f7fa;
+  border-radius: 10px;
+  font-size: 26px;
+  color: #4A6FA5;
+}
+
+.search-btn {
+  height: 64px;
+  padding: 0 28px;
+  background: #4A6FA5;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+}
+
+.search-btn-text {
+  font-size: 26px;
+  color: #fff;
   font-weight: 500;
 }
 
@@ -336,6 +460,39 @@ useDidShow(() => {
 
 .loading-text {
   font-size: 28px;
+  color: #9ca3af;
+}
+
+.summary-cards {
+  display: flex;
+  gap: 20px;
+  margin-bottom: 24px;
+}
+
+.summary-card {
+  flex: 1;
+  background: #fff;
+  border-radius: 16px;
+  padding: 24px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.card-label {
+  font-size: 24px;
+  color: #9ca3af;
+}
+
+.card-value {
+  font-size: 36px;
+  font-weight: 700;
+  color: #4A6FA5;
+}
+
+.card-unit {
+  font-size: 24px;
   color: #9ca3af;
 }
 
@@ -511,6 +668,16 @@ useDidShow(() => {
 }
 
 .process-empty-text {
+  font-size: 24px;
+  color: #9ca3af;
+}
+
+.load-more {
+  text-align: center;
+  padding: 24px 0 40px;
+}
+
+.load-more-text {
   font-size: 24px;
   color: #9ca3af;
 }

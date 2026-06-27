@@ -1,10 +1,5 @@
 <template>
   <View class="anomaly-page">
-    <!-- Header -->
-    <View class="page-header">
-      <Text class="page-title">异常预警</Text>
-    </View>
-
     <!-- Status filter tabs -->
     <View class="status-tabs">
       <View
@@ -17,7 +12,7 @@
       </View>
     </View>
 
-    <ScrollView scroll-y class="content" refresher-enabled :refresher-triggered="refreshing" @refresherrefresh="onRefresh">
+    <View class="content">
       <View v-if="loading" class="loading"><Text class="loading-text">加载中...</Text></View>
       <EmptyState v-else-if="list.length === 0" text="暂无异常记录" />
       <View v-else class="card-list">
@@ -45,14 +40,14 @@
           </View>
         </View>
       </View>
-    </ScrollView>
+    </View>
   </View>
 </template>
 
 <script setup lang="ts">
 import { ref } from 'vue'
 import Taro, { useDidShow } from '@tarojs/taro'
-import { View, Text, ScrollView } from '@tarojs/components'
+import { View, Text } from '@tarojs/components'
 import { getAnomalies } from '../../../api/mobileAdmin'
 import { formatDateTime } from '../../../utils/format'
 import { checkAuthAndRedirect } from '../../../utils/auth'
@@ -71,7 +66,6 @@ const statusTabs = [
 ]
 
 const activeStatus = ref(-1)
-const refreshing = ref(false)
 const loading = ref(false)
 const list = ref<AnomalyRecord[]>([])
 
@@ -106,12 +100,6 @@ async function loadList() {
   }
 }
 
-async function onRefresh() {
-  refreshing.value = true
-  await loadList()
-  refreshing.value = false
-}
-
 useDidShow(() => {
   if (!checkAuthAndRedirect()) return
   loadList()
@@ -126,16 +114,7 @@ useDidShow(() => {
   flex-direction: column;
 }
 
-.page-header {
-  background: #4A6FA5;
-  padding: 32px 32px 28px;
-}
 
-.page-title {
-  font-size: 36px;
-  font-weight: 700;
-  color: #fff;
-}
 
 .status-tabs {
   display: flex;

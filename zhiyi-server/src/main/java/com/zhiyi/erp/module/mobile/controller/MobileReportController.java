@@ -5,9 +5,9 @@ import com.zhiyi.erp.common.result.R;
 import com.zhiyi.erp.module.mobile.dto.ReportSubmitRequest;
 import com.zhiyi.erp.module.mobile.dto.ScanResolveRequest;
 import com.zhiyi.erp.module.mobile.service.MobileService;
+import com.zhiyi.erp.module.mobile.vo.ReportRecordsVO;
 import com.zhiyi.erp.module.mobile.vo.ReportSubmitResultVO;
 import com.zhiyi.erp.module.mobile.vo.WageSummaryVO;
-import com.zhiyi.erp.module.mobile.vo.WorkReportRecordVO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -37,17 +37,21 @@ public class MobileReportController {
 
     @Operation(summary = "工资汇总")
     @GetMapping("/wage-summary")
-    public R<WageSummaryVO> getWageSummary() {
+    public R<WageSummaryVO> getWageSummary(
+            @RequestParam(required = false) String startDate,
+            @RequestParam(required = false) String endDate) {
         Long employeeId = StpUtil.getSession().getLong("employeeId");
-        return R.ok(mobileService.getWageSummary(employeeId));
+        return R.ok(mobileService.getWageSummary(employeeId, startDate, endDate));
     }
 
     @Operation(summary = "报工记录")
     @GetMapping("/records")
-    public R<java.util.List<WorkReportRecordVO>> getReportRecords(
+    public R<ReportRecordsVO> getReportRecords(
             @RequestParam(required = false) String startDate,
-            @RequestParam(required = false) String endDate) {
+            @RequestParam(required = false) String endDate,
+            @RequestParam(defaultValue = "1") Integer page,
+            @RequestParam(defaultValue = "20") Integer size) {
         Long employeeId = StpUtil.getSession().getLong("employeeId");
-        return R.ok(mobileService.getReportRecords(employeeId, startDate, endDate));
+        return R.ok(mobileService.getReportRecords(employeeId, startDate, endDate, page, size));
     }
 }

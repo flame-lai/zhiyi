@@ -10,6 +10,7 @@ public class DashboardOrderVO {
     private Long orderId;
     private String orderNo;
     private String styleNo;
+    private String orderDate;
     private Integer totalBundles;
     private BigDecimal completionRate;
     private String bottleneckProcess;

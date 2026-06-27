@@ -17,6 +17,7 @@
         <result property="fabric" column="fabric"/>
         <result property="part" column="part"/>
         <result property="bedNo" column="bed_no"/>
+        <result property="barcode" column="barcode"/>
         <result property="bundleNo" column="bundle_no"/>
         <result property="globalBundleNo" column="global_bundle_no"/>
         <result property="qty" column="qty"/>
@@ -51,6 +52,7 @@
             b.fabric,
             b.part,
             cp.bed_no,
+            cp.barcode,
             b.bundle_no,
             b.global_bundle_no,
             b.qty,
@@ -101,6 +103,7 @@
             b.fabric,
             b.part,
             cp.bed_no,
+            cp.barcode,
             b.bundle_no,
             b.global_bundle_no,
             b.qty,

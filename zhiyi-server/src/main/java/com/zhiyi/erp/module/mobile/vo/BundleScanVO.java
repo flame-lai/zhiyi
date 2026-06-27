@@ -9,6 +9,7 @@ public class BundleScanVO {
     private String code;
     private BundleInfo bundle;
     private List<ProcessReportStatusVO> processes;
+    private Integer showMobilePrice;
 
     @Data
     public static class BundleInfo {

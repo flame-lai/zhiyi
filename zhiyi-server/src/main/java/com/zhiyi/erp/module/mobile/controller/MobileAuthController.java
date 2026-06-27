@@ -2,8 +2,8 @@ package com.zhiyi.erp.module.mobile.controller;
 
 import cn.dev33.satoken.stp.StpUtil;
 import com.zhiyi.erp.common.result.R;
+import com.zhiyi.erp.module.mobile.dto.MobileChangePasswordDTO;
 import com.zhiyi.erp.module.mobile.dto.MobileLoginByAccountDTO;
-import com.zhiyi.erp.module.mobile.dto.MobileLoginByCodeDTO;
 import com.zhiyi.erp.module.mobile.service.MobileService;
 import com.zhiyi.erp.module.mobile.vo.MobileLoginVO;
 import com.zhiyi.erp.module.mobile.vo.MobileProfileVO;
@@ -21,13 +21,7 @@ public class MobileAuthController {
     @Autowired
     private MobileService mobileService;
 
-    @Operation(summary = "工号/登录码登录")
-    @PostMapping("/login-by-code")
-    public R<MobileLoginVO> loginByCode(@Valid @RequestBody MobileLoginByCodeDTO dto) {
-        return R.ok(mobileService.loginByCode(dto.getLoginCode()));
-    }
-
-    @Operation(summary = "账号密码登录")
+    @Operation(summary = "工号密码登录")
     @PostMapping("/login-by-account")
     public R<MobileLoginVO> loginByAccount(@Valid @RequestBody MobileLoginByAccountDTO dto) {
         return R.ok(mobileService.loginByAccount(dto.getAccount(), dto.getPassword()));
@@ -45,5 +39,13 @@ public class MobileAuthController {
     public R<MobileProfileVO> getProfile() {
         Long employeeId = StpUtil.getSession().getLong("employeeId");
         return R.ok(mobileService.getProfile(employeeId));
+    }
+
+    @Operation(summary = "修改密码")
+    @PostMapping("/change-password")
+    public R<Void> changePassword(@Valid @RequestBody MobileChangePasswordDTO dto) {
+        Long employeeId = StpUtil.getSession().getLong("employeeId");
+        mobileService.changePassword(employeeId, dto.getOldPassword(), dto.getNewPassword());
+        return R.ok();
     }
 }

@@ -1,10 +1,5 @@
 <template>
   <View class="order-page">
-    <!-- Header -->
-    <View class="page-header">
-      <Text class="page-title">订单查询</Text>
-    </View>
-
     <!-- Search bar -->
     <View class="search-bar">
       <Input
@@ -19,7 +14,7 @@
       </View>
     </View>
 
-    <ScrollView scroll-y class="content">
+    <View class="content">
       <View v-if="loading" class="loading"><Text class="loading-text">查询中...</Text></View>
       <EmptyState v-else-if="!result" text="请输入订单号查询" />
       <View v-else class="result-wrap">
@@ -82,14 +77,14 @@
           </View>
         </View>
       </View>
-    </ScrollView>
+    </View>
   </View>
 </template>
 
 <script setup lang="ts">
 import { ref } from 'vue'
 import Taro, { useDidShow } from '@tarojs/taro'
-import { View, Text, Input, ScrollView } from '@tarojs/components'
+import { View, Text, Input } from '@tarojs/components'
 import { searchOrder } from '../../../api/mobileAdmin'
 import { formatAmount, formatDate, formatPercent } from '../../../utils/format'
 import { checkAuthAndRedirect } from '../../../utils/auth'
@@ -162,16 +157,7 @@ useDidShow(() => {
   flex-direction: column;
 }
 
-.page-header {
-  background: #4A6FA5;
-  padding: 32px 32px 28px;
-}
 
-.page-title {
-  font-size: 36px;
-  font-weight: 700;
-  color: #fff;
-}
 
 .search-bar {
   display: flex;

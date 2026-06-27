@@ -18,14 +18,10 @@ public interface EmployeeMapper extends BaseMapper<Employee> {
     @Select("SELECT * FROM employee WHERE deleted = 0 AND login_account = #{account} LIMIT 1")
     Employee selectByLoginAccount(String account);
 
-    @InterceptorIgnore(tenantLine = "1")
-    @Select("SELECT * FROM employee WHERE deleted = 0 AND login_code = #{loginCode} LIMIT 1")
-    Employee selectByLoginCode(String loginCode);
-
     @Select("<script>" +
             "SELECT e.id, e.factory_id as factoryId, e.employee_no as employeeNo, " +
             "e.name, e.phone, e.role_id as roleId, r.name as roleName, " +
-            "e.login_account as loginAccount, e.login_code as loginCode, " +
+            "e.login_account as loginAccount, " +
             "e.status, e.remark, e.created_at as createdAt, e.updated_at as updatedAt " +
             "FROM employee e " +
             "LEFT JOIN role r ON e.role_id = r.id " +

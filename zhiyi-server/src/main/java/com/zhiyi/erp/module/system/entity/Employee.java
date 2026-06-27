@@ -16,7 +16,6 @@ public class Employee {
     private Long roleId;
     private String loginAccount;
     private String loginPassword;
-    private String loginCode;
     private Integer status;
     private String remark;
     @TableField(fill = FieldFill.INSERT)

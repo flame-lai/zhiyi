@@ -1,10 +1,5 @@
 <template>
   <View class="records-page">
-    <!-- Header -->
-    <View class="records-header">
-      <Text class="header-title">报工记录</Text>
-    </View>
-
     <!-- Date range filter -->
     <View class="filter-bar">
       <View class="quick-btns">
@@ -51,20 +46,20 @@
       </View>
     </View>
 
-    <!-- Loading -->
-    <View class="loading-wrap" v-if="loading">
+    <!-- Loading (首次加载) -->
+    <View class="loading-wrap" v-if="loading && records.length === 0">
       <Text class="loading-text">加载中...</Text>
     </View>
 
     <!-- Empty state -->
-    <EmptyState v-else-if="records.length === 0" text="暂无报工记录" />
+    <EmptyState v-else-if="!loading && records.length === 0" text="暂无报工记录" />
 
     <!-- Record list -->
-    <ScrollView v-else scroll-y class="record-list" refresher-enabled :refresher-triggered="refreshing" @refresherrefresh="onRefresh">
+    <View v-else class="record-list">
       <View v-for="record in records" :key="record.id" class="record-card">
         <View class="record-top">
           <Text class="record-time">{{ formatDateTime(record.reportTime) }}</Text>
-          <Text class="record-amount">{{ formatAmount(record.amount) }}</Text>
+          <Text class="record-amount">{{ record.showMobilePrice !== 0 ? formatAmount(record.amount) : '-' }}</Text>
         </View>
         <View class="record-info">
           <View class="info-row">
@@ -85,17 +80,22 @@
           </View>
           <View class="info-row">
             <Text class="info-label">计件</Text>
-            <Text class="info-value">{{ record.qty }} x {{ formatAmount(record.price).replace('¥', '') }}</Text>
+            <Text class="info-value">{{ record.qty }} x {{ record.showMobilePrice !== 0 ? formatAmount(record.price).replace('¥', '') : '-' }}</Text>
           </View>
         </View>
       </View>
-    </ScrollView>
+
+      <!-- 加载更多提示 -->
+      <View class="load-more" v-if="records.length > 0">
+        <Text class="load-more-text">{{ loading ? '加载中...' : hasMore ? '上拉加载更多' : '没有更多了' }}</Text>
+      </View>
+    </View>
   </View>
 </template>
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import Taro, { useDidShow } from '@tarojs/taro'
+import Taro, { useDidShow, useReachBottom } from '@tarojs/taro'
 import { getReportRecords } from '../../api/mobileReport'
 import { formatDateTime, formatAmount } from '../../utils/format'
 import EmptyState from '../../components/EmptyState.vue'
@@ -106,8 +106,10 @@ definePageConfig({
 })
 
 const loading = ref(false)
-const refreshing = ref(false)
 const records = ref<WorkReportRecord[]>([])
+const page = ref(1)
+const hasMore = ref(true)
+const pageSize = 20
 const filterType = ref<'7d' | 'month' | 'custom'>('7d')
 const startDate = ref('')
 const endDate = ref('')
@@ -128,7 +130,7 @@ function setFilter7d() {
   start.setDate(now.getDate() - 6)
   startDate.value = formatDateStr(start)
   endDate.value = formatDateStr(now)
-  fetchRecords()
+  fetchRecords(true)
 }
 
 function setFilterMonth() {
@@ -139,7 +141,7 @@ function setFilterMonth() {
   const m = now.getMonth()
   startDate.value = formatDateStr(new Date(y, m, 1))
   endDate.value = formatDateStr(now)
-  fetchRecords()
+  fetchRecords(true)
 }
 
 function showCustomRange() {
@@ -157,23 +159,35 @@ function onEndDateChange(e: any) {
 
 function applyCustomFilter() {
   pickerVisible.value = false
-  fetchRecords()
+  fetchRecords(true)
 }
 
-async function fetchRecords() {
+async function fetchRecords(reset = false) {
   const token = Taro.getStorageSync('satoken')
   if (!token) {
     Taro.redirectTo({ url: '/pages/login/index' })
     return
   }
 
+  if (reset) {
+    page.value = 1
+    hasMore.value = true
+    records.value = []
+  }
+
+  if (!hasMore.value || loading.value) return
+
   loading.value = true
   try {
     const res = await getReportRecords(
       startDate.value || undefined,
-      endDate.value || undefined
+      endDate.value || undefined,
+      page.value,
+      pageSize
     )
-    records.value = res || []
+    const newRecords = res?.records || []
+    records.value = reset ? newRecords : [...records.value, ...newRecords]
+    hasMore.value = res?.hasMore ?? false
   } catch {
     // handled by request util
   } finally {
@@ -181,20 +195,13 @@ async function fetchRecords() {
   }
 }
 
-async function onRefresh() {
-  refreshing.value = true
-  try {
-    const res = await getReportRecords(
-      startDate.value || undefined,
-      endDate.value || undefined
-    )
-    records.value = res || []
-  } catch {
-    // handled by request util
-  } finally {
-    refreshing.value = false
+// 触底加载更多
+useReachBottom(() => {
+  if (hasMore.value && !loading.value) {
+    page.value++
+    fetchRecords(false)
   }
-}
+})
 
 useDidShow(() => {
   // Default: last 7 days
@@ -203,7 +210,7 @@ useDidShow(() => {
   start.setDate(now.getDate() - 6)
   startDate.value = formatDateStr(start)
   endDate.value = formatDateStr(now)
-  fetchRecords()
+  fetchRecords(true)
 })
 </script>
 
@@ -215,16 +222,7 @@ useDidShow(() => {
   flex-direction: column;
 }
 
-.records-header {
-  background: #4A6FA5;
-  padding: 40px 32px 32px;
-}
 
-.header-title {
-  font-size: 36px;
-  font-weight: 700;
-  color: #ffffff;
-}
 
 .filter-bar {
   background: #ffffff;
@@ -397,5 +395,15 @@ useDidShow(() => {
   font-weight: 500;
   text-align: right;
   flex: 1;
+}
+
+.load-more {
+  text-align: center;
+  padding: 24px 0 40px;
+}
+
+.load-more-text {
+  font-size: 24px;
+  color: #9ca3af;
 }
 </style>

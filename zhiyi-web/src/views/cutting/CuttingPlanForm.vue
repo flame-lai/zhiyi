@@ -36,7 +36,13 @@
           <a-col :span="4">
             <div class="field-item">
               <label>面料 <span class="required">*</span></label>
-              <a-select v-model:value="formData.fabric" placeholder="选择面料" size="small" :disabled="readonly">
+              <a-select
+                v-model:value="formData.fabric"
+                placeholder="选择面料"
+                show-search
+                size="small"
+                :disabled="readonly"
+              >
                 <a-select-option v-for="f in fabricList" :key="f" :value="f">
                   {{ f }}
                 </a-select-option>
@@ -335,7 +341,7 @@ async function loadBaseData() {
   try {
     const [orderRes, materialRes] = await Promise.all([
       orderApi.list({ page: 1, size: 9999, status: 1 }),
-      materialApi.list({ page: 1, size: 9999, type: 1 }),
+      materialApi.list({ page: 1, size: 9999 }),
     ])
     orderList.value = orderRes.data?.records || []
     materialList.value = materialRes.data?.records || []

@@ -57,14 +57,6 @@ public class EmployeeController {
         return R.ok();
     }
 
-    @Operation(summary = "重置员工登录码")
-    @PostMapping("/{id}/reset-login-code")
-    public R<String> resetLoginCode(@Parameter(description = "员工ID") @PathVariable Long id) {
-        employeeService.resetLoginCode(id);
-        Employee emp = employeeService.getById(id);
-        return R.ok(emp.getLoginCode());
-    }
-
     @Operation(summary = "重置员工密码")
     @PostMapping("/{id}/reset-password")
     public R<Void> resetPassword(@Parameter(description = "员工ID") @PathVariable Long id, @Parameter(description = "新密码") @RequestParam(defaultValue = "123456") String newPassword) {

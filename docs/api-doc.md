@@ -101,20 +101,12 @@
 
 ### 登录流程
 
-系统支持两种登录方式：
+系统统一使用**工号 + 密码**登录：
 
-#### 方式一：账号密码登录
-
-1. 前端调用 `POST /api/system/auth/login`，传入账号和密码
+1. 前端调用 `POST /api/system/auth/login`（Web端）或 `POST /api/mobile/auth/login-by-account`（小程序端），传入工号和密码
 2. 服务端验证通过后返回 token
-3. 前端将 token 存储在本地（如 localStorage）
+3. 前端将 token 存储在本地
 4. 后续请求在请求头中携带 `satoken: <token>`
-
-#### 方式二：登录码登录
-
-1. 前端调用 `POST /api/system/auth/login-by-code`，传入登录码
-2. 服务端验证通过后返回 token
-3. 后续请求在请求头中携带 `satoken: <token>`
 
 ### Token 使用
 
@@ -163,39 +155,6 @@ satoken: <your_token>
 |------|------|------|------|
 | account | String | 是 | 登录账号 |
 | password | String | 是 | 登录密码 |
-
-**响应示例**：
-
-```json
-{
-  "code": 200,
-  "message": "success",
-  "data": {
-    "token": "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9...",
-    "tokenName": "satoken"
-  }
-}
-```
-
----
-
-##### 登录码登录
-
-- **POST** `/api/system/auth/login-by-code`
-- **认证**：不需要
-- **说明**：使用登录码进行登录（适用于工人快速登录）
-
-**请求体**：
-
-```json
-{
-  "loginCode": "ABC123"
-}
-```
-
-| 字段 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| loginCode | String | 是 | 员工登录码 |
 
 **响应示例**：
 
@@ -283,7 +242,6 @@ satoken: <your_token>
         "phone": "13800138000",
         "roleId": 2,
         "loginAccount": "zhangsan",
-        "loginCode": "ABC123",
         "status": 1,
         "remark": null,
         "createdAt": "2024-01-01T10:00:00",
@@ -326,7 +284,6 @@ satoken: <your_token>
     "phone": "13800138000",
     "roleId": 2,
     "loginAccount": "zhangsan",
-    "loginCode": "ABC123",
     "status": 1,
     "remark": null,
     "createdAt": "2024-01-01T10:00:00",
@@ -370,7 +327,6 @@ satoken: <your_token>
     "factoryId": 1,
     "employeeNo": "E002",
     "name": "李四",
-    "loginCode": "XYZ789",
     "status": 1
   }
 }
@@ -427,29 +383,6 @@ satoken: <your_token>
   "code": 200,
   "message": "success",
   "data": null
-}
-```
-
----
-
-##### 重置员工登录码
-
-- **POST** `/api/system/employees/{id}/reset-login-code`
-- **认证**：需要
-
-**路径参数**：
-
-| 参数 | 类型 | 说明 |
-|------|------|------|
-| id | Long | 员工 ID |
-
-**响应示例**：
-
-```json
-{
-  "code": 200,
-  "message": "success",
-  "data": "NEW123"
 }
 ```
 
@@ -2371,15 +2304,16 @@ satoken: <your_token>
 
 ##### 查询工资汇总
 
-- **GET** `/api/report/wage/summary`
-- **认证**：需要（需要员工身份，从 Session 获取 employeeId）
-- **说明**：工人查询自己的工资汇总（按月）
+- **GET** `/api/mobile/report/wage-summary`
+- **认证**：需要
+- **说明**：工人查询自己的工资汇总（按款号维度）
 
 **查询参数**：
 
 | 参数 | 类型 | 必填 | 默认值 | 说明 |
 |------|------|------|--------|------|
-| yearMonth | String | 否 | 当前月 | 年月，格式 yyyy-MM |
+| startDate | String | 否 | 本月1号 | 开始日期，格式 yyyy-MM-dd |
+| endDate | String | 否 | 今天 | 结束日期，格式 yyyy-MM-dd |
 
 **响应示例**：
 
@@ -2387,23 +2321,71 @@ satoken: <your_token>
 {
   "code": 200,
   "message": "success",
-  "data": [
-    {
-      "date": "2024-01-15",
-      "pieceWage": 150.00,
-      "timedWage": 0,
-      "totalWage": 150.00,
-      "details": [
-        {
-          "orderNo": "ORD202401001",
-          "processName": "上领",
-          "qty": 300,
-          "price": 0.50,
-          "amount": 150.00
-        }
-      ]
-    }
-  ]
+  "data": {
+    "totalQty": 100,
+    "totalAmount": 50.00,
+    "visibleAmount": 35.00,
+    "styleSummaries": [
+      {
+        "styleNo": "M001",
+        "qty": 50,
+        "amount": 25.00,
+        "showMobilePrice": 1,
+        "processes": [
+          { "processName": "裁剪", "qty": 25, "price": 0.50, "amount": 12.50 },
+          { "processName": "包装", "qty": 25, "price": 0.50, "amount": 12.50 }
+        ]
+      },
+      {
+        "styleNo": "M002",
+        "qty": 50,
+        "amount": 25.00,
+        "showMobilePrice": 0,
+        "processes": [
+          { "processName": "裁剪", "qty": 50, "price": 0.50, "amount": 25.00 }
+        ]
+      }
+    ],
+    "dailyGroups": [...]
+  }
+}
+
+---
+
+##### 报工记录查询
+
+- **GET** `/api/mobile/report/records`
+- **认证**：需要
+
+**查询参数**：
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| startDate | String | 否 | 开始日期，格式 yyyy-MM-dd |
+| endDate | String | 否 | 结束日期，格式 yyyy-MM-dd |
+
+**响应示例**：
+
+```json
+{
+  "code": 200,
+  "message": "success",
+  "data": {
+    "records": [
+      {
+        "id": 1,
+        "reportTime": "2024-01-15T09:30:00",
+        "orderNo": "ORD202401001",
+        "styleNo": "M001",
+        "bundleNo": "1-001",
+        "processName": "裁剪",
+        "qty": 20,
+        "price": 0.50,
+        "amount": 10.00
+      }
+    ],
+    "showMobilePrice": 1
+  }
 }
 ```
 
@@ -3130,13 +3112,12 @@ satoken: <your_token>
 |------|------|------|
 | id | Long | 主键，自增 |
 | factoryId | Long | 所属工厂 ID |
-| employeeNo | String | 员工工号 |
+| employeeNo | String | 员工工号（自动生成） |
 | name | String | 员工姓名 |
 | phone | String | 手机号码 |
 | roleId | Long | 角色 ID |
-| loginAccount | String | 登录账号 |
-| loginPassword | String | 登录密码（加密存储） |
-| loginCode | String | 登录码（用于快速登录） |
+| loginAccount | String | 登录账号（默认等于工号） |
+| loginPassword | String | 登录密码（BCrypt加密存储，默认123456） |
 | status | Integer | 状态：1-启用，0-禁用 |
 | remark | String | 备注 |
 | createdAt | LocalDateTime | 创建时间 |
@@ -3219,6 +3200,7 @@ satoken: <your_token>
 | factoryId | Long | 所属工厂 ID |
 | styleCode | String | 款号编码 |
 | styleName | String | 款号名称 |
+| showMobilePrice | Integer | 移动端显示工价：1-显示（默认），0-隐藏 |
 | createdAt | LocalDateTime | 创建时间 |
 | updatedAt | LocalDateTime | 更新时间 |
 | deleted | Integer | 逻辑删除 |
@@ -3232,6 +3214,7 @@ satoken: <your_token>
 | processId | Long | 工序 ID |
 | refPrice | BigDecimal | 参考单价 |
 | sort | Integer | 工序顺序 |
+| batchReport | Integer | 支持批量上报：1-是（默认），0-否 |
 
 #### StyleMaterial - 款号标准物料清单
 
@@ -3496,12 +3479,210 @@ satoken: <your_token>
 
 ---
 
+### 4.8 mobile - 移动端（小程序）
+
+#### 4.8.1 MobileAuthController - 移动端认证
+
+##### 工号密码登录
+
+- **POST** `/api/mobile/auth/login-by-account`
+- **认证**：不需要
+
+**请求体**：
+
+```json
+{
+  "account": "A001",
+  "password": "123456"
+}
+```
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| account | String | 是 | 工号或登录账号 |
+| password | String | 是 | 登录密码 |
+
+**响应示例**：
+
+```json
+{
+  "code": 200,
+  "message": "success",
+  "data": {
+    "token": "xxx-xxx-xxx",
+    "employee": { "id": 1, "code": "A001", "name": "管理员" },
+    "role": { "id": 1, "name": "超级管理员" },
+    "menus": [],
+    "permissions": [],
+    "defaultHomeType": "admin"
+  }
+}
+```
+
+---
+
+##### 登出
+
+- **POST** `/api/mobile/auth/logout`
+- **认证**：需要
+
+---
+
+##### 获取当前用户信息
+
+- **GET** `/api/mobile/auth/profile`
+- **认证**：需要
+
+---
+
+##### 修改密码
+
+- **POST** `/api/mobile/auth/change-password`
+- **认证**：需要
+
+**请求体**：
+
+```json
+{
+  "oldPassword": "123456",
+  "newPassword": "654321"
+}
+```
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| oldPassword | String | 是 | 旧密码 |
+| newPassword | String | 是 | 新密码（4-50位） |
+
+---
+
+#### 4.8.2 MobileAdminController - 移动端管理
+
+##### 员工列表
+
+- **GET** `/api/mobile/admin/employees`
+- **认证**：需要
+
+**查询参数**：
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| keyword | String | 否 | 搜索关键词（工号/姓名/手机号） |
+
+---
+
+##### 角色列表
+
+- **GET** `/api/mobile/admin/roles`
+- **认证**：需要
+
+---
+
+##### 新增员工
+
+- **POST** `/api/mobile/admin/employees`
+- **认证**：需要
+
+**请求体**：
+
+```json
+{
+  "name": "张三",
+  "phone": "13800138000",
+  "roleId": 2,
+  "loginAccount": "zhangsan",
+  "loginPassword": "123456",
+  "status": 1,
+  "remark": "备注"
+}
+```
+
+---
+
+##### 编辑员工
+
+- **PUT** `/api/mobile/admin/employees/{id}`
+- **认证**：需要
+
+---
+
+##### 删除员工
+
+- **DELETE** `/api/mobile/admin/employees/{id}`
+- **认证**：需要
+
+---
+
+##### 启停用员工
+
+- **PUT** `/api/mobile/admin/employees/{id}/status`
+- **认证**：需要
+
+**请求体**：
+
+```json
+{
+  "status": 0
+}
+```
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| status | Integer | 是 | 1-启用，0-停用 |
+
+---
+
+##### 报工记录列表
+
+- **GET** `/api/mobile/admin/reports`
+- **认证**：需要
+
+**查询参数**：
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| keyword | String | 否 | 搜索关键词（工号/姓名/扎号） |
+
+---
+
+##### 清除报工
+
+- **POST** `/api/mobile/admin/reports/{id}/clear`
+- **认证**：需要
+
+**请求体**：
+
+```json
+{
+  "reason": "误扫清除"
+}
+```
+
+---
+
+##### 补录报工
+
+- **POST** `/api/mobile/admin/reports/supplement`
+- **认证**：需要
+
+**请求体**：
+
+```json
+{
+  "employeeNo": "A001",
+  "bundleId": 1,
+  "processId": 1,
+  "qty": 20
+}
+```
+
+---
+
 ## 附录：接口总览
 
 | 模块 | 方法 | 路径 | 说明 |
 |------|------|------|------|
 | system | POST | /api/system/auth/login | 账号密码登录 |
-| system | POST | /api/system/auth/login-by-code | 登录码登录 |
 | system | POST | /api/system/auth/logout | 登出 |
 | system | GET | /api/system/auth/info | 获取当前用户信息 |
 | system | GET | /api/system/employees | 分页查询员工列表 |
@@ -3509,8 +3690,22 @@ satoken: <your_token>
 | system | POST | /api/system/employees | 创建员工 |
 | system | PUT | /api/system/employees/{id} | 更新员工信息 |
 | system | PUT | /api/system/employees/{id}/status | 更新员工状态 |
-| system | POST | /api/system/employees/{id}/reset-login-code | 重置登录码 |
 | system | POST | /api/system/employees/{id}/reset-password | 重置密码 |
+| mobile | POST | /api/mobile/auth/login-by-account | 工号密码登录 |
+| mobile | POST | /api/mobile/auth/logout | 登出 |
+| mobile | GET | /api/mobile/auth/profile | 获取用户信息 |
+| mobile | POST | /api/mobile/auth/change-password | 修改密码 |
+| mobile | GET | /api/mobile/report/wage-summary | 工资汇总 |
+| mobile | GET | /api/mobile/report/records | 报工记录 |
+| mobile | GET | /api/mobile/admin/employees | 员工列表 |
+| mobile | GET | /api/mobile/admin/roles | 角色列表 |
+| mobile | POST | /api/mobile/admin/employees | 新增员工 |
+| mobile | PUT | /api/mobile/admin/employees/{id} | 编辑员工 |
+| mobile | DELETE | /api/mobile/admin/employees/{id} | 删除员工 |
+| mobile | PUT | /api/mobile/admin/employees/{id}/status | 启停用员工 |
+| mobile | GET | /api/mobile/admin/reports | 报工记录列表 |
+| mobile | POST | /api/mobile/admin/reports/{id}/clear | 清除报工 |
+| mobile | POST | /api/mobile/admin/reports/supplement | 补录报工 |
 | system | GET | /api/system/roles | 查询所有角色 |
 | system | GET | /api/system/roles/{id} | 查询角色详情 |
 | system | POST | /api/system/roles | 创建角色 |

@@ -14,4 +14,5 @@ public class WorkReportRecordVO {
     private Integer qty;
     private BigDecimal price;
     private BigDecimal amount;
+    private Integer showMobilePrice; // 1=显示工价, 0=隐藏工价
 }

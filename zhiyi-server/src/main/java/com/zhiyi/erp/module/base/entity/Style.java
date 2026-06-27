@@ -12,6 +12,7 @@ public class Style {
     private Long factoryId;
     private String styleCode;
     private String styleName;
+    private Integer showMobilePrice;
     @TableField(fill = FieldFill.INSERT)
     private LocalDateTime createdAt;
     @TableField(fill = FieldFill.INSERT_UPDATE)

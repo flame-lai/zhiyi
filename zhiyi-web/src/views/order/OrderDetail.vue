@@ -426,9 +426,11 @@ const handleSizeInputConfirm = () => {
 const removeSize = (index) => {
   const size = sizeList.value[index]
   sizeList.value.splice(index, 1)
-  // 从矩阵中移除该尺码列
-  matrixData.value.forEach(row => {
-    delete row[size]
+  // 从矩阵中移除该尺码列，重新赋值触发响应式
+  matrixData.value = matrixData.value.map(row => {
+    const newRow = { ...row }
+    delete newRow[size]
+    return newRow
   })
 }
 
@@ -686,6 +688,11 @@ const onMaterialChange = (record, materialName) => {
   if (material) {
     record.type = material.type
     record.unit = material.unit
+    record.unitQty = material.unitQty || 0
+    // 自动计算总用量 = 单位用量 × 订单总数量
+    if (material.unitQty && totalQty.value > 0) {
+      record.totalQty = Number((material.unitQty * totalQty.value).toFixed(2))
+    }
   }
 }
 

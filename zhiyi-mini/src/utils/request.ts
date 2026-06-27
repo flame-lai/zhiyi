@@ -1,8 +1,7 @@
 import Taro from '@tarojs/taro'
 
-const BASE_URL = process.env.NODE_ENV === 'production'
-  ? 'https://your-domain.com/api'
-  : 'http://localhost:8080/api'
+// TODO: 上线前改为真实域名
+const BASE_URL = 'http://192.168.54.10:8080/api'
 
 interface RequestOptions {
   url: string
@@ -33,6 +32,7 @@ export function request<T = any>(options: RequestOptions): Promise<T> {
       method: options.method || 'GET',
       data: options.data,
       header: headers,
+      timeout: 30000,
       success(res) {
         if (res.data.code === 200) {
           resolve(res.data.data)

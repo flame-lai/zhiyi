@@ -4,6 +4,7 @@ import com.zhiyi.erp.common.result.R;
 import com.zhiyi.erp.module.mobile.dto.*;
 import com.zhiyi.erp.module.mobile.service.MobileService;
 import com.zhiyi.erp.module.mobile.vo.*;
+import com.zhiyi.erp.module.system.entity.Role;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -12,6 +13,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 
 @Tag(name = "移动端管理", description = "看板、异常、计时、查询")
 @RestController
@@ -23,18 +25,33 @@ public class MobileAdminController {
 
     @Operation(summary = "订单维度看板")
     @GetMapping("/dashboard/orders")
-    public R<List<DashboardOrderVO>> getDashboardOrders(
-            @RequestParam(required = false) String date,
-            @RequestParam(required = false) Long orderId) {
-        return R.ok(mobileService.getDashboardOrders(date, orderId));
+    public R<DashboardOrderPageVO> getDashboardOrders(
+            @RequestParam(required = false) String startDate,
+            @RequestParam(required = false) String endDate,
+            @RequestParam(required = false) String orderNo,
+            @RequestParam(defaultValue = "1") Integer page,
+            @RequestParam(defaultValue = "20") Integer size) {
+        return R.ok(mobileService.getDashboardOrders(startDate, endDate, orderNo, page, size));
     }
 
     @Operation(summary = "工人维度看板")
     @GetMapping("/dashboard/workers")
-    public R<List<DashboardWorkerVO>> getDashboardWorkers(
-            @RequestParam(required = false) String date) {
-        if (date == null || date.isEmpty()) date = LocalDate.now().toString();
-        return R.ok(mobileService.getDashboardWorkers(date));
+    public R<DashboardWorkerPageVO> getDashboardWorkers(
+            @RequestParam(required = false) String startDate,
+            @RequestParam(required = false) String endDate,
+            @RequestParam(required = false) String keyword,
+            @RequestParam(defaultValue = "1") Integer page,
+            @RequestParam(defaultValue = "20") Integer size) {
+        return R.ok(mobileService.getDashboardWorkers(startDate, endDate, keyword, page, size));
+    }
+
+    @Operation(summary = "工人详情")
+    @GetMapping("/dashboard/worker-detail")
+    public R<WorkerDetailVO> getWorkerDetail(
+            @RequestParam Long employeeId,
+            @RequestParam(required = false) String startDate,
+            @RequestParam(required = false) String endDate) {
+        return R.ok(mobileService.getWorkerDetail(employeeId, startDate, endDate));
     }
 
     @Operation(summary = "异常列表")
@@ -60,7 +77,7 @@ public class MobileAdminController {
     @Operation(summary = "补录异常")
     @PostMapping("/anomalies/{id}/supplement")
     public R<Void> supplementAnomaly(@PathVariable Long id, @Valid @RequestBody AnomalySupplementRequest req) {
-        mobileService.supplementAnomaly(id, req.getEmployeeId(), req.getQty());
+        mobileService.supplementAnomaly(id, req.getEmployeeNo(), req.getQty());
         return R.ok();
     }
 
@@ -101,5 +118,72 @@ public class MobileAdminController {
     @GetMapping("/orders/search")
     public R<OrderSearchVO> searchOrder(@RequestParam String orderNo) {
         return R.ok(mobileService.searchOrder(orderNo));
+    }
+
+    @Operation(summary = "员工列表")
+    @GetMapping("/employees")
+    public R<EmployeesPageVO> getEmployees(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(defaultValue = "1") Integer page,
+            @RequestParam(defaultValue = "20") Integer size) {
+        return R.ok(mobileService.getEmployees(keyword, page, size));
+    }
+
+    @Operation(summary = "角色列表")
+    @GetMapping("/roles")
+    public R<List<Role>> getRoles() {
+        return R.ok(mobileService.getRoles());
+    }
+
+    @Operation(summary = "新增员工")
+    @PostMapping("/employees")
+    public R<Void> createEmployee(@Valid @RequestBody EmployeeRequest req) {
+        mobileService.createEmployee(req);
+        return R.ok();
+    }
+
+    @Operation(summary = "编辑员工")
+    @PutMapping("/employees/{id}")
+    public R<Void> updateEmployee(@PathVariable Long id, @Valid @RequestBody EmployeeRequest req) {
+        mobileService.updateEmployee(id, req);
+        return R.ok();
+    }
+
+    @Operation(summary = "删除员工")
+    @DeleteMapping("/employees/{id}")
+    public R<Void> deleteEmployee(@PathVariable Long id) {
+        mobileService.deleteEmployee(id);
+        return R.ok();
+    }
+
+    @Operation(summary = "启停用员工")
+    @PutMapping("/employees/{id}/status")
+    public R<Void> toggleEmployeeStatus(@PathVariable Long id, @RequestBody Map<String, Integer> body) {
+        mobileService.toggleEmployeeStatus(id, body.get("status"));
+        return R.ok();
+    }
+
+    @Operation(summary = "报工记录列表")
+    @GetMapping("/reports")
+    public R<List<AdminReportVO>> getReports(@RequestParam(required = false) String keyword) {
+        return R.ok(mobileService.getReports(keyword));
+    }
+
+    @Operation(summary = "清除报工")
+    @PostMapping("/reports/{id}/clear")
+    public R<Void> clearReport(@PathVariable Long id, @RequestBody Map<String, String> body) {
+        mobileService.clearReport(id, body.get("reason"));
+        return R.ok();
+    }
+
+    @Operation(summary = "补录报工")
+    @PostMapping("/reports/supplement")
+    public R<Void> supplementReport(@RequestBody Map<String, Object> body) {
+        String employeeNo = body.get("employeeNo").toString();
+        Long bundleId = Long.valueOf(body.get("bundleId").toString());
+        Long processId = Long.valueOf(body.get("processId").toString());
+        Integer qty = Integer.valueOf(body.get("qty").toString());
+        mobileService.supplementReport(employeeNo, bundleId, processId, qty);
+        return R.ok();
     }
 }

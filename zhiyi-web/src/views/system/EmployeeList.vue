@@ -39,7 +39,6 @@
             >
               {{ record.status === 1 ? '停用' : '启用' }}
             </a-button>
-            <a-button type="link" size="small" @click="handleResetLoginCode(record)">重置登录码</a-button>
             <a-popconfirm
               title="确认重置密码为 123456？"
               @confirm="handleResetPassword(record)"
@@ -120,9 +119,8 @@ const columns = [
   { title: '手机号', dataIndex: 'phone', width: 130 },
   { title: '角色', dataIndex: 'roleName', width: 100 },
   { title: '登录账号', dataIndex: 'loginAccount', width: 120 },
-  { title: '登录码', dataIndex: 'loginCode', width: 180 },
   { title: '状态', dataIndex: 'status', width: 80, align: 'center' as const },
-  { title: '操作', dataIndex: 'action', width: 280, fixed: 'right' as const },
+  { title: '操作', dataIndex: 'action', width: 220, fixed: 'right' as const },
 ]
 
 // 表格数据
@@ -136,12 +134,6 @@ const pagination = reactive({
   showSizeChanger: true,
   showTotal: (total: number) => `共 ${total} 条`,
 })
-
-// 登录码显示控制
-const showLoginCode = ref<Record<number, boolean>>({})
-function toggleLoginCode(id: number) {
-  showLoginCode.value[id] = !showLoginCode.value[id]
-}
 
 // 弹窗相关
 const modalVisible = ref(false)
@@ -282,17 +274,6 @@ async function handleToggleStatus(record: any) {
   try {
     await employeeApi.updateStatus(record.id, newStatus)
     message.success('状态已更新')
-    loadData()
-  } catch {
-    // handled by interceptor
-  }
-}
-
-// 重置登录码
-async function handleResetLoginCode(record: any) {
-  try {
-    const res: any = await employeeApi.resetLoginCode(record.id)
-    message.success('登录码已重置: ' + res.data)
     loadData()
   } catch {
     // handled by interceptor

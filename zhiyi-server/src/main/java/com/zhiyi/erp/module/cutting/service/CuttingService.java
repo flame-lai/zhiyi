@@ -144,6 +144,10 @@ public class CuttingService extends ServiceImpl<CuttingPlanMapper, CuttingPlan> 
         if (cuttingDate != null && !cuttingDate.isEmpty()) {
             plan.setCuttingDate(LocalDate.parse(cuttingDate));
         }
+        // 录入实际数后，状态改为已裁剪
+        if (totalActualQty > 0 && plan.getStatus() < 1) {
+            plan.setStatus(1);
+        }
         updateById(plan);
     }
 
@@ -182,34 +186,31 @@ public class CuttingService extends ServiceImpl<CuttingPlanMapper, CuttingPlan> 
             // 解析部位列表
             String[] partNames = detail.getPart() != null ? detail.getPart().split(",") : new String[]{""};
 
-            // 先计算物理扎数（同色同码的扎数，不含部位拆分）
+            // 计算物理扎数（同色同码的扎数）
             int physicalZhaCount = (int) Math.ceil((double) actualQty / qtyPerBundle);
 
-            // 为每个部位分别生成 bundle 记录
-            for (String partName : partNames) {
-                String trimmedPart = partName.trim();
-                int piecesPerPart = calcPiecesForSinglePart(trimmedPart, styleParts);
+            // 按物理扎循环，每个物理扎为所有部位生成记录
+            for (int i = 1; i <= physicalZhaCount; i++) {
+                int qty = (i < physicalZhaCount) ? qtyPerBundle : (actualQty - (physicalZhaCount - 1) * qtyPerBundle);
+                physicalBundleCount++;
+                String bundleNo = plan.getBedNo() + "-" + String.format("%03d", physicalBundleCount);
 
-                for (int i = 1; i <= physicalZhaCount; i++) {
-                    int qty = (i < physicalZhaCount) ? qtyPerBundle : (actualQty - (physicalZhaCount - 1) * qtyPerBundle);
-
-                    // 物理扎号只在第一个部位时递增
-                    if (partNames.length > 0 && partName.equals(partNames[0])) {
-                        physicalBundleCount++;
-                    }
+                for (String partName : partNames) {
+                    String trimmedPart = partName.trim();
+                    int piecesPerPart = calcPiecesForSinglePart(trimmedPart, styleParts);
 
                     Bundle bundle = new Bundle();
                     bundle.setFactoryId(TenantContext.get());
                     bundle.setCuttingPlanId(planId);
                     bundle.setOrderId(plan.getOrderId());
-                    bundle.setPart(trimmedPart);          // 单个部位
+                    bundle.setPart(trimmedPart);
                     bundle.setColor(detail.getColor());
                     bundle.setSize(detail.getSize());
                     bundle.setFabric(plan.getFabric());
-                    bundle.setBundleNo(plan.getBedNo() + "-" + String.format("%03d", physicalBundleCount));
-                    bundle.setGlobalBundleNo(generateBundleBarcode());  // 每条独立，用于二维码
+                    bundle.setBundleNo(bundleNo);
+                    bundle.setGlobalBundleNo(generateBundleBarcode());
                     bundle.setQty(qty);
-                    bundle.setCuttingPieces(qty * piecesPerPart);  // 按部位单独计算裁片片数
+                    bundle.setCuttingPieces(qty * piecesPerPart);
                     bundle.setCuttingDate(plan.getCuttingDate() != null ? plan.getCuttingDate() : LocalDate.now());
                     bundleMapper.insert(bundle);
                     allBundles.add(bundle);
@@ -229,6 +230,7 @@ public class CuttingService extends ServiceImpl<CuttingPlanMapper, CuttingPlan> 
         return bundleMapper.selectList(
                 new LambdaQueryWrapper<Bundle>()
                         .eq(Bundle::getCuttingPlanId, cuttingPlanId)
+                        .orderByAsc(Bundle::getPart)
                         .orderByAsc(Bundle::getBundleNo));
     }
 
@@ -238,6 +240,7 @@ public class CuttingService extends ServiceImpl<CuttingPlanMapper, CuttingPlan> 
     public List<BundleDetailDTO> getBundleDetails(Long cuttingPlanId) {
         LambdaQueryWrapper<Bundle> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(Bundle::getCuttingPlanId, cuttingPlanId);
+        wrapper.orderByAsc(Bundle::getPart);
         wrapper.orderByAsc(Bundle::getBundleNo);
         List<Bundle> bundles = bundleMapper.selectList(wrapper);
 

@@ -7,7 +7,6 @@
     @cancel="handleClose"
   >
     <div class="print-container">
-      <!-- 打印选项 -->
       <div class="print-options">
         <a-space>
           <a-button type="primary" @click="handlePrintAll">批量打印全部</a-button>
@@ -17,7 +16,6 @@
         </a-space>
       </div>
 
-      <!-- 菲仔预览 -->
       <div class="bundle-preview">
         <div
           v-for="bundle in bundles"
@@ -26,58 +24,60 @@
           :class="{ selected: selectedBundles.includes(bundle.id) }"
           @click="toggleSelect(bundle.id)"
         >
-          <div class="bundle-label" :id="'label-' + bundle.id">
-            <!-- 顶部条形码（裁床码） -->
-            <div class="label-barcode-top">
+          <div class="bundle-label">
+            <!-- 顶部穿孔区 -->
+            <div class="preview-hole-zone"><div class="preview-hole"></div></div>
+            <!-- 顶部条形码 -->
+            <div class="preview-barcode">
               <svg :id="'barcode-cutting-' + bundle.id"></svg>
-              <div class="code-text">裁床码</div>
+              <div class="preview-barcode-text">{{ cuttingBarcode }}</div>
             </div>
 
-            <div class="label-header">
-              <div class="label-row">
-                <span class="label-key">订单号：</span>
-                <span class="label-value">{{ bundle.orderNo }}</span>
-              </div>
-              <div class="label-row">
-                <span class="label-key">款号：</span>
-                <span class="label-value">{{ bundle.styleCode }}</span>
-              </div>
-              <div class="label-row">
-                <span class="label-key">面料：</span>
-                <span class="label-value bold">{{ bundle.fabric }}</span>
-              </div>
+            <!-- 中间信息表格 -->
+            <table class="preview-tbl">
+              <tr>
+                <td class="pv-key">部位</td>
+                <td class="pv-val pv-val-bold">{{ bundle.part }}</td>
+              </tr>
+              <tr>
+                <td class="pv-key">订单号</td>
+                <td class="pv-val">{{ bundle.orderNo }}</td>
+              </tr>
+              <tr>
+                <td class="pv-key">款号</td>
+                <td class="pv-val">{{ bundle.styleCode }}</td>
+              </tr>
+              <tr>
+                <td class="pv-key">颜色</td>
+                <td class="pv-val">{{ bundle.color }}</td>
+              </tr>
+            </table>
+
+            <!-- 底部区域：明细表格 -->
+            <div class="preview-bottom">
+              <table class="preview-tbl">
+                <tr>
+                  <td class="pv-key">尺码</td>
+                  <td class="pv-val">{{ bundle.size }}</td>
+                </tr>
+                <tr>
+                  <td class="pv-key">扎号</td>
+                  <td class="pv-val">{{ bundle.bundleNo }}</td>
+                </tr>
+                <tr>
+                  <td class="pv-key">数量</td>
+                  <td class="pv-val">{{ bundle.qty }}</td>
+                </tr>
+                <tr>
+                  <td class="pv-key">床号</td>
+                  <td class="pv-val">{{ bundle.bedNo || '' }}</td>
+                </tr>
+              </table>
             </div>
-            <div class="label-body">
-              <div class="label-row-2col">
-                <div class="label-col">
-                  <span class="label-key">颜色：</span>
-                  <span class="label-value">{{ bundle.color }}</span>
-                </div>
-                <div class="label-col">
-                  <span class="label-key">尺码：</span>
-                  <span class="label-value">{{ bundle.size }}</span>
-                </div>
-              </div>
-              <div class="label-row-2col">
-                <div class="label-col">
-                  <span class="label-key">部位：</span>
-                  <span class="label-value">{{ bundle.part }}</span>
-                </div>
-                <div class="label-col">
-                  <span class="label-key">件数：</span>
-                  <span class="label-value bold">{{ bundle.qty }}件</span>
-                </div>
-              </div>
-            </div>
-            <div class="label-info">
-              <span class="bundle-no">{{ bundle.bundleNo }}</span>
-            </div>
-            <!-- 底部二维码（扎号码） -->
-            <div class="label-qrcode-bottom">
-              <img v-if="qrCodeUrls[bundle.id]" :src="qrCodeUrls[bundle.id]" class="qr-code-img" />
-              <svg v-else :id="'barcode-bundle-' + bundle.id"></svg>
-              <div class="code-text">扎号码</div>
-            </div>
+            <!-- 二维码：绝对定位在标签右下角 -->
+            <img v-if="qrCodeUrls[bundle.id]" :src="qrCodeUrls[bundle.id]" class="preview-qr" />
+            <!-- 底部扎号码 -->
+            <div class="preview-bundle-no">{{ bundle.globalBundleNo }}</div>
           </div>
         </div>
       </div>
@@ -132,7 +132,6 @@ watch(visible, (val) => {
 })
 
 async function generateAllBarcodes() {
-  // 生成二维码data URL
   const urls: Record<number, string> = {}
   for (const bundle of props.bundles) {
     try {
@@ -148,7 +147,6 @@ async function generateAllBarcodes() {
   }
   qrCodeUrls.value = urls
 
-  // 生成条形码
   nextTick(() => {
     props.bundles.forEach(bundle => {
       const barcodeEl = document.getElementById(`barcode-cutting-${bundle.id}`)
@@ -188,7 +186,6 @@ function handlePrintSelected() {
 }
 
 async function printBundles(bundlesToPrint: BundleData[]) {
-  // 先生成所有二维码的data URL（高分辨率）
   const qrCodeUrls: Record<number, string> = {}
   for (const bundle of bundlesToPrint) {
     try {
@@ -214,7 +211,7 @@ async function printBundles(bundlesToPrint: BundleData[]) {
       <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.6/dist/JsBarcode.all.min.js"><\/script>
       <style>
         @page {
-          size: 50mm 70mm;
+          size: 50mm 80mm;
           margin: 0;
         }
         * {
@@ -224,99 +221,107 @@ async function printBundles(bundlesToPrint: BundleData[]) {
         }
         html, body {
           width: 50mm;
-          font-family: sans-serif;
+          font-family: "SimSun", "宋体", sans-serif;
           font-size: 10px;
-          line-height: 1.35;
+          line-height: 1.3;
         }
         .label-page {
           width: 50mm;
-          height: 70mm;
-          padding: 1.5mm;
+          height: 80mm;
+          padding: 2mm;
           border: 1px solid #333;
           page-break-after: always;
           page-break-inside: avoid;
           overflow: hidden;
           display: flex;
           flex-direction: column;
+          position: relative;
         }
         .label-page:last-child {
           page-break-after: auto;
         }
-        .label-header {
+        /* 顶部穿孔区 */
+        .p-hole-zone {
+          height: 18mm;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          flex-shrink: 0;
           border-bottom: 1px dashed #ccc;
-          padding-bottom: 0.8mm;
-          margin-bottom: 0.8mm;
-          flex-shrink: 0;
-        }
-        .label-row {
-          display: flex;
-          line-height: 1.35;
-        }
-        .label-row-2col {
-          display: flex;
-          line-height: 1.35;
-        }
-        .label-row-2col .label-col {
-          flex: 1;
-          display: flex;
-        }
-        .label-key {
-          width: 50px;
-          color: #666;
-          flex-shrink: 0;
-          margin-right: 1px;
-        }
-        .label-value {
-          flex: 1;
-        }
-        .label-value.bold {
-          font-weight: bold;
-        }
-        .fabric-bold {
-          font-weight: bold;
-        }
-        .label-body {
-          flex: 1;
-          margin-bottom: 0.8mm;
-        }
-        .label-info {
-          text-align: center;
-          font-size: 15px;
-          font-weight: bold;
-          padding: 1mm 0;
           margin-bottom: 1mm;
-          border-top: 1px dashed #ccc;
-          border-bottom: 1px dashed #ccc;
-          flex-shrink: 0;
         }
-        .label-barcode-top {
+        .p-hole {
+          width: 5mm;
+          height: 5mm;
+          border: 1px solid #999;
+          border-radius: 50%;
+        }
+        /* 顶部条形码 */
+        .p-barcode {
           display: flex;
           flex-direction: column;
           align-items: center;
-          border-bottom: 1px dashed #ccc;
-          padding-bottom: 0.8mm;
-          margin-bottom: 0.8mm;
+          margin-bottom: 1.5mm;
           flex-shrink: 0;
         }
-        .label-barcode-top svg {
-          width: 35mm;
-          height: 9mm;
+        .p-barcode svg {
+          width: 42mm;
+          height: 8mm;
         }
-        .label-qrcode-bottom {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          margin-top: auto;
+        .p-barcode-text {
+          font-size: 10px;
+          font-weight: bold;
+          margin-top: 0.5mm;
+          letter-spacing: 0.5px;
+        }
+        /* 统一表格 */
+        .p-tbl {
+          width: 100%;
+          border-collapse: collapse;
           flex-shrink: 0;
         }
-        .label-qrcode-bottom img {
-          width: 15mm;
-          height: 15mm;
-        }
-        .code-text {
+        .p-tbl td {
+          border: 1px solid #333;
+          padding: 0.5mm 1mm;
           font-size: 9px;
-          color: #666;
-          margin-top: 0.3mm;
+          line-height: 1.3;
+        }
+        .p-key {
+          width: 22%;
+          font-weight: bold;
+          white-space: nowrap;
+          background-color: #f5f5f5;
+        }
+        .p-val {
+          width: auto;
+        }
+        .p-val-bold {
+          font-weight: bold;
+        }
+        /* 底部区域 */
+        .p-bottom {
+          margin-top: auto;
+          position: relative;
+          flex-shrink: 0;
+          overflow: hidden;
+        }
+        .p-bottom .p-tbl {
+          width: 50%;
+        }
+        /* 二维码绝对定位在标签右下角 */
+        .p-qr {
+          position: absolute;
+          right: 2mm;
+          bottom: 5mm;
+          width: 18mm;
+          height: 18mm;
+        }
+        .p-bundle-no {
+          text-align: center;
+          font-size: 9px;
+          font-weight: bold;
+          padding-top: 1mm;
+          flex-shrink: 0;
         }
       </style>
     </head>
@@ -326,38 +331,51 @@ async function printBundles(bundlesToPrint: BundleData[]) {
   bundlesToPrint.forEach((bundle) => {
     html += `
       <div class="label-page">
-        <div class="label-barcode-top">
+        <div class="p-hole-zone"><div class="p-hole"></div></div>
+        <div class="p-barcode">
           <svg class="print-barcode" data-value="${props.cuttingBarcode}"></svg>
-          <div class="code-text">裁床码</div>
+          <div class="p-barcode-text">${props.cuttingBarcode}</div>
         </div>
-        <div class="label-header">
-          <div class="label-row">
-            <span class="label-key">订单号：</span><span class="label-value">${bundle.orderNo}</span>
-          </div>
-          <div class="label-row">
-            <span class="label-key">款号：</span><span class="label-value">${bundle.styleCode}</span>
-          </div>
-          <div class="label-row">
-            <span class="label-key">面料：</span><span class="label-value fabric-bold">${bundle.fabric || ''}</span>
-          </div>
+        <table class="p-tbl">
+          <tr>
+            <td class="p-key">部位</td>
+            <td class="p-val p-val-bold">${bundle.part}</td>
+          </tr>
+          <tr>
+            <td class="p-key">订单号</td>
+            <td class="p-val">${bundle.orderNo}</td>
+          </tr>
+          <tr>
+            <td class="p-key">款号</td>
+            <td class="p-val">${bundle.styleCode}</td>
+          </tr>
+          <tr>
+            <td class="p-key">颜色</td>
+            <td class="p-val">${bundle.color}</td>
+          </tr>
+        </table>
+        <div class="p-bottom">
+          <table class="p-tbl">
+            <tr>
+              <td class="p-key">尺码</td>
+              <td class="p-val">${bundle.size}</td>
+            </tr>
+            <tr>
+              <td class="p-key">扎号</td>
+              <td class="p-val">${bundle.bundleNo}</td>
+            </tr>
+            <tr>
+              <td class="p-key">数量</td>
+              <td class="p-val">${bundle.qty}</td>
+            </tr>
+            <tr>
+              <td class="p-key">床号</td>
+              <td class="p-val">${bundle.bedNo || ''}</td>
+            </tr>
+          </table>
         </div>
-        <div class="label-body">
-          <div class="label-row-2col">
-            <div class="label-col"><span class="label-key">颜色：</span><span class="label-value">${bundle.color}</span></div>
-            <div class="label-col"><span class="label-key">尺码：</span><span class="label-value">${bundle.size}</span></div>
-          </div>
-          <div class="label-row-2col">
-            <div class="label-col"><span class="label-key">部位：</span><span class="label-value">${bundle.part}</span></div>
-            <div class="label-col"><span class="label-key">件数：</span><span class="label-value bold">${bundle.qty}件</span></div>
-          </div>
-        </div>
-        <div class="label-info">
-          ${bundle.bundleNo}
-        </div>
-        <div class="label-qrcode-bottom">
-          <img src="${qrCodeUrls[bundle.id] || ''}" />
-          <div class="code-text">扎号码</div>
-        </div>
+        <img class="p-qr" src="${qrCodeUrls[bundle.id] || ''}" />
+        <div class="p-bundle-no">${bundle.globalBundleNo}</div>
       </div>
     `
   })
@@ -423,94 +441,111 @@ function handleClose() {
   background: rgba(74, 111, 165, 0.05);
 }
 
+/* 预览标签：50:80 比例 */
 .bundle-label {
   width: 200px;
+  height: 320px;
   padding: 8px;
   border: 1px solid #333;
-  font-size: 11px;
-  line-height: 1.4;
+  font-size: 10px;
+  line-height: 1.35;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  overflow: hidden;
 }
 
-.label-header {
-  margin-bottom: 6px;
-  padding-bottom: 6px;
+/* 穿孔区 */
+.preview-hole-zone {
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
   border-bottom: 1px dashed #ccc;
-}
-
-.label-body {
   margin-bottom: 6px;
 }
 
-.label-row {
-  display: flex;
+.preview-hole {
+  width: 20px;
+  height: 20px;
+  border: 1px solid #999;
+  border-radius: 50%;
 }
 
-.label-row-2col {
+/* 顶部条形码 */
+.preview-barcode {
   display: flex;
-}
-
-.label-row-2col .label-col {
-  flex: 1;
-  display: flex;
-}
-
-.label-key {
-  width: 50px;
-  color: #666;
+  flex-direction: column;
+  align-items: center;
+  margin-bottom: 6px;
   flex-shrink: 0;
 }
 
-.label-value {
-  flex: 1;
+.preview-barcode svg {
+  width: 150px;
+  height: 32px;
 }
 
-.label-value.bold {
+.preview-barcode-text {
+  font-size: 11px;
   font-weight: bold;
-}
-
-.fabric-bold {
-  font-weight: bold;
-}
-
-.label-info {
-  text-align: center;
-  font-size: 16px;
-  font-weight: bold;
-  margin-bottom: 6px;
-  padding: 4px 0;
-  border-top: 1px dashed #ccc;
-  border-bottom: 1px dashed #ccc;
-}
-
-.label-barcode-top {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  margin-bottom: 6px;
-  padding-bottom: 6px;
-  border-bottom: 1px dashed #ccc;
-}
-
-.label-barcode-top svg {
-  max-width: 150px;
-  height: 35px;
-}
-
-.label-qrcode-bottom {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  margin-top: 4px;
-}
-
-.label-qrcode-bottom img {
-  width: 50px;
-  height: 50px;
-}
-
-.code-text {
-  font-size: 10px;
-  color: #666;
   margin-top: 2px;
+  letter-spacing: 0.5px;
+}
+
+/* 统一表格 */
+.preview-tbl {
+  width: 100%;
+  border-collapse: collapse;
+  flex-shrink: 0;
+}
+
+.preview-tbl td {
+  border: 1px solid #333;
+  padding: 3px 6px;
+  font-size: 10px;
+  line-height: 1.35;
+}
+
+.pv-key {
+  width: 22%;
+  font-weight: bold;
+  white-space: nowrap;
+  background-color: #f5f5f5;
+}
+
+.pv-val {
+  width: auto;
+}
+
+.pv-val-bold {
+  font-weight: bold;
+}
+
+/* 底部区域 */
+.preview-bottom {
+  margin-top: auto;
+  flex-shrink: 0;
+}
+
+.preview-bottom .preview-tbl {
+  width: 50%;
+}
+
+/* 二维码绝对定位在标签右下角 */
+.preview-qr {
+  position: absolute;
+  right: 8px;
+  bottom: 22px;
+  width: 68px;
+  height: 68px;
+}
+
+.preview-bundle-no {
+  text-align: center;
+  font-size: 10px;
+  font-weight: bold;
+  flex-shrink: 0;
 }
 </style>

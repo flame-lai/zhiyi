@@ -8,6 +8,9 @@
     <a-descriptions bordered :column="2" style="margin-bottom: 24px">
       <a-descriptions-item label="款号">{{ styleInfo.styleCode }}</a-descriptions-item>
       <a-descriptions-item label="款式名称">{{ styleInfo.styleName }}</a-descriptions-item>
+      <a-descriptions-item label="移动端显示工价">
+        <a-switch v-model:checked="styleInfo.showMobilePrice" :checked-value="1" :un-checked-value="0" @change="handleSaveShowPrice" />
+      </a-descriptions-item>
     </a-descriptions>
 
     <!-- Tab：工序路由 + 物料清单 -->
@@ -44,6 +47,9 @@
             <template v-else-if="column.key === 'refPrice'">
               <a-input-number v-model:value="record.refPrice" :min="0" :precision="2" style="width: 100%" />
             </template>
+            <template v-else-if="column.key === 'batchReport'">
+              <a-switch v-model:checked="record.batchReport" :checked-value="1" :un-checked-value="0" size="small" />
+            </template>
             <template v-else-if="column.key === 'action'">
               <a style="color: #ff4d4f" @click="removeProcessRow(index)">删除</a>
             </template>
@@ -76,8 +82,8 @@
                 :filter-option="filterMaterialOption"
                 @change="(val: string) => onMaterialChange(record, val)"
               >
-                <a-select-option v-for="m in allMaterials" :key="m.id" :value="m.materialName">
-                  {{ m.materialName }} ({{ m.type === 1 ? '原料' : '辅料' }})
+                <a-select-option v-for="m in allMaterials.filter(am => am.type === record.type)" :key="m.id" :value="m.materialName">
+                  {{ m.materialName }}
                 </a-select-option>
               </a-select>
             </template>
@@ -162,6 +168,7 @@ const activeTab = ref('process')
 const styleInfo = reactive({
   styleCode: '',
   styleName: '',
+  showMobilePrice: 1,
 })
 
 // 工序路由
@@ -182,6 +189,7 @@ const processColumns = [
   { title: '工序', key: 'processId', width: 200 },
   { title: '排序', key: 'sort', width: 120 },
   { title: '工价（元/件）', key: 'refPrice', width: 150 },
+  { title: '批量上报', key: 'batchReport', width: 100, align: 'center' as const },
   { title: '操作', key: 'action', width: 80 },
 ]
 
@@ -225,10 +233,20 @@ async function fetchStyleInfo() {
     const data = res.data || {}
     styleInfo.styleCode = data.styleCode || ''
     styleInfo.styleName = data.styleName || ''
+    styleInfo.showMobilePrice = data.showMobilePrice ?? 1
   } catch {
     // handled by interceptor
   } finally {
     loading.value = false
+  }
+}
+
+async function handleSaveShowPrice(val: number) {
+  try {
+    await styleApi.update(styleId, { showMobilePrice: val })
+    message.success('已保存')
+  } catch {
+    // handled by interceptor
   }
 }
 
@@ -268,7 +286,7 @@ async function fetchAllProcesses() {
 async function fetchAllMaterials() {
   try {
     const res: any = await materialApi.list({ page: 1, size: 9999 })
-    allMaterials.value = (res.data?.records || []).filter((m: any) => m.type === 1)
+    allMaterials.value = (res.data?.records || [])
   } catch {
     // handled by interceptor
   }
@@ -293,6 +311,7 @@ function addProcessRow() {
     processId: undefined,
     sort: 0,
     refPrice: undefined,
+    batchReport: 1,
   })
 }
 
@@ -310,10 +329,11 @@ function removeProcessRow(index: number) {
 async function handleSaveProcesses() {
   savingProcesses.value = true
   try {
-    const data = processList.value.map(({ processId, sort, refPrice }: any) => ({
+    const data = processList.value.map(({ processId, sort, refPrice, batchReport }: any) => ({
       processId,
       sort,
       refPrice,
+      batchReport: batchReport === true || batchReport === 1 ? 1 : 0,
     }))
     await styleApi.saveProcesses(styleId, data)
     message.success('工序路由保存成功')

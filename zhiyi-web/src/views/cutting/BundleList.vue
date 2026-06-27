@@ -283,9 +283,8 @@ async function handleReprint(record: any) {
       return
     }
 
-    // 获取裁床计划的裁床码
-    const planRes: any = await cuttingPlanApi.getById(bundleData.cuttingPlanId)
-    printCuttingBarcode.value = planRes.data?.barcode || ''
+    // 直接使用扎号详情中的裁床码
+    printCuttingBarcode.value = bundleData.barcode || ''
 
     // 获取该裁床计划所有扎号详情
     const detailsRes: any = await cuttingPlanApi.getBundleDetails(bundleData.cuttingPlanId)

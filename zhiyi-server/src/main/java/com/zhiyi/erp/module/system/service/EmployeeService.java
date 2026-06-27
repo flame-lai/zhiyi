@@ -13,7 +13,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.util.Map;
-import java.util.UUID;
 
 @Service
 public class EmployeeService extends ServiceImpl<EmployeeMapper, Employee> {
@@ -43,10 +42,6 @@ public class EmployeeService extends ServiceImpl<EmployeeMapper, Employee> {
         } else {
             employee.setLoginPassword(BCrypt.hashpw("123456"));
         }
-        // 生成登录码
-        if (employee.getLoginCode() == null || employee.getLoginCode().isEmpty()) {
-            employee.setLoginCode(UUID.randomUUID().toString().replace("-", "").substring(0, 12));
-        }
         employee.setFactoryId(TenantContext.get());
         save(employee);
         return employee;
@@ -58,15 +53,6 @@ public class EmployeeService extends ServiceImpl<EmployeeMapper, Employee> {
             throw new BizException("员工不存在");
         }
         employee.setStatus(status);
-        updateById(employee);
-    }
-
-    public void resetLoginCode(Long id) {
-        Employee employee = getById(id);
-        if (employee == null) {
-            throw new BizException("员工不存在");
-        }
-        employee.setLoginCode(UUID.randomUUID().toString().replace("-", "").substring(0, 12));
         updateById(employee);
     }
 

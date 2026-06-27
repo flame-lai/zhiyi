@@ -12,4 +12,5 @@ public class ProcessReportStatusVO {
     private String doneBy;
     private String doneTime;
     private String hint;
+    private Integer batchReport;  // 1-支持批量上报，0-不支持
 }

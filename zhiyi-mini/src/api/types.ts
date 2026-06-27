@@ -32,6 +32,7 @@ export interface BundleScanResult {
     orderNo: string; styleNo: string; color: string; size: string
   }
   processes: ProcessReportStatus[]
+  showMobilePrice?: number
 }
 
 export interface CuttingScanResult {
@@ -39,13 +40,17 @@ export interface CuttingScanResult {
   code: string
   cutting: {
     id: number; barcode: string; bedNo: number; totalBundleCount: number; totalQty: number
-    orderNo: string; styleNo: string; color: string; size: string
+    orderNo: string; styleNo: string
   }
   bundles: Array<{
     id: number; globalBundleNo: string; bundleNo: string; qty: number
     disabled?: boolean; disabledReason?: string
   }>
+  colorSizeMatrix: Array<{
+    color: string; size: string; qty: number; bundleIds: number[]
+  }>
   processes: ProcessReportStatus[]
+  showMobilePrice?: number
 }
 
 export interface ProcessReportStatus {
@@ -56,6 +61,7 @@ export interface ProcessReportStatus {
   doneBy?: string
   doneTime?: string
   hint?: string
+  batchReport?: number
 }
 
 export interface ReportSubmitResult {
@@ -70,8 +76,15 @@ export interface ReportSubmitResult {
 }
 
 export interface WageSummary {
-  todayAmount: number
-  monthAmount: number
+  totalQty: number
+  totalAmount: number
+  visibleAmount: number
+  styleSummaries: Array<{
+    styleNo: string; qty: number; amount: number; showMobilePrice: number
+    processes: Array<{
+      processName: string; qty: number; price: number; amount: number
+    }>
+  }>
   dailyGroups: Array<{
     date: string; amount: number; records: WorkReportRecord[]
   }>
@@ -87,19 +100,42 @@ export interface WorkReportRecord {
   qty: number
   price: number
   amount: number
+  showMobilePrice: number // 1=显示工价, 0=隐藏工价
 }
 
 export interface DashboardOrder {
-  orderId: number; orderNo: string; styleNo: string; totalBundles: number
-  completionRate: number; bottleneckProcess: string
+  orderId: number; orderNo: string; styleNo: string; orderDate: string
+  totalBundles: number; completionRate: number; bottleneckProcess: string
   processProgress: Array<{
     processId: number; processName: string; completed: number; total: number; rate: number
   }>
 }
 
+export interface DashboardOrderPage {
+  records: DashboardOrder[]
+  total: number; page: number; size: number; hasMore: boolean
+}
+
 export interface DashboardWorker {
   employeeId: number; employeeNo: string; employeeName: string
   totalQty: number; totalAmount: number
+}
+
+export interface DashboardWorkerPage {
+  workers: DashboardWorker[]
+  totalQty: number; totalAmount: number
+  total: number; page: number; size: number; hasMore: boolean
+}
+
+export interface WorkerDetail {
+  employee: { id: number; employeeNo: string; employeeName: string }
+  totalQty: number; totalAmount: number
+  byOrder: Array<{ orderId: number; orderNo: string; styleNo: string; qty: number; amount: number }>
+  byProcess: Array<{ processId: number; processName: string; qty: number; amount: number }>
+  dailyReports: Array<{
+    date: string; qty: number; amount: number
+    records: Array<{ id: number; orderNo: string; styleNo: string; processName: string; bundleNo: string; qty: number; price: number; amount: number }>
+  }>
 }
 
 export interface AnomalyRecord {
@@ -111,6 +147,24 @@ export interface AnomalyRecord {
 export interface TimedWageRecord {
   id: number; employeeId: number; employeeNo: string; employeeName: string
   workDate: string; hours: number; hourlyRate: number; amount: number; workContent: string
+}
+
+export interface EmployeeRecord {
+  id: number; employeeNo: string; name: string; phone: string
+  roleId: number; roleName: string; loginAccount: string
+  status: number; remark: string
+}
+
+export interface RoleOption {
+  id: number; name: string
+}
+
+export interface AdminReportRecord {
+  id: number; employeeId: number; employeeName: string; employeeNo: string
+  orderNo: string; bundleNo: string; processName: string
+  qty: number; price: number; amount: number
+  reportType: number; status: number; reportTime: string
+  clearReason: string; supplementFlag: number
 }
 
 export interface BundleDetail {

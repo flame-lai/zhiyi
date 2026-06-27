@@ -1,5 +1,6 @@
-export function formatAmount(amount: number): string {
-  return '¥' + amount.toFixed(2)
+export function formatAmount(amount: number | string): string {
+  const num = typeof amount === 'string' ? parseFloat(amount) : amount
+  return '¥' + (isNaN(num) ? '0.00' : num.toFixed(2))
 }
 
 export function formatDate(dateStr: string): string {

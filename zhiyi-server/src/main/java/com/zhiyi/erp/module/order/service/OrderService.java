@@ -75,6 +75,7 @@ public class OrderService extends ServiceImpl<OrderMapper, Order> {
                 op.setProcessId(sp.getProcessId());
                 op.setProcessPrice(sp.getRefPrice());
                 op.setSort(sp.getSort());
+                op.setBatchReport(sp.getBatchReport() != null ? sp.getBatchReport() : 1);
                 orderProcessMapper.insert(op);
             }
 
