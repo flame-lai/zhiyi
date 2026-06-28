@@ -1,17 +1,55 @@
 <template>
   <View class="timed-page">
-    <!-- Month filter -->
+    <!-- 筛选栏 -->
     <View class="filter-bar">
-      <Picker mode="date" fields="month" :value="filterMonth" @change="onMonthChange">
-        <View class="filter-item">
-          <Text class="filter-label">月份</Text>
-          <Text class="filter-value">{{ filterMonth || '选择月份' }}</Text>
+      <View class="quick-btns">
+        <View :class="['quick-btn', filterMode === 'thisMonth' && 'active']" @tap="setThisMonth">
+          <Text class="quick-btn-text">本月</Text>
         </View>
+        <View :class="['quick-btn', filterMode === 'lastMonth' && 'active']" @tap="setLastMonth">
+          <Text class="quick-btn-text">上月</Text>
+        </View>
+        <View :class="['quick-btn', filterMode === 'custom' && 'active']" @tap="filterMode = 'custom'">
+          <Text class="quick-btn-text">自定义</Text>
+        </View>
+      </View>
+      <!-- 员工筛选 -->
+      <View class="filter-emp">
+        <View class="emp-search-wrap">
+          <Input
+            class="emp-input"
+            placeholder="筛选员工"
+            :value="filterEmpKeyword"
+            @input="onFilterEmpInput"
+            @focus="filterEmpFocused = true"
+          />
+          <View v-if="filterEmployee" class="emp-tag" @tap="clearFilterEmp">
+            <Text class="emp-tag-text">{{ filterEmployee.name }}</Text>
+            <Text class="emp-tag-x">×</Text>
+          </View>
+        </View>
+        <View v-if="filterEmpFocused && filterEmpResults.length > 0" class="emp-dropdown">
+          <View v-for="emp in filterEmpResults" :key="emp.id" class="emp-item" @tap="selectFilterEmp(emp)">
+            <Text class="emp-item-no">{{ emp.employeeNo }}</Text>
+            <Text class="emp-item-name">{{ emp.name }}</Text>
+          </View>
+        </View>
+      </View>
+    </View>
+
+    <!-- 自定义日期范围 -->
+    <View v-if="filterMode === 'custom'" class="date-range-bar">
+      <Picker mode="date" :value="customStart" @change="(e: any) => { customStart = e.detail.value; onFilterChange() }">
+        <View class="date-picker"><Text class="date-text">{{ customStart || '开始日期' }}</Text></View>
+      </Picker>
+      <Text class="date-sep">~</Text>
+      <Picker mode="date" :value="customEnd" @change="(e: any) => { customEnd = e.detail.value; onFilterChange() }">
+        <View class="date-picker"><Text class="date-text">{{ customEnd || '结束日期' }}</Text></View>
       </Picker>
     </View>
 
     <View class="content">
-      <View v-if="loading" class="loading"><Text class="loading-text">加载中...</Text></View>
+      <View v-if="loading && page === 1" class="loading"><Text class="loading-text">加载中...</Text></View>
       <EmptyState v-else-if="list.length === 0" text="暂无计时工资记录" />
       <View v-else class="card-list">
         <View v-for="item in list" :key="item.id" class="card">
@@ -37,7 +75,7 @@
             </View>
             <View class="stat">
               <Text class="stat-label">时薪</Text>
-              <Text class="stat-value">{{ formatAmount(item.hourlyRate).replace('¥', '¥') }}</Text>
+              <Text class="stat-value">{{ formatAmount(item.hourlyRate) }}</Text>
             </View>
             <View class="stat">
               <Text class="stat-label">金额</Text>
@@ -50,6 +88,8 @@
             <Text class="footer-value">{{ item.workContent }}</Text>
           </View>
         </View>
+        <View v-if="loading && page > 1" class="loading-more"><Text class="loading-more-text">加载中...</Text></View>
+        <View v-if="!hasMore && list.length > 0" class="no-more"><Text class="no-more-text">没有更多了</Text></View>
       </View>
     </View>
 
@@ -69,7 +109,28 @@
     >
       <View class="form-item">
         <Text class="form-label">工号</Text>
-        <Input class="form-input" placeholder="请输入工号" :value="form.employeeNo" @input="(e: any) => (form.employeeNo = e.detail.value)" />
+        <View class="search-wrap">
+          <Input
+            class="form-input"
+            placeholder="输入工号或姓名搜索"
+            :value="searchKeyword"
+            @input="onSearchInput"
+            @focus="searchFocused = true"
+          />
+          <View v-if="selectedEmployee" class="selected-tag">
+            <Text class="selected-tag-text">{{ selectedEmployee.name }}（{{ selectedEmployee.employeeNo }}）</Text>
+            <View class="selected-tag-close" @tap="clearSelected"><Text class="close-x">×</Text></View>
+          </View>
+        </View>
+        <View v-if="searchFocused && searchResults.length > 0" class="search-dropdown">
+          <View v-for="emp in searchResults" :key="emp.id" class="search-item" @tap="selectEmployee(emp)">
+            <Text class="search-item-no">{{ emp.employeeNo }}</Text>
+            <Text class="search-item-name">{{ emp.name }}</Text>
+          </View>
+        </View>
+        <View v-if="searchFocused && searchKeyword && searchResults.length === 0 && !searching" class="search-dropdown">
+          <View class="search-empty"><Text class="search-empty-text">未找到匹配员工</Text></View>
+        </View>
       </View>
       <View class="form-item">
         <Text class="form-label">日期</Text>
@@ -101,14 +162,14 @@
 
 <script setup lang="ts">
 import { ref, reactive, computed } from 'vue'
-import Taro, { useDidShow } from '@tarojs/taro'
+import Taro, { useDidShow, useReachBottom } from '@tarojs/taro'
 import { View, Text, Input, Picker } from '@tarojs/components'
-import { getTimedWages, createTimedWage, updateTimedWage, deleteTimedWage } from '../../../api/mobileAdmin'
+import { getTimedWages, createTimedWage, updateTimedWage, deleteTimedWage, getEmployees } from '../../../api/mobileAdmin'
 import { formatAmount, formatDate } from '../../../utils/format'
 import { checkAuthAndRedirect } from '../../../utils/auth'
 import EmptyState from '../../../components/EmptyState.vue'
 import ConfirmPanel from '../../../components/ConfirmPanel.vue'
-import type { TimedWageRecord } from '../../../api/types'
+import type { TimedWageRecord, EmployeeRecord } from '../../../api/types'
 
 definePageConfig({
   navigationBarTitleText: '计时工资',
@@ -121,16 +182,32 @@ function todayStr() {
   return `${d.getFullYear()}-${m}-${day}`
 }
 
-function currentMonthStr() {
+function monthStr(offset = 0) {
   const d = new Date()
+  d.setMonth(d.getMonth() + offset)
   const m = String(d.getMonth() + 1).padStart(2, '0')
   return `${d.getFullYear()}-${m}`
 }
 
-const filterMonth = ref(currentMonthStr())
+// 筛选状态
+const filterMode = ref<'thisMonth' | 'lastMonth' | 'custom'>('thisMonth')
+const customStart = ref('')
+const customEnd = ref('')
+const filterEmployee = ref<EmployeeRecord | null>(null)
+const filterEmpKeyword = ref('')
+const filterEmpResults = ref<EmployeeRecord[]>([])
+const filterEmpFocused = ref(false)
+let filterEmpTimer: ReturnType<typeof setTimeout> | null = null
+
+// 列表状态
 const loading = ref(false)
 const submitting = ref(false)
 const list = ref<TimedWageRecord[]>([])
+const page = ref(1)
+const hasMore = ref(true)
+const pageSize = 20
+
+// 弹窗状态
 const panelVisible = ref(false)
 const editingId = ref(0)
 
@@ -142,17 +219,153 @@ const form = reactive({
   workContent: '',
 })
 
+// 弹窗内员工搜索
+const searchKeyword = ref('')
+const searchResults = ref<EmployeeRecord[]>([])
+const searching = ref(false)
+const searchFocused = ref(false)
+const selectedEmployee = ref<EmployeeRecord | null>(null)
+let searchTimer: ReturnType<typeof setTimeout> | null = null
+
+// ===== 筛选逻辑 =====
+function setThisMonth() {
+  filterMode.value = 'thisMonth'
+  onFilterChange()
+}
+
+function setLastMonth() {
+  filterMode.value = 'lastMonth'
+  onFilterChange()
+}
+
+function onFilterChange() {
+  page.value = 1
+  hasMore.value = true
+  list.value = []
+  loadList()
+}
+
+function onFilterEmpInput(e: any) {
+  const val = e.detail.value
+  filterEmpKeyword.value = val
+  filterEmployee.value = null
+  if (filterEmpTimer) clearTimeout(filterEmpTimer)
+  if (!val.trim()) {
+    filterEmpResults.value = []
+    return
+  }
+  filterEmpTimer = setTimeout(async () => {
+    try {
+      const res = await getEmployees(val.trim(), 1, 10)
+      filterEmpResults.value = res?.records || []
+    } catch {
+      filterEmpResults.value = []
+    }
+  }, 300)
+}
+
+function selectFilterEmp(emp: EmployeeRecord) {
+  filterEmployee.value = emp
+  filterEmpKeyword.value = emp.name
+  filterEmpResults.value = []
+  filterEmpFocused.value = false
+  onFilterChange()
+}
+
+function clearFilterEmp() {
+  filterEmployee.value = null
+  filterEmpKeyword.value = ''
+  filterEmpResults.value = []
+  onFilterChange()
+}
+
+// ===== 弹窗内员工搜索 =====
+function onSearchInput(e: any) {
+  const val = e.detail.value
+  searchKeyword.value = val
+  selectedEmployee.value = null
+  form.employeeNo = ''
+  if (searchTimer) clearTimeout(searchTimer)
+  if (!val.trim()) {
+    searchResults.value = []
+    return
+  }
+  searchTimer = setTimeout(async () => {
+    searching.value = true
+    try {
+      const res = await getEmployees(val.trim(), 1, 10)
+      searchResults.value = res?.records || []
+    } catch {
+      searchResults.value = []
+    } finally {
+      searching.value = false
+    }
+  }, 300)
+}
+
+function selectEmployee(emp: EmployeeRecord) {
+  selectedEmployee.value = emp
+  form.employeeNo = emp.employeeNo
+  searchKeyword.value = emp.employeeNo
+  searchResults.value = []
+  searchFocused.value = false
+}
+
+function clearSelected() {
+  selectedEmployee.value = null
+  form.employeeNo = ''
+  searchKeyword.value = ''
+  searchResults.value = []
+}
+
+// ===== 列表加载 =====
 const calcAmount = computed(() => {
   const h = parseFloat(form.hours) || 0
   const r = parseFloat(form.hourlyRate) || 0
   return h * r
 })
 
-function onMonthChange(e: any) {
-  filterMonth.value = e.detail.value
-  loadList()
+function getFilterParams() {
+  const params: any = { page: page.value, size: pageSize }
+  if (filterMode.value === 'thisMonth') {
+    params.yearMonth = monthStr(0)
+  } else if (filterMode.value === 'lastMonth') {
+    params.yearMonth = monthStr(-1)
+  } else if (filterMode.value === 'custom') {
+    if (customStart.value) params.startDate = customStart.value
+    if (customEnd.value) params.endDate = customEnd.value
+  }
+  if (filterEmployee.value) {
+    params.employeeId = filterEmployee.value.id
+  }
+  return params
 }
 
+async function loadList() {
+  loading.value = true
+  try {
+    const res = await getTimedWages(getFilterParams())
+    const data = res as any
+    if (page.value === 1) {
+      list.value = data?.records || []
+    } else {
+      list.value = [...list.value, ...(data?.records || [])]
+    }
+    hasMore.value = data?.hasMore ?? false
+  } catch {
+    if (page.value === 1) list.value = []
+  } finally {
+    loading.value = false
+  }
+}
+
+useReachBottom(() => {
+  if (!hasMore.value || loading.value) return
+  page.value++
+  loadList()
+})
+
+// ===== 弹窗操作 =====
 function openAdd() {
   editingId.value = 0
   form.employeeNo = ''
@@ -160,6 +373,7 @@ function openAdd() {
   form.hours = ''
   form.hourlyRate = ''
   form.workContent = ''
+  clearSelected()
   panelVisible.value = true
 }
 
@@ -170,6 +384,12 @@ function openEdit(item: TimedWageRecord) {
   form.hours = String(item.hours)
   form.hourlyRate = String(item.hourlyRate)
   form.workContent = item.workContent || ''
+  if (item.employeeNo && item.employeeName) {
+    selectedEmployee.value = { id: item.employeeId, employeeNo: item.employeeNo, name: item.employeeName, phone: '', roleId: 0, roleName: '', loginAccount: '', status: 1, remark: '' }
+    searchKeyword.value = item.employeeNo
+  } else {
+    clearSelected()
+  }
   panelVisible.value = true
 }
 
@@ -186,6 +406,8 @@ function onDelete(item: TimedWageRecord) {
         try {
           await deleteTimedWage(item.id)
           Taro.showToast({ title: '已删除', icon: 'success' })
+          page.value = 1
+          hasMore.value = true
           await loadList()
         } catch {
           // handled by request util
@@ -198,7 +420,7 @@ function onDelete(item: TimedWageRecord) {
 async function submitForm() {
   if (submitting.value) return
   if (!form.employeeNo.trim()) {
-    Taro.showToast({ title: '请输入工号', icon: 'none' })
+    Taro.showToast({ title: '请搜索并选择员工', icon: 'none' })
     return
   }
   if (!form.hours || Number(form.hours) <= 0) {
@@ -226,23 +448,13 @@ async function submitForm() {
     }
     Taro.showToast({ title: '保存成功', icon: 'success' })
     panelVisible.value = false
+    page.value = 1
+    hasMore.value = true
     await loadList()
   } catch {
     // handled by request util
   } finally {
     submitting.value = false
-  }
-}
-
-async function loadList() {
-  loading.value = true
-  try {
-    const res = await getTimedWages(filterMonth.value)
-    list.value = res || []
-  } catch {
-    list.value = []
-  } finally {
-    loading.value = false
   }
 }
 
@@ -261,36 +473,130 @@ useDidShow(() => {
   position: relative;
 }
 
-
-
 .filter-bar {
-  display: flex;
-  padding: 20px 24px;
   background: #fff;
+  padding: 16px 24px;
   border-bottom: 1px solid #f0f0f0;
 }
 
-.filter-item {
-  flex: 1;
+.quick-btns {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  height: 64px;
-  padding: 0 20px;
-  background: #f5f7fa;
-  border-radius: 10px;
+  gap: 16px;
+  margin-bottom: 16px;
 }
 
-.filter-label {
+.quick-btn {
+  flex: 1;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f5f7fa;
+  border-radius: 8px;
+}
+
+.quick-btn.active {
+  background: #4A6FA5;
+}
+
+.quick-btn-text {
+  font-size: 24px;
+  color: #6b7280;
+}
+
+.quick-btn.active .quick-btn-text {
+  color: #fff;
+  font-weight: 500;
+}
+
+.filter-emp {
+  position: relative;
+}
+
+.emp-search-wrap {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.emp-input {
+  flex: 1;
+  height: 60px;
+  padding: 0 16px;
+  background: #f5f7fa;
+  border-radius: 8px;
+  font-size: 24px;
+}
+
+.emp-tag {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  background: #e8f0fe;
+  border-radius: 6px;
+}
+
+.emp-tag-text {
+  font-size: 22px;
+  color: #4A6FA5;
+}
+
+.emp-tag-x {
   font-size: 24px;
   color: #9ca3af;
 }
 
-.filter-value {
-  font-size: 26px;
-  color: #4A6FA5;
-  font-weight: 500;
+.emp-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  margin-top: 4px;
+  max-height: 300px;
+  overflow-y: auto;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+  z-index: 20;
 }
+
+.emp-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.emp-item:last-child { border-bottom: none; }
+.emp-item:active { background: #f5f7fa; }
+
+.emp-item-no { font-size: 26px; font-weight: 600; color: #4A6FA5; }
+.emp-item-name { font-size: 24px; color: #4b5563; }
+
+.date-range-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 24px;
+  background: #fff;
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.date-picker {
+  flex: 1;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #f5f7fa;
+  border-radius: 8px;
+}
+
+.date-text { font-size: 24px; color: #4A6FA5; }
+.date-sep { font-size: 24px; color: #9ca3af; }
 
 .content {
   flex: 1;
@@ -308,6 +614,28 @@ useDidShow(() => {
 .loading-text {
   font-size: 28px;
   color: #9ca3af;
+}
+
+.loading-more {
+  display: flex;
+  justify-content: center;
+  padding: 20px 0;
+}
+
+.loading-more-text {
+  font-size: 24px;
+  color: #9ca3af;
+}
+
+.no-more {
+  display: flex;
+  justify-content: center;
+  padding: 20px 0;
+}
+
+.no-more-text {
+  font-size: 24px;
+  color: #d1d5db;
 }
 
 .card-list {
@@ -502,5 +830,84 @@ useDidShow(() => {
   font-size: 36px;
   color: #4A6FA5;
   font-weight: 700;
+}
+
+.search-wrap {
+  position: relative;
+}
+
+.selected-tag {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  padding: 8px 16px;
+  background: #e8f0fe;
+  border-radius: 8px;
+}
+
+.selected-tag-text {
+  font-size: 24px;
+  color: #4A6FA5;
+}
+
+.selected-tag-close {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.close-x {
+  font-size: 28px;
+  color: #9ca3af;
+}
+
+.search-dropdown {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  margin-top: 8px;
+  max-height: 400px;
+  overflow-y: auto;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.search-item {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 20px;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.search-item:last-child {
+  border-bottom: none;
+}
+
+.search-item:active {
+  background: #f5f7fa;
+}
+
+.search-item-no {
+  font-size: 28px;
+  font-weight: 600;
+  color: #4A6FA5;
+}
+
+.search-item-name {
+  font-size: 26px;
+  color: #4b5563;
+}
+
+.search-empty {
+  padding: 30px;
+  text-align: center;
+}
+
+.search-empty-text {
+  font-size: 26px;
+  color: #9ca3af;
 }
 </style>

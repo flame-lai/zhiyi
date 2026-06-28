@@ -3565,9 +3565,39 @@ satoken: <your_token>
 
 **查询参数**：
 
-| 参数 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| keyword | String | 否 | 搜索关键词（工号/姓名/手机号） |
+| 参数 | 类型 | 必填 | 默认值 | 说明 |
+|------|------|------|--------|------|
+| keyword | String | 否 | - | 搜索关键词（工号/姓名） |
+| page | Integer | 否 | 1 | 页码 |
+| size | Integer | 否 | 20 | 每页条数 |
+
+**响应示例**：
+
+```json
+{
+  "code": 200,
+  "message": "success",
+  "data": {
+    "records": [
+      {
+        "id": 1,
+        "employeeNo": "A001",
+        "name": "张三",
+        "phone": "13800138000",
+        "roleId": 2,
+        "roleName": "车工",
+        "loginAccount": "zhangsan",
+        "status": 1,
+        "remark": ""
+      }
+    ],
+    "total": 1,
+    "page": 1,
+    "size": 20,
+    "hasMore": false
+  }
+}
+```
 
 ---
 
@@ -3639,9 +3669,40 @@ satoken: <your_token>
 
 **查询参数**：
 
-| 参数 | 类型 | 必填 | 说明 |
-|------|------|------|------|
-| keyword | String | 否 | 搜索关键词（工号/姓名/扎号） |
+| 参数 | 类型 | 必填 | 默认值 | 说明 |
+|------|------|------|--------|------|
+| keyword | String | 否 | - | 搜索关键词（工号/姓名/扎号） |
+| page | Integer | 否 | 1 | 页码 |
+| size | Integer | 否 | 20 | 每页条数 |
+
+**响应示例**：
+
+```json
+{
+  "code": 200,
+  "message": "success",
+  "data": {
+    "records": [
+      {
+        "id": 1,
+        "employeeId": 1001,
+        "employeeName": "张三",
+        "employeeNo": "A001",
+        "orderNo": "ORD202401001",
+        "bundleNo": "1-001",
+        "processName": "车领",
+        "qty": 20,
+        "amount": "10.00",
+        "reportTime": "2024-01-15 09:30:00"
+      }
+    ],
+    "total": 50,
+    "page": 1,
+    "size": 20,
+    "hasMore": true
+  }
+}
+```
 
 ---
 
@@ -3676,6 +3737,486 @@ satoken: <your_token>
 }
 ```
 
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| employeeNo | String | 是 | 员工工号 |
+| bundleId | Long | 是 | 扎号 ID |
+| processId | Long | 是 | 工序 ID |
+| qty | Integer | 是 | 数量（必须 > 0 且 ≤ 扎号数量） |
+
+**业务规则**：
+- 自动校验工号是否存在
+- 校验工序是否属于该扎号订单
+- 数量不可超过扎号件数
+- 同扎号+同工序已有有效报工时不可重复补录
+- 补录成功后，自动关闭匹配的前道工序异常预警（状态更新为已补录）
+
+---
+
+##### 生产看板 - 订单维度
+
+- **GET** `/api/mobile/admin/dashboard/orders`
+- **认证**：需要
+
+**查询参数**：
+
+| 参数 | 类型 | 必填 | 默认值 | 说明 |
+|------|------|------|--------|------|
+| startDate | String | 否 | - | 开始日期 yyyy-MM-dd |
+| endDate | String | 否 | - | 结束日期 yyyy-MM-dd |
+| orderNo | String | 否 | - | 订单号筛选 |
+| page | Integer | 否 | 1 | 页码 |
+| size | Integer | 否 | 20 | 每页条数 |
+
+---
+
+##### 生产看板 - 工人维度
+
+- **GET** `/api/mobile/admin/dashboard/workers`
+- **认证**：需要
+
+**查询参数**：
+
+| 参数 | 类型 | 必填 | 默认值 | 说明 |
+|------|------|------|--------|------|
+| startDate | String | 否 | - | 开始日期 yyyy-MM-dd |
+| endDate | String | 否 | - | 结束日期 yyyy-MM-dd |
+| keyword | String | 否 | - | 员工搜索关键词 |
+| page | Integer | 否 | 1 | 页码 |
+| size | Integer | 否 | 20 | 每页条数 |
+
+---
+
+##### 工人详情
+
+- **GET** `/api/mobile/admin/dashboard/worker-detail`
+- **认证**：需要
+
+**查询参数**：
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| employeeId | Long | 是 | 员工 ID |
+| startDate | String | 否 | 开始日期 yyyy-MM-dd |
+| endDate | String | 否 | 结束日期 yyyy-MM-dd |
+
+---
+
+##### 异常列表
+
+- **GET** `/api/mobile/admin/anomalies`
+- **认证**：需要
+
+**查询参数**：
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| status | Integer | 否 | 状态：0-待处理，1-已忽略，2-已清除，3-已补录 |
+
+---
+
+##### 忽略异常
+
+- **POST** `/api/mobile/admin/anomalies/{id}/ignore`
+- **认证**：需要
+
+**请求体**：
+
+```json
+{
+  "remark": "正常并行作业"
+}
+```
+
+---
+
+##### 清除异常
+
+- **POST** `/api/mobile/admin/anomalies/{id}/clear`
+- **认证**：需要
+
+**请求体**：
+
+```json
+{
+  "reason": "误扫清除"
+}
+```
+
+---
+
+##### 补录异常
+
+- **POST** `/api/mobile/admin/anomalies/{id}/supplement`
+- **认证**：需要
+
+**请求体**：
+
+```json
+{
+  "employeeNo": "A001",
+  "qty": 20
+}
+```
+
+---
+
+##### 计时工资列表
+
+- **GET** `/api/mobile/admin/timed-wages`
+- **认证**：需要
+
+**查询参数**：
+
+| 参数 | 类型 | 必填 | 默认值 | 说明 |
+|------|------|------|--------|------|
+| yearMonth | String | 否 | - | 年月 yyyy-MM（按月筛选，与日期范围互斥） |
+| startDate | String | 否 | - | 开始日期 yyyy-MM-dd |
+| endDate | String | 否 | - | 结束日期 yyyy-MM-dd |
+| employeeId | Long | 否 | - | 员工 ID 筛选 |
+| page | Integer | 否 | 1 | 页码 |
+| size | Integer | 否 | 20 | 每页条数 |
+
+**响应示例**：
+
+```json
+{
+  "code": 200,
+  "message": "success",
+  "data": {
+    "records": [
+      {
+        "id": 1,
+        "employeeId": 1001,
+        "employeeNo": "A001",
+        "employeeName": "张三",
+        "workDate": "2024-01-15",
+        "hours": "8.0",
+        "hourlyRate": "20.00",
+        "amount": "160.00",
+        "workContent": "整理仓库"
+      }
+    ],
+    "total": 10,
+    "page": 1,
+    "size": 20,
+    "hasMore": false
+  }
+}
+```
+
+---
+
+##### 新增计时工资
+
+- **POST** `/api/mobile/admin/timed-wages`
+- **认证**：需要
+
+**请求体**：
+
+```json
+{
+  "employeeNo": "A001",
+  "workDate": "2024-01-16",
+  "hours": 8.0,
+  "hourlyRate": 20.00,
+  "workContent": "搬运物料"
+}
+```
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| employeeNo | String | 是 | 员工工号 |
+| workDate | String | 否 | 工作日期 yyyy-MM-dd，默认当天 |
+| hours | BigDecimal | 是 | 工时（小时） |
+| hourlyRate | BigDecimal | 是 | 时薪（元/小时） |
+| workContent | String | 否 | 工作内容 |
+
+**业务规则**：
+- 金额 = 工时 × 时薪，后端自动计算
+- 工号不存在时返回错误
+
+---
+
+##### 编辑计时工资
+
+- **PUT** `/api/mobile/admin/timed-wages/{id}`
+- **认证**：需要
+
+**请求体**：同新增
+
+---
+
+##### 删除计时工资
+
+- **DELETE** `/api/mobile/admin/timed-wages/{id}`
+- **认证**：需要
+
+---
+
+##### 扎号查询
+
+- **GET** `/api/mobile/admin/bundles/search`
+- **认证**：需要
+
+**查询参数**：
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| code | String | 是 | 扎号编码（globalBundleNo 或 bundleNo） |
+
+**响应示例**：
+
+```json
+{
+  "code": 200,
+  "message": "success",
+  "data": {
+    "id": 1,
+    "bundleNo": "001",
+    "globalBundleNo": "CUT20240110001-001",
+    "orderNo": "ORD202401001",
+    "styleNo": "S001",
+    "styleName": "男士休闲衬衫",
+    "color": "白色",
+    "size": "M",
+    "qty": 50,
+    "status": 1,
+    "customerName": "广州服装批发商",
+    "processes": [
+      {
+        "processId": 1,
+        "processName": "裁剪",
+        "status": "DONE",
+        "doneBy": "张三",
+        "doneTime": "2024-01-15 09:30:00"
+      }
+    ]
+  }
+}
+```
+
+---
+
+##### 扎号联想搜索
+
+- **GET** `/api/mobile/admin/bundles/suggest`
+- **认证**：需要
+
+**查询参数**：
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| keyword | String | 否 | 搜索关键词（模糊匹配 globalBundleNo / bundleNo） |
+
+**响应示例**：
+
+```json
+{
+  "code": 200,
+  "message": "success",
+  "data": [
+    {
+      "id": 1,
+      "globalBundleNo": "CUT20240110001-001",
+      "bundleNo": "001",
+      "orderNo": "ORD202401001",
+      "color": "白色",
+      "size": "M",
+      "qty": 50
+    }
+  ]
+}
+```
+
+---
+
+##### 订单列表
+
+- **GET** `/api/mobile/admin/orders`
+- **认证**：需要
+
+**查询参数**：
+
+| 参数 | 类型 | 必填 | 默认值 | 说明 |
+|------|------|------|--------|------|
+| keyword | String | 否 | - | 搜索关键词（订单号） |
+| status | Integer | 否 | - | 状态筛选：0-待确认，1-生产中，2-已完成，3-已取消 |
+| startDate | String | 否 | - | 开始日期 yyyy-MM-dd（按创建时间筛选） |
+| endDate | String | 否 | - | 结束日期 yyyy-MM-dd |
+| page | Integer | 否 | 1 | 页码 |
+| size | Integer | 否 | 20 | 每页条数 |
+
+**响应示例**：
+
+```json
+{
+  "code": 200,
+  "message": "success",
+  "data": {
+    "records": [
+      {
+        "id": 1,
+        "orderNo": "ORD202401001",
+        "customerName": "广州服装批发商",
+        "styleNo": "S001",
+        "totalAmount": "50000.00",
+        "totalQty": 1000,
+        "deliveryDate": "2024-02-01",
+        "status": 1,
+        "createdAt": "2024-01-01 10:00:00"
+      }
+    ],
+    "total": 25,
+    "page": 1,
+    "size": 20,
+    "hasMore": true
+  }
+}
+```
+
+---
+
+##### 订单详情
+
+- **GET** `/api/mobile/admin/orders/search`
+- **认证**：需要
+
+**查询参数**：
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| orderNo | String | 是 | 订单号 |
+
+**响应示例**：
+
+```json
+{
+  "code": 200,
+  "message": "success",
+  "data": {
+    "order": {
+      "id": 1,
+      "orderNo": "ORD202401001",
+      "customerName": "广州服装批发商",
+      "styleNo": "S001",
+      "totalAmount": "50000.00",
+      "deliveryDate": "2024-02-01",
+      "status": 1,
+      "remark": ""
+    },
+    "items": [
+      {
+        "id": 1,
+        "styleNo": "S001",
+        "styleName": "男士休闲衬衫",
+        "color": "白色",
+        "size": "M",
+        "qty": 500,
+        "unitPrice": "30.00",
+        "shippedQty": 200,
+        "completedQty": 400,
+        "completionRate": "0.8"
+      }
+    ],
+    "completionRate": "0.75"
+  }
+}
+```
+
+---
+
+##### 订单联想搜索
+
+- **GET** `/api/mobile/admin/orders/suggest`
+- **认证**：需要
+
+**查询参数**：
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| keyword | String | 否 | 搜索关键词（模糊匹配订单号） |
+
+**响应示例**：
+
+```json
+{
+  "code": 200,
+  "message": "success",
+  "data": [
+    {
+      "id": 1,
+      "orderNo": "ORD202401001",
+      "customerName": "广州服装批发商",
+      "totalAmount": "50000.00",
+      "deliveryDate": "2024-02-01",
+      "status": 1
+    }
+  ]
+}
+```
+
+---
+
+##### 颜色尺码进度明细
+
+- **GET** `/api/mobile/admin/orders/color-size-progress`
+- **认证**：需要
+
+**查询参数**：
+
+| 参数 | 类型 | 必填 | 说明 |
+|------|------|------|------|
+| orderId | Long | 是 | 订单 ID |
+| color | String | 否 | 颜色筛选 |
+| size | String | 否 | 尺码筛选 |
+
+**响应示例**：
+
+```json
+{
+  "code": 200,
+  "message": "success",
+  "data": {
+    "color": "白色",
+    "size": "M",
+    "processes": [
+      {
+        "processId": 1,
+        "processName": "裁剪",
+        "completed": 450,
+        "total": 500,
+        "rate": "0.9"
+      }
+    ],
+    "bundles": [
+      {
+        "bundleId": 1,
+        "globalBundleNo": "CUT20240110001-001",
+        "bundleNo": "001",
+        "processes": [
+          {
+            "processId": 1,
+            "processName": "裁剪",
+            "status": "DONE",
+            "doneBy": "张三",
+            "doneTime": "2024-01-15 09:30:00"
+          }
+        ]
+      }
+    ]
+  }
+}
+```
+
+---
+
+##### 仪表盘 - 订单看板
+
+- **GET** `/api/mobile/admin/dashboard/orders`
+- **认证**：需要
+- **注意**：此为已废弃的旧版端点，新版使用 `GET /api/mobile/admin/orders`
+
 ---
 
 ## 附录：接口总览
@@ -3703,6 +4244,23 @@ satoken: <your_token>
 | mobile | PUT | /api/mobile/admin/employees/{id} | 编辑员工 |
 | mobile | DELETE | /api/mobile/admin/employees/{id} | 删除员工 |
 | mobile | PUT | /api/mobile/admin/employees/{id}/status | 启停用员工 |
+| mobile | GET | /api/mobile/admin/dashboard/orders | 订单维度看板 |
+| mobile | GET | /api/mobile/admin/dashboard/workers | 工人维度看板 |
+| mobile | GET | /api/mobile/admin/dashboard/worker-detail | 工人详情 |
+| mobile | GET | /api/mobile/admin/anomalies | 异常列表 |
+| mobile | POST | /api/mobile/admin/anomalies/{id}/ignore | 忽略异常 |
+| mobile | POST | /api/mobile/admin/anomalies/{id}/clear | 清除异常 |
+| mobile | POST | /api/mobile/admin/anomalies/{id}/supplement | 补录异常 |
+| mobile | GET | /api/mobile/admin/timed-wages | 计时工资列表 |
+| mobile | POST | /api/mobile/admin/timed-wages | 新增计时工资 |
+| mobile | PUT | /api/mobile/admin/timed-wages/{id} | 编辑计时工资 |
+| mobile | DELETE | /api/mobile/admin/timed-wages/{id} | 删除计时工资 |
+| mobile | GET | /api/mobile/admin/bundles/search | 扎号查询 |
+| mobile | GET | /api/mobile/admin/bundles/suggest | 扎号联想搜索 |
+| mobile | GET | /api/mobile/admin/orders | 订单列表 |
+| mobile | GET | /api/mobile/admin/orders/suggest | 订单联想搜索 |
+| mobile | GET | /api/mobile/admin/orders/search | 订单详情 |
+| mobile | GET | /api/mobile/admin/orders/color-size-progress | 颜色尺码进度 |
 | mobile | GET | /api/mobile/admin/reports | 报工记录列表 |
 | mobile | POST | /api/mobile/admin/reports/{id}/clear | 清除报工 |
 | mobile | POST | /api/mobile/admin/reports/supplement | 补录报工 |

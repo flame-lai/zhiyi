@@ -9,9 +9,10 @@
           style="width: 200px"
           @change="handleSearch"
         >
-          <a-select-option value="PENDING">待处理</a-select-option>
-          <a-select-option value="IGNORED">已忽略</a-select-option>
-          <a-select-option value="CLEARED">已清除</a-select-option>
+          <a-select-option :value="0">待处理</a-select-option>
+          <a-select-option :value="1">已忽略</a-select-option>
+          <a-select-option :value="2">已清除</a-select-option>
+          <a-select-option :value="3">已补录</a-select-option>
         </a-select>
         <a-button type="primary" @click="handleSearch">查询</a-button>
         <a-button @click="resetSearch">重置</a-button>
@@ -32,12 +33,16 @@
             {{ statusTagMap[record.status]?.text || record.status }}
           </a-tag>
         </template>
+        <template v-if="column.key === 'handleType'">
+          {{ handleTypeMap[record.handleType] || '-' }}
+        </template>
         <template v-if="column.key === 'action'">
-          <a-space>
+          <a-space v-if="record.status === 0">
             <a @click="openIgnoreModal(record)">忽略</a>
             <a @click="openClearModal(record)">清除</a>
             <a @click="openSupplementModal(record)">补录</a>
           </a-space>
+          <span v-else style="color: #999">已处理</span>
         </template>
       </template>
     </a-table>
@@ -96,7 +101,7 @@ import { anomalyApi } from '../../api/admin'
 
 const loading = ref(false)
 const submitting = ref(false)
-const searchStatus = ref<string | undefined>(undefined)
+const searchStatus = ref<number | undefined>(undefined)
 const dataList = ref<any[]>([])
 const currentRecord = ref<any>(null)
 
@@ -115,10 +120,17 @@ const supplementForm = reactive({
   qty: undefined as number | undefined,
 })
 
-const statusTagMap: Record<string, { text: string; color: string }> = {
-  PENDING: { text: '待处理', color: 'warning' },
-  IGNORED: { text: '已忽略', color: 'default' },
-  CLEARED: { text: '已清除', color: 'success' },
+const statusTagMap: Record<number, { text: string; color: string }> = {
+  0: { text: '待处理', color: 'warning' },
+  1: { text: '已忽略', color: 'default' },
+  2: { text: '已清除', color: 'success' },
+  3: { text: '已补录', color: 'processing' },
+}
+
+const handleTypeMap: Record<number, string> = {
+  1: '忽略',
+  2: '清除报工',
+  3: '补录报工',
 }
 
 const pagination = reactive({
@@ -130,13 +142,14 @@ const pagination = reactive({
 })
 
 const columns = [
-  { title: '订单号', dataIndex: 'orderId', key: 'orderId' },
-  { title: '扎号', dataIndex: 'bundleId', key: 'bundleId' },
-  { title: '工序', dataIndex: 'processId', key: 'processId' },
-  { title: '员工', dataIndex: 'employeeId', key: 'employeeId' },
-  { title: '类型', dataIndex: 'type', key: 'type' },
-  { title: '状态', key: 'status', dataIndex: 'status' },
-  { title: '创建时间', dataIndex: 'createTime', key: 'createTime' },
+  { title: '订单ID', dataIndex: 'orderId', key: 'orderId' },
+  { title: '扎号ID', dataIndex: 'bundleId', key: 'bundleId' },
+  { title: '前置工序ID', dataIndex: 'frontProcessId', key: 'frontProcessId' },
+  { title: '后置工序ID', dataIndex: 'backProcessId', key: 'backProcessId' },
+  { title: '报工人ID', dataIndex: 'reportEmployeeId', key: 'reportEmployeeId' },
+  { title: '处理方式', key: 'handleType' },
+  { title: '状态', key: 'status' },
+  { title: '创建时间', dataIndex: 'createdAt', key: 'createdAt' },
   { title: '操作', key: 'action', width: 200 },
 ]
 
@@ -145,9 +158,9 @@ async function fetchData() {
   try {
     const params: any = {
       page: pagination.current,
-      pageSize: pagination.pageSize,
+      size: pagination.pageSize,
     }
-    if (searchStatus.value) {
+    if (searchStatus.value !== undefined) {
       params.status = searchStatus.value
     }
     const res: any = await anomalyApi.list(params)

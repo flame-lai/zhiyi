@@ -90,9 +90,17 @@ function goDetail(id: number) {
 async function loadList() {
   loading.value = true
   try {
-    const params = activeStatus.value === -1 ? undefined : activeStatus.value
-    const res = await getAnomalies(params)
-    list.value = res || []
+    // 全部和已处理都不传status，拉全部数据后客户端过滤
+    const statusParam = activeStatus.value === 0 ? 0 : undefined
+    const res = await getAnomalies(statusParam)
+    const all = res || []
+    if (activeStatus.value === 0) {
+      list.value = all.filter(a => a.status === 0)
+    } else if (activeStatus.value === 1) {
+      list.value = all.filter(a => a.status !== 0)
+    } else {
+      list.value = all
+    }
   } catch {
     list.value = []
   } finally {

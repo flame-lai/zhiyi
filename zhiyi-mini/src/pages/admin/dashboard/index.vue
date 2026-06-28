@@ -235,15 +235,20 @@ function toggleExpand(id: number) {
   else expandedIds.value.push(id)
 }
 
-function completionType(rate: number): 'success' | 'warning' | 'danger' | 'info' {
-  if (rate >= 1) return 'success'
-  if (rate >= 0.7) return 'info'
-  if (rate >= 0.4) return 'warning'
+function completionType(rate: number | string | null | undefined): 'success' | 'warning' | 'danger' | 'info' {
+  if (rate === null || rate === undefined || rate === '') return 'danger'
+  const num = typeof rate === 'string' ? parseFloat(rate) : rate
+  const r = isNaN(num) ? 0 : num
+  if (r >= 1) return 'success'
+  if (r >= 0.7) return 'info'
+  if (r >= 0.4) return 'warning'
   return 'danger'
 }
 
-function progressWidth(rate: number): string {
-  return Math.min(100, Math.max(0, (rate || 0) * 100)) + '%'
+function progressWidth(rate: number | string | null | undefined): string {
+  if (rate === null || rate === undefined || rate === '') return '0%'
+  const num = typeof rate === 'string' ? parseFloat(rate) : rate
+  return Math.min(100, Math.max(0, (isNaN(num) ? 0 : num) * 100)) + '%'
 }
 
 async function loadOrders(reset = false) {

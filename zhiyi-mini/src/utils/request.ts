@@ -1,7 +1,7 @@
 import Taro from '@tarojs/taro'
 
 // TODO: 上线前改为真实域名
-const BASE_URL = 'http://192.168.54.10:8080/api'
+const BASE_URL = 'http://192.168.51.142:8080/api'
 
 interface RequestOptions {
   url: string

@@ -15,4 +15,5 @@ public class AnomalyVO {
     private Integer status;       // 0=待处理, 1=已忽略, 2=已清除, 3=已补录
     private Integer handleType;
     private String handleRemark;
+    private String handleTime;
 }

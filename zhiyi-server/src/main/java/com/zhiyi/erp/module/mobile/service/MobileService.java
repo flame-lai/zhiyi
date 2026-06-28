@@ -3,6 +3,7 @@ package com.zhiyi.erp.module.mobile.service;
 import cn.dev33.satoken.stp.StpUtil;
 import cn.hutool.crypto.digest.BCrypt;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.zhiyi.erp.common.exception.BizException;
 import com.zhiyi.erp.common.tenant.TenantContext;
 import com.zhiyi.erp.module.admin.entity.AnomalyAlert;
@@ -27,12 +28,17 @@ import com.zhiyi.erp.module.mobile.dto.TimedWageRequest;
 import com.zhiyi.erp.module.mobile.dto.ReportSubmitRequest;
 import com.zhiyi.erp.module.mobile.vo.*;
 import com.zhiyi.erp.module.report.dto.ReportRecordDTO;
+import com.zhiyi.erp.module.order.dto.OrderDetailDTO;
 import com.zhiyi.erp.module.order.entity.Order;
+import com.zhiyi.erp.module.order.entity.OrderColorSize;
 import com.zhiyi.erp.module.order.entity.OrderItem;
 import com.zhiyi.erp.module.order.entity.OrderProcess;
+import com.zhiyi.erp.module.order.entity.Shipment;
+import com.zhiyi.erp.module.order.mapper.OrderColorSizeMapper;
 import com.zhiyi.erp.module.order.mapper.OrderItemMapper;
 import com.zhiyi.erp.module.order.mapper.OrderMapper;
 import com.zhiyi.erp.module.order.mapper.OrderProcessMapper;
+import com.zhiyi.erp.module.order.mapper.ShipmentMapper;
 import com.zhiyi.erp.module.report.dto.WageReportDTO;
 import com.zhiyi.erp.module.report.entity.WorkReport;
 import com.zhiyi.erp.module.report.mapper.WorkReportMapper;
@@ -107,6 +113,12 @@ public class MobileService {
 
     @Autowired
     private OrderItemMapper orderItemMapper;
+
+    @Autowired
+    private ShipmentMapper shipmentMapper;
+
+    @Autowired
+    private OrderColorSizeMapper orderColorSizeMapper;
 
     // ========== Auth methods (from Task 1) ==========
 
@@ -264,33 +276,44 @@ public class MobileService {
     }
 
     private BundleScanVO resolveBundleScan(String globalBundleNo) {
-        Bundle bundle = bundleMapper.selectOne(
+        Bundle scannedBundle = bundleMapper.selectOne(
                 new LambdaQueryWrapper<Bundle>()
                         .eq(Bundle::getGlobalBundleNo, globalBundleNo)
         );
-        if (bundle == null) {
+        if (scannedBundle == null) {
             throw new BizException("扎号不存在：" + globalBundleNo);
         }
 
-        Order order = bundle.getOrderId() != null ? orderMapper.selectById(bundle.getOrderId()) : null;
+        // 同一物理扎（相同 bundleNo + orderId）的所有部位记录
+        List<Bundle> samePhysicalBundles = bundleMapper.selectList(
+                new LambdaQueryWrapper<Bundle>()
+                        .eq(Bundle::getBundleNo, scannedBundle.getBundleNo())
+                        .eq(Bundle::getOrderId, scannedBundle.getOrderId())
+        );
+        List<Long> allPartBundleIds = samePhysicalBundles.stream()
+                .map(Bundle::getId)
+                .collect(Collectors.toList());
+
+        Order order = scannedBundle.getOrderId() != null ? orderMapper.selectById(scannedBundle.getOrderId()) : null;
         Style style = (order != null && order.getStyleId() != null) ? styleMapper.selectById(order.getStyleId()) : null;
 
         BundleScanVO vo = new BundleScanVO();
         vo.setCode(globalBundleNo);
 
         BundleScanVO.BundleInfo bundleInfo = new BundleScanVO.BundleInfo();
-        bundleInfo.setId(bundle.getId());
-        bundleInfo.setGlobalBundleNo(bundle.getGlobalBundleNo());
-        bundleInfo.setBundleNo(bundle.getBundleNo());
-        bundleInfo.setQty(bundle.getQty());
+        bundleInfo.setId(scannedBundle.getId());
+        bundleInfo.setGlobalBundleNo(scannedBundle.getGlobalBundleNo());
+        bundleInfo.setBundleNo(scannedBundle.getBundleNo());
+        bundleInfo.setQty(scannedBundle.getQty());
         bundleInfo.setOrderNo(order != null ? order.getOrderNo() : null);
         bundleInfo.setStyleNo(style != null ? style.getStyleCode() : null);
-        bundleInfo.setColor(bundle.getColor());
-        bundleInfo.setSize(bundle.getSize());
+        bundleInfo.setColor(scannedBundle.getColor());
+        bundleInfo.setSize(scannedBundle.getSize());
         vo.setBundle(bundleInfo);
 
         vo.setShowMobilePrice(style != null && style.getShowMobilePrice() != null ? style.getShowMobilePrice() : 1);
-        vo.setProcesses(buildProcessStatusList(bundle.getOrderId(), bundle.getId()));
+        // 工序状态按同扎所有部位检查（任一部位已报工则该工序已报工）
+        vo.setProcesses(buildProcessStatusList(scannedBundle.getOrderId(), allPartBundleIds));
 
         return vo;
     }
@@ -373,12 +396,20 @@ public class MobileService {
         vo.setColorSizeMatrix(new ArrayList<>(matrixMap.values()));
 
         vo.setShowMobilePrice(style != null && style.getShowMobilePrice() != null ? style.getShowMobilePrice() : 1);
+        // CUTTING: 按第一个扎号查工序状态即可（前端提交时会选所有 bundleId）
         vo.setProcesses(buildProcessStatusList(plan.getOrderId(), sampleBundle != null ? sampleBundle.getId() : null));
 
         return vo;
     }
 
     private List<ProcessReportStatusVO> buildProcessStatusList(Long orderId, Long sampleBundleId) {
+        return buildProcessStatusList(orderId, sampleBundleId != null ? Collections.singletonList(sampleBundleId) : Collections.emptyList());
+    }
+
+    /**
+     * 检查同一物理扎下所有部位记录的报工状态，任一部位已报工则该工序已报工
+     */
+    private List<ProcessReportStatusVO> buildProcessStatusList(Long orderId, List<Long> bundleIds) {
         if (orderId == null) {
             return Collections.emptyList();
         }
@@ -407,16 +438,19 @@ public class MobileService {
             }
         }
 
-        // Get existing work reports for the sample bundle
+        // Get existing work reports for all bundles of the same physical 扎
         Map<Long, WorkReport> existingReports = new HashMap<>();
-        if (sampleBundleId != null) {
+        if (bundleIds != null && !bundleIds.isEmpty()) {
             List<WorkReport> reports = workReportMapper.selectList(
                     new LambdaQueryWrapper<WorkReport>()
-                            .eq(WorkReport::getBundleId, sampleBundleId)
+                            .in(WorkReport::getBundleId, bundleIds)
                             .eq(WorkReport::getStatus, 1)
             );
+            // 同一个 processId，任一部位的 bundle 已报工即算已报工
             for (WorkReport r : reports) {
-                existingReports.put(r.getProcessId(), r);
+                if (!existingReports.containsKey(r.getProcessId())) {
+                    existingReports.put(r.getProcessId(), r);
+                }
             }
         }
 
@@ -426,10 +460,17 @@ public class MobileService {
                 .collect(Collectors.toSet());
         Map<Long, Process> processMap = new HashMap<>();
         if (!processIds.isEmpty()) {
-            List<Process> processList = processMapper.selectBatchIds(processIds);
-            for (Process p : processList) {
-                processMap.put(p.getId(), p);
-            }
+            processMapper.selectBatchIds(processIds).forEach(p -> processMap.put(p.getId(), p));
+        }
+
+        // 批量加载报工员工信息，避免 N+1
+        Set<Long> employeeIds = existingReports.values().stream()
+                .map(WorkReport::getEmployeeId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+        Map<Long, Employee> employeeMap = new HashMap<>();
+        if (!employeeIds.isEmpty()) {
+            employeeMapper.selectBatchIds(employeeIds).forEach(e -> employeeMap.put(e.getId(), e));
         }
 
         List<ProcessReportStatusVO> result = new ArrayList<>();
@@ -440,17 +481,13 @@ public class MobileService {
             Process proc = processMap.get(op.getProcessId());
             statusVO.setProcessName(proc != null ? proc.getName() : "未知工序");
             statusVO.setPrice(op.getProcessPrice());
-            // 优先从款号工序读取 batchReport，实时生效
             statusVO.setBatchReport(styleBatchReportMap.getOrDefault(op.getProcessId(), 1));
 
             WorkReport existingReport = existingReports.get(op.getProcessId());
             if (existingReport != null) {
                 statusVO.setStatus("DONE");
-                // Look up the employee who did the report
-                if (existingReport.getEmployeeId() != null) {
-                    Employee reporter = employeeMapper.selectById(existingReport.getEmployeeId());
-                    statusVO.setDoneBy(reporter != null ? reporter.getName() : null);
-                }
+                Employee reporter = employeeMap.get(existingReport.getEmployeeId());
+                statusVO.setDoneBy(reporter != null ? reporter.getName() : null);
                 if (existingReport.getReportTime() != null) {
                     statusVO.setDoneTime(existingReport.getReportTime().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")));
                 }
@@ -483,7 +520,12 @@ public class MobileService {
             if (bundle == null) {
                 throw new BizException("扎号不存在：" + code);
             }
-            validBundles = Collections.singletonList(bundle);
+            // 同一物理扎的所有部位记录都视为合法上报范围
+            validBundles = bundleMapper.selectList(
+                    new LambdaQueryWrapper<Bundle>()
+                            .eq(Bundle::getBundleNo, bundle.getBundleNo())
+                            .eq(Bundle::getOrderId, bundle.getOrderId())
+            );
             orderId = bundle.getOrderId();
         } else if ("CUTTING".equals(scanType)) {
             CuttingPlan plan = cuttingPlanMapper.selectOne(
@@ -509,7 +551,29 @@ public class MobileService {
         Set<Long> validBundleIds = validBundles.stream()
                 .map(Bundle::getId)
                 .collect(Collectors.toSet());
-        for (Long bid : req.getSelectedBundleIds()) {
+
+        // BUNDLE 类型：前端只传了扫描的那个部位 id，后端自动展开为同扎所有部位
+        List<Long> actualBundleIds;
+        if ("BUNDLE".equals(scanType) && !req.getSelectedBundleIds().isEmpty()) {
+            // 找到扫描的那个 bundle，查出同扎所有部位
+            Bundle scanned = bundleMapper.selectById(req.getSelectedBundleIds().get(0));
+            if (scanned != null) {
+                actualBundleIds = validBundles.stream()
+                        .map(Bundle::getId)
+                        .collect(Collectors.toList());
+            } else {
+                actualBundleIds = req.getSelectedBundleIds();
+            }
+        } else {
+            actualBundleIds = req.getSelectedBundleIds();
+        }
+
+        // BUNDLE 类型：同物理扎只报一次工，不按部位重复上报
+        if ("BUNDLE".equals(scanType) && !actualBundleIds.isEmpty()) {
+            actualBundleIds = Collections.singletonList(actualBundleIds.get(0));
+        }
+
+        for (Long bid : actualBundleIds) {
             if (!validBundleIds.contains(bid)) {
                 throw new BizException("所选扎号不属于当前扫码结果");
             }
@@ -545,7 +609,7 @@ public class MobileService {
         Map<Long, Bundle> bundleMap = validBundles.stream()
                 .collect(Collectors.toMap(Bundle::getId, b -> b, (a, b) -> a));
 
-        for (Long bundleId : req.getSelectedBundleIds()) {
+        for (Long bundleId : actualBundleIds) {
             Bundle bundle = bundleMap.get(bundleId);
 
             for (Long processId : req.getSelectedProcessIds()) {
@@ -589,6 +653,9 @@ public class MobileService {
                 report.setSupplementFlag(0);
                 report.setCreatedBy(employeeId);
                 workReportMapper.insert(report);
+
+                // 异常检测：检查是否有前置工序未报工（断层预警）
+                checkAndCreateAnomalyAlert(orderId, bundleId, processId, employeeId, factoryId);
 
                 // Build report item
                 ReportSubmitResultVO.ReportItem item = new ReportSubmitResultVO.ReportItem();
@@ -1125,6 +1192,75 @@ public class MobileService {
         return result;
     }
 
+    /**
+     * 异常检测：报工后检查是否存在工序断层（后工序先于前工序报工）
+     */
+    private void checkAndCreateAnomalyAlert(Long orderId, Long bundleId, Long processId,
+                                             Long employeeId, Long factoryId) {
+        // 加载订单所有工序，按 sort 排序
+        List<OrderProcess> allOps = orderProcessMapper.selectList(
+                new LambdaQueryWrapper<OrderProcess>()
+                        .eq(OrderProcess::getOrderId, orderId)
+                        .orderByAsc(OrderProcess::getSort)
+        );
+        if (allOps == null || allOps.isEmpty()) return;
+
+        // 找到当前报工工序的 sort 值
+        Integer currentSort = null;
+        for (OrderProcess op : allOps) {
+            if (op.getProcessId().equals(processId)) {
+                currentSort = op.getSort();
+                break;
+            }
+        }
+        if (currentSort == null) return;
+
+        // 找到同物理扎所有部位（同一 bundleNo + orderId）
+        Bundle b = bundleMapper.selectById(bundleId);
+        List<Long> siblingBundleIds = b != null ? bundleMapper.selectList(
+                new LambdaQueryWrapper<Bundle>()
+                        .eq(Bundle::getBundleNo, b.getBundleNo())
+                        .eq(Bundle::getOrderId, b.getOrderId())
+        ).stream().map(Bundle::getId).collect(Collectors.toList()) : Collections.singletonList(bundleId);
+
+        // 检查所有前置工序（sort < currentSort）是否已报工（任一部位报工即算已报工）
+        for (OrderProcess op : allOps) {
+            if (op.getSort() >= currentSort) break;
+
+            Long frontProcessId = op.getProcessId();
+            Long count = workReportMapper.selectCount(
+                    new LambdaQueryWrapper<WorkReport>()
+                            .in(WorkReport::getBundleId, siblingBundleIds)
+                            .eq(WorkReport::getProcessId, frontProcessId)
+                            .eq(WorkReport::getStatus, 1)
+            );
+
+            if (count == 0) {
+                // 检查是否已存在相同的待处理预警（避免重复创建）
+                Long existCount = anomalyAlertMapper.selectCount(
+                        new LambdaQueryWrapper<AnomalyAlert>()
+                                .in(AnomalyAlert::getBundleId, siblingBundleIds)
+                                .eq(AnomalyAlert::getOrderId, orderId)
+                                .eq(AnomalyAlert::getFrontProcessId, frontProcessId)
+                                .eq(AnomalyAlert::getBackProcessId, processId)
+                                .eq(AnomalyAlert::getStatus, 0)
+                );
+                if (existCount > 0) continue;
+
+                // 创建断层预警
+                AnomalyAlert alert = new AnomalyAlert();
+                alert.setFactoryId(factoryId);
+                alert.setBundleId(bundleId);
+                alert.setOrderId(orderId);
+                alert.setFrontProcessId(frontProcessId);
+                alert.setBackProcessId(processId);
+                alert.setReportEmployeeId(employeeId);
+                alert.setStatus(0);
+                anomalyAlertMapper.insert(alert);
+            }
+        }
+    }
+
     public List<AnomalyVO> getAnomalies(Integer status) {
         Long factoryId = TenantContext.get();
 
@@ -1136,6 +1272,37 @@ public class MobileService {
         wrapper.orderByDesc(AnomalyAlert::getCreatedAt);
 
         List<AnomalyAlert> alerts = anomalyAlertMapper.selectList(wrapper);
+        if (alerts.isEmpty()) return Collections.emptyList();
+
+        // 批量加载关联数据，避免 N+1
+        Set<Long> bundleIds = new HashSet<>();
+        Set<Long> orderIds = new HashSet<>();
+        Set<Long> processIds = new HashSet<>();
+        Set<Long> employeeIds = new HashSet<>();
+        for (AnomalyAlert a : alerts) {
+            if (a.getBundleId() != null) bundleIds.add(a.getBundleId());
+            if (a.getOrderId() != null) orderIds.add(a.getOrderId());
+            if (a.getFrontProcessId() != null) processIds.add(a.getFrontProcessId());
+            if (a.getBackProcessId() != null) processIds.add(a.getBackProcessId());
+            if (a.getReportEmployeeId() != null) employeeIds.add(a.getReportEmployeeId());
+        }
+
+        Map<Long, Bundle> bundleMap = new HashMap<>();
+        if (!bundleIds.isEmpty()) {
+            bundleMapper.selectBatchIds(bundleIds).forEach(b -> bundleMap.put(b.getId(), b));
+        }
+        Map<Long, Order> orderMap = new HashMap<>();
+        if (!orderIds.isEmpty()) {
+            orderMapper.selectBatchIds(orderIds).forEach(o -> orderMap.put(o.getId(), o));
+        }
+        Map<Long, Process> processMap = new HashMap<>();
+        if (!processIds.isEmpty()) {
+            processMapper.selectBatchIds(processIds).forEach(p -> processMap.put(p.getId(), p));
+        }
+        Map<Long, Employee> employeeMap = new HashMap<>();
+        if (!employeeIds.isEmpty()) {
+            employeeMapper.selectBatchIds(employeeIds).forEach(e -> employeeMap.put(e.getId(), e));
+        }
 
         return alerts.stream().map(alert -> {
             AnomalyVO vo = new AnomalyVO();
@@ -1143,42 +1310,30 @@ public class MobileService {
             vo.setStatus(alert.getStatus());
             vo.setHandleType(alert.getHandleType());
             vo.setHandleRemark(alert.getHandleRemark());
+            vo.setHandleTime(alert.getHandleTime() != null
+                    ? alert.getHandleTime().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"))
+                    : null);
 
-            // Bundle info
-            if (alert.getBundleId() != null) {
-                Bundle bundle = bundleMapper.selectById(alert.getBundleId());
-                vo.setBundleNo(bundle != null ? bundle.getBundleNo() : null);
-            }
+            Bundle bundle = bundleMap.get(alert.getBundleId());
+            vo.setBundleNo(bundle != null ? bundle.getBundleNo() : null);
 
-            // Order info
-            if (alert.getOrderId() != null) {
-                Order order = orderMapper.selectById(alert.getOrderId());
-                vo.setOrderNo(order != null ? order.getOrderNo() : null);
-            }
+            Order order = orderMap.get(alert.getOrderId());
+            vo.setOrderNo(order != null ? order.getOrderNo() : null);
 
-            // Process names
-            if (alert.getFrontProcessId() != null) {
-                Process frontProc = processMapper.selectById(alert.getFrontProcessId());
-                vo.setFrontProcessName(frontProc != null ? frontProc.getName() : null);
-            }
-            if (alert.getBackProcessId() != null) {
-                Process backProc = processMapper.selectById(alert.getBackProcessId());
-                vo.setBackProcessName(backProc != null ? backProc.getName() : null);
-            }
+            Process frontProc = processMap.get(alert.getFrontProcessId());
+            vo.setFrontProcessName(frontProc != null ? frontProc.getName() : null);
 
-            // Reporter info
-            if (alert.getReportEmployeeId() != null) {
-                Employee reporter = employeeMapper.selectById(alert.getReportEmployeeId());
-                vo.setReportEmployeeName(reporter != null ? reporter.getName() : null);
-            }
+            Process backProc = processMap.get(alert.getBackProcessId());
+            vo.setBackProcessName(backProc != null ? backProc.getName() : null);
 
-            // Report time
+            Employee reporter = employeeMap.get(alert.getReportEmployeeId());
+            vo.setReportEmployeeName(reporter != null ? reporter.getName() : null);
+
             vo.setReportTime(alert.getCreatedAt() != null
                     ? alert.getCreatedAt().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm"))
                     : null);
 
-            // Description: front process worker != back process worker
-            vo.setDescription("工序报工人员异常：前工序与后工序报工人员不一致");
+            vo.setDescription("工序断层：后工序已报工但前工序未报工");
 
             return vo;
         }).collect(Collectors.toList());
@@ -1205,19 +1360,39 @@ public class MobileService {
         anomalyService.supplement(id, emp.getId(), qty);
     }
 
-    public List<TimedWageVO> getTimedWages(String yearMonth) {
+    public Map<String, Object> getTimedWages(String yearMonth, String startDate, String endDate,
+                                              Long employeeId, int page, int size) {
         Long factoryId = TenantContext.get();
 
         LambdaQueryWrapper<TimedWage> wrapper = new LambdaQueryWrapper<TimedWage>()
                 .eq(TimedWage::getFactoryId, factoryId);
-        if (yearMonth != null && !yearMonth.isEmpty()) {
+        if (startDate != null && !startDate.isEmpty() && endDate != null && !endDate.isEmpty()) {
+            wrapper.ge(TimedWage::getWorkDate, startDate);
+            wrapper.le(TimedWage::getWorkDate, endDate);
+        } else if (yearMonth != null && !yearMonth.isEmpty()) {
             wrapper.apply("DATE_FORMAT(work_date, '%Y-%m') = {0}", yearMonth);
+        }
+        if (employeeId != null) {
+            wrapper.eq(TimedWage::getEmployeeId, employeeId);
         }
         wrapper.orderByDesc(TimedWage::getWorkDate);
 
+        // 分页
+        long total = timedWageMapper.selectCount(wrapper);
+        wrapper.last("LIMIT " + size + " OFFSET " + (page - 1) * size);
         List<TimedWage> wages = timedWageMapper.selectList(wrapper);
 
-        return wages.stream().map(w -> {
+        // 批量加载员工信息
+        Set<Long> empIds = wages.stream()
+                .map(TimedWage::getEmployeeId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+        Map<Long, Employee> empMap = new HashMap<>();
+        if (!empIds.isEmpty()) {
+            employeeMapper.selectBatchIds(empIds).forEach(e -> empMap.put(e.getId(), e));
+        }
+
+        List<TimedWageVO> voList = wages.stream().map(w -> {
             TimedWageVO vo = new TimedWageVO();
             vo.setId(w.getId());
             vo.setEmployeeId(w.getEmployeeId());
@@ -1227,16 +1402,22 @@ public class MobileService {
             vo.setAmount(w.getAmount());
             vo.setWorkContent(w.getWorkContent());
 
-            if (w.getEmployeeId() != null) {
-                Employee emp = employeeMapper.selectById(w.getEmployeeId());
-                if (emp != null) {
-                    vo.setEmployeeNo(emp.getEmployeeNo());
-                    vo.setEmployeeName(emp.getName());
-                }
+            Employee emp = empMap.get(w.getEmployeeId());
+            if (emp != null) {
+                vo.setEmployeeNo(emp.getEmployeeNo());
+                vo.setEmployeeName(emp.getName());
             }
 
             return vo;
         }).collect(Collectors.toList());
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("records", voList);
+        result.put("total", total);
+        result.put("page", page);
+        result.put("size", size);
+        result.put("hasMore", (long) page * size < total);
+        return result;
     }
 
     @Transactional
@@ -1429,16 +1610,93 @@ public class MobileService {
 
     // ========== Report management ==========
 
-    public List<AdminReportVO> getReports(String keyword) {
+    public Map<String, Object> getReports(String keyword, int page, int size) {
         Long factoryId = TenantContext.get();
+
+        // 如果有关键词，先找匹配的员工和扎号
+        Set<Long> matchEmployeeIds = new HashSet<>();
+        Set<Long> matchBundleIds = new HashSet<>();
+        if (keyword != null && !keyword.trim().isEmpty()) {
+            String kw = keyword.trim();
+            List<Employee> matchingEmps = employeeMapper.selectList(
+                    new LambdaQueryWrapper<Employee>()
+                            .eq(Employee::getFactoryId, factoryId)
+                            .and(w -> w.like(Employee::getName, kw)
+                                    .or().like(Employee::getEmployeeNo, kw))
+            );
+            matchEmployeeIds = matchingEmps.stream().map(Employee::getId).collect(Collectors.toSet());
+
+            List<Bundle> matchingBundles = bundleMapper.selectList(
+                    new LambdaQueryWrapper<Bundle>()
+                            .eq(Bundle::getFactoryId, factoryId)
+                            .like(Bundle::getBundleNo, kw)
+            );
+            matchBundleIds = matchingBundles.stream().map(Bundle::getId).collect(Collectors.toSet());
+
+            // 员工和扎号都没匹配到，直接返回空
+            if (matchEmployeeIds.isEmpty() && matchBundleIds.isEmpty()) {
+                Map<String, Object> empty = new HashMap<>();
+                empty.put("records", Collections.emptyList());
+                empty.put("total", 0L);
+                empty.put("page", page);
+                empty.put("size", size);
+                empty.put("hasMore", false);
+                return empty;
+            }
+        }
+
         LambdaQueryWrapper<WorkReport> wrapper = new LambdaQueryWrapper<WorkReport>()
                 .eq(WorkReport::getFactoryId, factoryId)
-                .eq(WorkReport::getStatus, 1)
-                .orderByDesc(WorkReport::getReportTime)
-                .last("LIMIT 200");
+                .eq(WorkReport::getStatus, 1);
+        if (!matchEmployeeIds.isEmpty()) {
+            wrapper.in(WorkReport::getEmployeeId, matchEmployeeIds);
+        }
+        if (!matchBundleIds.isEmpty()) {
+            if (matchEmployeeIds.isEmpty()) {
+                wrapper.in(WorkReport::getBundleId, matchBundleIds);
+            } else {
+                final Set<Long> empIds = matchEmployeeIds;
+                final Set<Long> bundIds = matchBundleIds;
+                wrapper.and(w -> w.in(WorkReport::getEmployeeId, empIds)
+                        .or().in(WorkReport::getBundleId, bundIds));
+            }
+        }
+        wrapper.orderByDesc(WorkReport::getReportTime);
+
+        // 分页
+        long total = workReportMapper.selectCount(wrapper);
+        int offset = (page - 1) * size;
+        wrapper.last("LIMIT " + offset + ", " + size);
         List<WorkReport> reports = workReportMapper.selectList(wrapper);
 
-        return reports.stream().map(r -> {
+        // 批量加载关联数据，避免 N+1
+        Set<Long> employeeIds = reports.stream()
+                .map(WorkReport::getEmployeeId).filter(Objects::nonNull).collect(Collectors.toSet());
+        Set<Long> orderIds = reports.stream()
+                .map(WorkReport::getOrderId).filter(Objects::nonNull).collect(Collectors.toSet());
+        Set<Long> bundleIds = reports.stream()
+                .map(WorkReport::getBundleId).filter(Objects::nonNull).collect(Collectors.toSet());
+        Set<Long> processIds = reports.stream()
+                .map(WorkReport::getProcessId).filter(Objects::nonNull).collect(Collectors.toSet());
+
+        Map<Long, Employee> employeeMap = new HashMap<>();
+        if (!employeeIds.isEmpty()) {
+            employeeMapper.selectBatchIds(employeeIds).forEach(e -> employeeMap.put(e.getId(), e));
+        }
+        Map<Long, String> orderNoMap = new HashMap<>();
+        if (!orderIds.isEmpty()) {
+            orderMapper.selectBatchIds(orderIds).forEach(o -> orderNoMap.put(o.getId(), o.getOrderNo()));
+        }
+        Map<Long, String> bundleNoMap = new HashMap<>();
+        if (!bundleIds.isEmpty()) {
+            bundleMapper.selectBatchIds(bundleIds).forEach(b -> bundleNoMap.put(b.getId(), b.getBundleNo()));
+        }
+        Map<Long, String> processNameMap = new HashMap<>();
+        if (!processIds.isEmpty()) {
+            processMapper.selectBatchIds(processIds).forEach(p -> processNameMap.put(p.getId(), p.getName()));
+        }
+
+        List<AdminReportVO> records = reports.stream().map(r -> {
             AdminReportVO vo = new AdminReportVO();
             vo.setId(r.getId());
             vo.setEmployeeId(r.getEmployeeId());
@@ -1451,27 +1709,24 @@ public class MobileService {
             vo.setClearReason(r.getClearReason());
             vo.setSupplementFlag(r.getSupplementFlag());
 
-            if (r.getEmployeeId() != null) {
-                Employee emp = employeeMapper.selectById(r.getEmployeeId());
-                if (emp != null) {
-                    vo.setEmployeeName(emp.getName());
-                    vo.setEmployeeNo(emp.getEmployeeNo());
-                }
+            Employee emp = employeeMap.get(r.getEmployeeId());
+            if (emp != null) {
+                vo.setEmployeeName(emp.getName());
+                vo.setEmployeeNo(emp.getEmployeeNo());
             }
-            if (r.getOrderId() != null) {
-                Order order = orderMapper.selectById(r.getOrderId());
-                vo.setOrderNo(order != null ? order.getOrderNo() : null);
-            }
-            if (r.getBundleId() != null) {
-                Bundle bundle = bundleMapper.selectById(r.getBundleId());
-                vo.setBundleNo(bundle != null ? bundle.getBundleNo() : null);
-            }
-            if (r.getProcessId() != null) {
-                Process process = processMapper.selectById(r.getProcessId());
-                vo.setProcessName(process != null ? process.getName() : null);
-            }
+            vo.setOrderNo(orderNoMap.get(r.getOrderId()));
+            vo.setBundleNo(bundleNoMap.get(r.getBundleId()));
+            vo.setProcessName(processNameMap.get(r.getProcessId()));
             return vo;
         }).collect(Collectors.toList());
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("records", records);
+        result.put("total", total);
+        result.put("page", page);
+        result.put("size", size);
+        result.put("hasMore", offset + records.size() < total);
+        return result;
     }
 
     @Transactional
@@ -1492,6 +1747,11 @@ public class MobileService {
     public void supplementReport(String employeeNo, Long bundleId, Long processId, Integer qty) {
         Long factoryId = TenantContext.get();
 
+        // 数量校验
+        if (qty == null || qty <= 0) {
+            throw new BizException("补录数量必须大于 0");
+        }
+
         // 按工号查找员工
         Employee emp = employeeMapper.selectOne(
                 new LambdaQueryWrapper<Employee>()
@@ -1503,9 +1763,35 @@ public class MobileService {
         }
         Long employeeId = emp.getId();
 
-        Bundle bundle = bundleMapper.selectById(bundleId);
-        if (bundle == null) {
+        Bundle scannedBundle = bundleMapper.selectById(bundleId);
+        if (scannedBundle == null) {
             throw new BizException("扎号不存在");
+        }
+
+        // 同扎所有部位一起补录
+        List<Bundle> samePhysicalBundles = bundleMapper.selectList(
+                new LambdaQueryWrapper<Bundle>()
+                        .eq(Bundle::getBundleNo, scannedBundle.getBundleNo())
+                        .eq(Bundle::getOrderId, scannedBundle.getOrderId())
+        );
+
+        // 数量不超过扎号实际件数
+        if (scannedBundle.getQty() != null && qty > scannedBundle.getQty()) {
+            throw new BizException("补录数量不能超过扎号件数（" + scannedBundle.getQty() + "）");
+        }
+
+        // 该工序必须属于该订单
+        Long orderId = scannedBundle.getOrderId();
+        OrderProcess op = null;
+        if (orderId != null) {
+            op = orderProcessMapper.selectOne(
+                    new LambdaQueryWrapper<OrderProcess>()
+                            .eq(OrderProcess::getOrderId, orderId)
+                            .eq(OrderProcess::getProcessId, processId)
+            );
+        }
+        if (op == null) {
+            throw new BizException("该工序不属于此订单");
         }
 
         Process process = processMapper.selectById(processId);
@@ -1513,36 +1799,58 @@ public class MobileService {
             throw new BizException("工序不存在");
         }
 
-        // 查找订单工序定价
-        BigDecimal price = BigDecimal.ZERO;
-        if (bundle.getOrderId() != null) {
-            OrderProcess op = orderProcessMapper.selectOne(
-                    new LambdaQueryWrapper<OrderProcess>()
-                            .eq(OrderProcess::getOrderId, bundle.getOrderId())
-                            .eq(OrderProcess::getProcessId, processId)
-            );
-            if (op != null && op.getProcessPrice() != null) {
-                price = op.getProcessPrice();
-            }
+        // 同扎任一部位已有有效报工则拒绝
+        Long existingCount = workReportMapper.selectCount(
+                new LambdaQueryWrapper<WorkReport>()
+                        .in(WorkReport::getBundleId, samePhysicalBundles.stream().map(Bundle::getId).collect(Collectors.toList()))
+                        .eq(WorkReport::getProcessId, processId)
+                        .eq(WorkReport::getStatus, 1)
+        );
+        if (existingCount != null && existingCount > 0) {
+            throw new BizException("该扎号此工序已报工，无需重复补录");
         }
 
+        BigDecimal price = op.getProcessPrice() != null ? op.getProcessPrice() : BigDecimal.ZERO;
         BigDecimal amount = price.multiply(BigDecimal.valueOf(qty));
+        Long currentUserId = StpUtil.getLoginIdAsLong();
 
+        // 同一物理扎只写一条报工记录（不按部位重复），用扫描到的那个部位的 bundleId
         WorkReport report = new WorkReport();
         report.setFactoryId(factoryId);
         report.setBundleId(bundleId);
-        report.setOrderId(bundle.getOrderId());
+        report.setOrderId(orderId);
         report.setProcessId(processId);
         report.setEmployeeId(employeeId);
         report.setQty(qty);
         report.setPrice(price);
         report.setAmount(amount);
-        report.setReportType(3); // 管理员补录
+        report.setReportType(3);
         report.setStatus(1);
         report.setReportTime(LocalDateTime.now());
         report.setSupplementFlag(1);
-        report.setCreatedBy(StpUtil.getLoginIdAsLong());
+        report.setCreatedBy(currentUserId);
         workReportMapper.insert(report);
+
+        // 补录完成后，自动关闭匹配的断层预警：同扎所有部位
+        if (orderId != null) {
+            List<Long> allBundleIds = samePhysicalBundles.stream().map(Bundle::getId).collect(Collectors.toList());
+            List<AnomalyAlert> pendingAlerts = anomalyAlertMapper.selectList(
+                    new LambdaQueryWrapper<AnomalyAlert>()
+                            .eq(AnomalyAlert::getFactoryId, factoryId)
+                            .in(AnomalyAlert::getBundleId, allBundleIds)
+                            .eq(AnomalyAlert::getOrderId, orderId)
+                            .eq(AnomalyAlert::getFrontProcessId, processId)
+                            .eq(AnomalyAlert::getStatus, 0)
+            );
+            for (AnomalyAlert alert : pendingAlerts) {
+                alert.setStatus(3);
+                alert.setHandleType(3);
+                alert.setHandleBy(currentUserId);
+                alert.setHandleTime(LocalDateTime.now());
+                alert.setHandleRemark("补录报工自动处理");
+                anomalyAlertMapper.updateById(alert);
+            }
+        }
     }
 
     public BundleDetailVO searchBundle(String code) {
@@ -1577,8 +1885,16 @@ public class MobileService {
         vo.setColor(bundle.getColor());
         vo.setSize(bundle.getSize());
 
-        // Build process status list
-        List<ProcessReportStatusVO> processes = buildProcessStatusList(bundle.getOrderId(), bundle.getId());
+        // 工序状态按同扎所有部位检查（任一部位已报工则该工序已报工）
+        List<Bundle> samePhysicalBundles = bundleMapper.selectList(
+                new LambdaQueryWrapper<Bundle>()
+                        .eq(Bundle::getBundleNo, bundle.getBundleNo())
+                        .eq(Bundle::getOrderId, bundle.getOrderId())
+        );
+        List<Long> allBundleIds = samePhysicalBundles.stream()
+                .map(Bundle::getId)
+                .collect(Collectors.toList());
+        List<ProcessReportStatusVO> processes = buildProcessStatusList(bundle.getOrderId(), allBundleIds);
         vo.setProcesses(processes);
 
         // Determine status: 已完成 if all processes are DONE, else 生产中
@@ -1588,10 +1904,52 @@ public class MobileService {
         return vo;
     }
 
+    public List<BundleSuggestVO> suggestBundle(String keyword) {
+        if (keyword == null || keyword.trim().isEmpty()) {
+            return Collections.emptyList();
+        }
+        Long factoryId = TenantContext.get();
+        String kw = keyword.trim();
+        List<Bundle> bundles = bundleMapper.selectList(
+                new LambdaQueryWrapper<Bundle>()
+                        .eq(Bundle::getFactoryId, factoryId)
+                        .and(w -> w.like(Bundle::getGlobalBundleNo, kw)
+                                .or().like(Bundle::getBundleNo, kw))
+                        .orderByDesc(Bundle::getCreatedAt)
+                        .last("LIMIT 20")
+        );
+        if (bundles.isEmpty()) {
+            return Collections.emptyList();
+        }
+        // 批量加载订单号，避免 N+1
+        Set<Long> orderIds = bundles.stream()
+                .map(Bundle::getOrderId).filter(Objects::nonNull).collect(Collectors.toSet());
+        Map<Long, String> orderNoMap = new HashMap<>();
+        if (!orderIds.isEmpty()) {
+            orderMapper.selectBatchIds(orderIds).forEach(o -> orderNoMap.put(o.getId(), o.getOrderNo()));
+        }
+        return bundles.stream().map(b -> {
+            BundleSuggestVO vo = new BundleSuggestVO();
+            vo.setId(b.getId());
+            vo.setGlobalBundleNo(b.getGlobalBundleNo());
+            vo.setBundleNo(b.getBundleNo());
+            vo.setOrderNo(orderNoMap.get(b.getOrderId()));
+            vo.setColor(b.getColor());
+            vo.setSize(b.getSize());
+            vo.setQty(b.getQty());
+            return vo;
+        }).collect(Collectors.toList());
+    }
+
     public OrderSearchVO searchOrder(String orderNo) {
+        if (orderNo == null || orderNo.trim().isEmpty()) {
+            throw new BizException("订单号不能为空");
+        }
+        Long factoryId = TenantContext.get();
         Order order = orderMapper.selectOne(
                 new LambdaQueryWrapper<Order>()
-                        .eq(Order::getOrderNo, orderNo)
+                        .eq(Order::getFactoryId, factoryId)
+                        .eq(Order::getOrderNo, orderNo.trim())
         );
         if (order == null) {
             throw new BizException("订单不存在：" + orderNo);
@@ -1610,62 +1968,302 @@ public class MobileService {
             vo.setCustomerName(customer != null ? customer.getName() : null);
         }
 
-        // Order items
-        List<OrderItem> items = orderItemMapper.selectList(
-                new LambdaQueryWrapper<OrderItem>()
-                        .eq(OrderItem::getOrderId, order.getId())
+        // Order color/size 明细（订单创建时明细落在此表，order_item 表未使用）
+        List<OrderColorSize> colorSizes = orderColorSizeMapper.selectList(
+                new LambdaQueryWrapper<OrderColorSize>()
+                        .eq(OrderColorSize::getOrderId, order.getId())
         );
 
-        // Get all bundles for this order to calculate progress
+        // 所有扎号及工序
         List<Bundle> orderBundles = bundleMapper.selectList(
                 new LambdaQueryWrapper<Bundle>()
                         .eq(Bundle::getOrderId, order.getId())
         );
 
-        // Get order processes for completion calculation
         List<OrderProcess> orderProcesses = orderProcessMapper.selectList(
                 new LambdaQueryWrapper<OrderProcess>()
                         .eq(OrderProcess::getOrderId, order.getId())
                         .orderByAsc(OrderProcess::getSort)
         );
 
-        // Calculate overall completion rate
-        BigDecimal completionRate = BigDecimal.ZERO;
-        if (!orderBundles.isEmpty() && !orderProcesses.isEmpty()) {
-            Set<Long> bundleIds = orderBundles.stream().map(Bundle::getId).collect(Collectors.toSet());
-            int totalExpected = orderBundles.size() * orderProcesses.size();
-            int completedCount = 0;
-            if (!bundleIds.isEmpty()) {
-                Long completedCountLong = workReportMapper.selectCount(
+        // 拉取该订单所有正常报工记录（status=1），用于按 扎×工序 去重统计
+        Set<Long> bundleIds = orderBundles.stream().map(Bundle::getId).collect(Collectors.toSet());
+        List<WorkReport> reports = bundleIds.isEmpty() ? Collections.emptyList() :
+                workReportMapper.selectList(
                         new LambdaQueryWrapper<WorkReport>()
                                 .in(WorkReport::getBundleId, bundleIds)
                                 .eq(WorkReport::getStatus, 1)
                 );
-                completedCount = completedCountLong != null ? completedCountLong.intValue() : 0;
-            }
-            if (totalExpected > 0) {
-                completionRate = BigDecimal.valueOf(completedCount)
-                        .divide(BigDecimal.valueOf(totalExpected), 4, BigDecimal.ROUND_HALF_UP);
+        // 已完成的 (bundleId, processId) 组合集合 —— 去重
+        Set<String> doneKeys = reports.stream()
+                .map(r -> r.getBundleId() + ":" + r.getProcessId())
+                .collect(Collectors.toSet());
+
+        int totalExpected = orderBundles.size() * orderProcesses.size();
+        int totalCompleted = doneKeys.size();
+        BigDecimal completionRate = BigDecimal.ZERO;
+        if (totalExpected > 0) {
+            completionRate = BigDecimal.valueOf(totalCompleted)
+                    .divide(BigDecimal.valueOf(totalExpected), 4, BigDecimal.ROUND_HALF_UP);
+            if (completionRate.compareTo(BigDecimal.ONE) > 0) {
+                completionRate = BigDecimal.ONE;
             }
         }
         vo.setCompletionRate(completionRate);
 
-        // Build order items
-        List<OrderSearchVO.OrderItemVO> itemVOs = items.stream().map(item -> {
+        // 款号（从订单的 styleId 取，明细行共用）
+        final String styleNo;
+        if (order.getStyleId() != null) {
+            Style style = styleMapper.selectById(order.getStyleId());
+            styleNo = style != null ? style.getStyleCode() : null;
+        } else {
+            styleNo = null;
+        }
+
+        // Build 明细行 —— 每行一个颜色尺码，按 颜色+尺码 匹配扎号统计完成进度
+        List<OrderSearchVO.OrderItemVO> itemVOs = colorSizes.stream().map(cs -> {
             OrderSearchVO.OrderItemVO itemVO = new OrderSearchVO.OrderItemVO();
-            if (item.getStyleId() != null) {
-                Style s = styleMapper.selectById(item.getStyleId());
-                itemVO.setStyleNo(s != null ? s.getStyleCode() : null);
+            itemVO.setStyleNo(styleNo);
+            itemVO.setColor(cs.getColor());
+            itemVO.setSize(cs.getSize());
+            itemVO.setQty(cs.getQty());
+            itemVO.setShippedQty(0); // 发运暂未按颜色尺码跟踪
+
+            // 该行（同色同码）的扎号
+            List<Bundle> rowBundles = orderBundles.stream()
+                    .filter(b -> Objects.equals(b.getColor(), cs.getColor())
+                            && Objects.equals(b.getSize(), cs.getSize()))
+                    .collect(Collectors.toList());
+            Set<Long> rowBundleIds = rowBundles.stream().map(Bundle::getId).collect(Collectors.toSet());
+            int rowExpected = rowBundles.size() * orderProcesses.size();
+            int rowCompleted = (int) doneKeys.stream()
+                    .filter(k -> {
+                        int idx = k.indexOf(':');
+                        return rowBundleIds.contains(Long.valueOf(k.substring(0, idx)));
+                    }).count();
+            BigDecimal rowProgress = BigDecimal.ZERO;
+            if (rowExpected > 0) {
+                rowProgress = BigDecimal.valueOf(rowCompleted)
+                        .divide(BigDecimal.valueOf(rowExpected), 4, BigDecimal.ROUND_HALF_UP);
+                if (rowProgress.compareTo(BigDecimal.ONE) > 0) {
+                    rowProgress = BigDecimal.ONE;
+                }
             }
-            itemVO.setColor(item.getColor());
-            itemVO.setSize(item.getSize());
-            itemVO.setQty(item.getQty());
-            itemVO.setShippedQty(0); // No shipment tracking yet
-            itemVO.setProgress(BigDecimal.ZERO);
+            itemVO.setProgress(rowProgress);
             return itemVO;
         }).collect(Collectors.toList());
         vo.setItems(itemVOs);
 
         return vo;
+    }
+
+    public ColorSizeProgressVO getColorSizeProgress(Long orderId, String color, String size) {
+        Order order = orderMapper.selectById(orderId);
+        if (order == null) {
+            throw new BizException("订单不存在");
+        }
+
+        ColorSizeProgressVO vo = new ColorSizeProgressVO();
+        vo.setColor(color);
+        vo.setSize(size);
+
+        // 款号
+        if (order.getStyleId() != null) {
+            Style style = styleMapper.selectById(order.getStyleId());
+            vo.setStyleNo(style != null ? style.getStyleCode() : null);
+        }
+
+        // 工序（按 sort 升序）+ 批量加载工序名
+        List<OrderProcess> orderProcesses = orderProcessMapper.selectList(
+                new LambdaQueryWrapper<OrderProcess>()
+                        .eq(OrderProcess::getOrderId, orderId)
+                        .orderByAsc(OrderProcess::getSort)
+        );
+        Set<Long> processIds = orderProcesses.stream()
+                .map(OrderProcess::getProcessId).collect(Collectors.toSet());
+        Map<Long, Process> processMap = new HashMap<>();
+        if (!processIds.isEmpty()) {
+            processMapper.selectBatchIds(processIds).forEach(p -> processMap.put(p.getId(), p));
+        }
+
+        // 该订单扎号，按 color+size 过滤出本行
+        List<Bundle> allBundles = bundleMapper.selectList(
+                new LambdaQueryWrapper<Bundle>().eq(Bundle::getOrderId, orderId)
+        );
+        List<Bundle> rowBundles = allBundles.stream()
+                .filter(b -> Objects.equals(b.getColor(), color)
+                        && Objects.equals(b.getSize(), size))
+                .collect(Collectors.toList());
+        vo.setTotalBundles(rowBundles.size());
+
+        Set<Long> bundleIds = rowBundles.stream().map(Bundle::getId).collect(Collectors.toSet());
+
+        // 一次性拉这些扎号的 status=1 报工记录
+        List<WorkReport> reports = bundleIds.isEmpty() ? Collections.emptyList() :
+                workReportMapper.selectList(
+                        new LambdaQueryWrapper<WorkReport>()
+                                .in(WorkReport::getBundleId, bundleIds)
+                                .eq(WorkReport::getStatus, 1)
+                );
+        // (bundleId, processId) -> 最新报工记录（同扎同工序多条取最新）
+        Map<String, WorkReport> reportMap = new HashMap<>();
+        for (WorkReport r : reports) {
+            String key = r.getBundleId() + ":" + r.getProcessId();
+            WorkReport exist = reportMap.get(key);
+            if (exist == null || (r.getReportTime() != null && exist.getReportTime() != null
+                    && r.getReportTime().isAfter(exist.getReportTime()))) {
+                reportMap.put(key, r);
+            }
+        }
+
+        // 批量加载报工员工名
+        Set<Long> employeeIds = reports.stream()
+                .map(WorkReport::getEmployeeId).filter(Objects::nonNull).collect(Collectors.toSet());
+        Map<Long, Employee> employeeMap = new HashMap<>();
+        if (!employeeIds.isEmpty()) {
+            employeeMapper.selectBatchIds(employeeIds).forEach(e -> employeeMap.put(e.getId(), e));
+        }
+
+        // 工序维度：每道工序有多少个不同扎号报工
+        List<ColorSizeProgressVO.ProcessProgressRow> processRows = new ArrayList<>();
+        for (OrderProcess op : orderProcesses) {
+            ColorSizeProgressVO.ProcessProgressRow row = new ColorSizeProgressVO.ProcessProgressRow();
+            row.setProcessId(op.getProcessId());
+            Process proc = processMap.get(op.getProcessId());
+            row.setProcessName(proc != null ? proc.getName() : "未知工序");
+            int total = rowBundles.size();
+            int completed = 0;
+            for (Bundle b : rowBundles) {
+                if (reportMap.containsKey(b.getId() + ":" + op.getProcessId())) {
+                    completed++;
+                }
+            }
+            row.setTotal(total);
+            row.setCompleted(completed);
+            BigDecimal rate = BigDecimal.ZERO;
+            if (total > 0) {
+                rate = BigDecimal.valueOf(completed)
+                        .divide(BigDecimal.valueOf(total), 4, BigDecimal.ROUND_HALF_UP);
+            }
+            row.setRate(rate);
+            processRows.add(row);
+        }
+        vo.setProcesses(processRows);
+
+        // 整体完成率 = 所有工序 completed 之和 / (扎数 × 工序数)
+        int totalExpected = rowBundles.size() * orderProcesses.size();
+        int totalCompleted = (int) reports.stream()
+                .map(r -> r.getBundleId() + ":" + r.getProcessId())
+                .distinct().count();
+        BigDecimal completionRate = BigDecimal.ZERO;
+        if (totalExpected > 0) {
+            completionRate = BigDecimal.valueOf(totalCompleted)
+                    .divide(BigDecimal.valueOf(totalExpected), 4, BigDecimal.ROUND_HALF_UP);
+            if (completionRate.compareTo(BigDecimal.ONE) > 0) {
+                completionRate = BigDecimal.ONE;
+            }
+        }
+        vo.setCompletionRate(completionRate);
+
+        // 扎号维度：每个扎号各工序状态
+        List<ColorSizeProgressVO.BundleProcessRow> bundleRows = new ArrayList<>();
+        for (Bundle b : rowBundles) {
+            ColorSizeProgressVO.BundleProcessRow br = new ColorSizeProgressVO.BundleProcessRow();
+            br.setBundleId(b.getId());
+            br.setGlobalBundleNo(b.getGlobalBundleNo());
+            br.setBundleNo(b.getBundleNo());
+
+            List<ColorSizeProgressVO.BundleProcessStatus> statuses = new ArrayList<>();
+            for (OrderProcess op : orderProcesses) {
+                ColorSizeProgressVO.BundleProcessStatus s = new ColorSizeProgressVO.BundleProcessStatus();
+                s.setProcessId(op.getProcessId());
+                Process proc = processMap.get(op.getProcessId());
+                s.setProcessName(proc != null ? proc.getName() : "未知工序");
+
+                WorkReport r = reportMap.get(b.getId() + ":" + op.getProcessId());
+                if (r != null) {
+                    s.setStatus("DONE");
+                    Employee reporter = employeeMap.get(r.getEmployeeId());
+                    s.setDoneBy(reporter != null ? reporter.getName() : null);
+                    if (r.getReportTime() != null) {
+                        s.setDoneTime(r.getReportTime().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")));
+                    }
+                } else {
+                    s.setStatus("PENDING");
+                }
+                statuses.add(s);
+            }
+            br.setProcesses(statuses);
+            bundleRows.add(br);
+        }
+        vo.setBundles(bundleRows);
+
+        return vo;
+    }
+
+    public OrderListPageVO getOrders(String keyword, Integer status, String startDate, String endDate, int page, int size) {
+        Page<OrderDetailDTO> p = new Page<>(page, size);
+        List<OrderDetailDTO> records = orderMapper.selectOrderDetailsPage(
+                p, TenantContext.get(), keyword, status, startDate, endDate);
+
+        List<OrderListPageVO.OrderListItemVO> items = records.stream().map(o -> {
+            OrderListPageVO.OrderListItemVO vo = new OrderListPageVO.OrderListItemVO();
+            vo.setId(o.getId());
+            vo.setOrderNo(o.getOrderNo());
+            vo.setCustomerName(o.getCustomerName());
+            vo.setStyleNo(o.getStyleCode());
+            if (o.getTotalAmount() != null) {
+                vo.setTotalAmount(o.getTotalAmount().toPlainString());
+            }
+            vo.setTotalQty(o.getTotalQty());
+            vo.setDeliveryDate(o.getDeliveryDate() != null ? o.getDeliveryDate().toString() : null);
+            vo.setStatus(o.getStatus());
+            vo.setCreatedAt(o.getCreatedAt() != null
+                    ? o.getCreatedAt().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")) : null);
+            return vo;
+        }).collect(Collectors.toList());
+
+        OrderListPageVO result = new OrderListPageVO();
+        result.setRecords(items);
+        result.setTotal(p.getTotal());
+        result.setPage(page);
+        result.setSize(size);
+        result.setHasMore((long) page * size < p.getTotal());
+        return result;
+    }
+
+    public List<OrderSuggestVO> suggestOrder(String keyword) {
+        if (keyword == null || keyword.trim().isEmpty()) {
+            return Collections.emptyList();
+        }
+        Long factoryId = TenantContext.get();
+        String kw = keyword.trim();
+        List<Order> orders = orderMapper.selectList(
+                new LambdaQueryWrapper<Order>()
+                        .eq(Order::getFactoryId, factoryId)
+                        .like(Order::getOrderNo, kw)
+                        .orderByDesc(Order::getCreatedAt)
+                        .last("LIMIT 20")
+        );
+        if (orders.isEmpty()) {
+            return Collections.emptyList();
+        }
+        // 批量加载客户名，避免 N+1
+        Set<Long> customerIds = orders.stream()
+                .map(Order::getCustomerId).filter(Objects::nonNull).collect(Collectors.toSet());
+        Map<Long, String> customerNameMap = new HashMap<>();
+        if (!customerIds.isEmpty()) {
+            customerMapper.selectBatchIds(customerIds).forEach(c -> customerNameMap.put(c.getId(), c.getName()));
+        }
+        return orders.stream().map(o -> {
+            OrderSuggestVO vo = new OrderSuggestVO();
+            vo.setId(o.getId());
+            vo.setOrderNo(o.getOrderNo());
+            vo.setCustomerName(customerNameMap.get(o.getCustomerId()));
+            vo.setTotalAmount(o.getTotalAmount());
+            vo.setDeliveryDate(o.getDeliveryDate());
+            vo.setStatus(o.getStatus());
+            return vo;
+        }).collect(Collectors.toList());
     }
 }

@@ -8,7 +8,7 @@
         <View class="confirm-btn cancel" @tap="$emit('cancel')">
           <Text class="btn-text">取消</Text>
         </View>
-        <View class="confirm-btn submit" :class="{ loading }" @tap="$emit('confirm')">
+        <View class="confirm-btn submit" @tap="$emit('confirm')">
           <Text class="btn-text">{{ confirmText || '确认' }}</Text>
         </View>
       </View>
@@ -28,7 +28,7 @@ defineEmits(['confirm', 'cancel'])
 .confirm-title { display: block; font-size: 34px; font-weight: 600; color: #4A6FA5; text-align: center; margin-bottom: 24px; }
 .confirm-content { margin-bottom: 32px; }
 .confirm-actions { display: flex; gap: 24px; }
-.confirm-btn { flex: 1; height: 80px; display: flex; align-items: center; justify-content: center; border-radius: 12px; }
+.confirm-btn { flex: 1; height: 80px; display: flex; align-items: center; justify-content: center; border-radius: 12px; overflow: hidden; }
 .confirm-btn.cancel { background: #f3f4f6; } .confirm-btn.cancel .btn-text { color: #6b7280; }
 .confirm-btn.submit { background: #4A6FA5; } .confirm-btn.submit .btn-text { color: #fff; }
 .confirm-btn.loading { opacity: 0.6; }

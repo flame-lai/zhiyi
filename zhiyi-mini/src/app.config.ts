@@ -17,6 +17,8 @@ export default defineAppConfig({
     'pages/admin/report-supplement/index',
     'pages/admin/bundle-query/index',
     'pages/admin/order-query/index',
+    'pages/admin/order-detail/index',
+    'pages/admin/order-color-size/index',
   ],
   window: {
     backgroundTextStyle: 'light',

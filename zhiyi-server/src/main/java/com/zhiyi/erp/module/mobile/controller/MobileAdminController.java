@@ -83,8 +83,14 @@ public class MobileAdminController {
 
     @Operation(summary = "计时工资列表")
     @GetMapping("/timed-wages")
-    public R<List<TimedWageVO>> getTimedWages(@RequestParam(required = false) String yearMonth) {
-        return R.ok(mobileService.getTimedWages(yearMonth));
+    public R<Map<String, Object>> getTimedWages(
+            @RequestParam(required = false) String yearMonth,
+            @RequestParam(required = false) String startDate,
+            @RequestParam(required = false) String endDate,
+            @RequestParam(required = false) Long employeeId,
+            @RequestParam(defaultValue = "1") Integer page,
+            @RequestParam(defaultValue = "20") Integer size) {
+        return R.ok(mobileService.getTimedWages(yearMonth, startDate, endDate, employeeId, page, size));
     }
 
     @Operation(summary = "新增计时工资")
@@ -114,10 +120,43 @@ public class MobileAdminController {
         return R.ok(mobileService.searchBundle(code));
     }
 
+    @Operation(summary = "扎号联想")
+    @GetMapping("/bundles/suggest")
+    public R<List<BundleSuggestVO>> suggestBundle(@RequestParam(required = false) String keyword) {
+        return R.ok(mobileService.suggestBundle(keyword));
+    }
+
     @Operation(summary = "订单查询")
     @GetMapping("/orders/search")
     public R<OrderSearchVO> searchOrder(@RequestParam String orderNo) {
         return R.ok(mobileService.searchOrder(orderNo));
+    }
+
+    @Operation(summary = "订单列表")
+    @GetMapping("/orders")
+    public R<OrderListPageVO> getOrders(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(required = false) Integer status,
+            @RequestParam(required = false) String startDate,
+            @RequestParam(required = false) String endDate,
+            @RequestParam(defaultValue = "1") Integer page,
+            @RequestParam(defaultValue = "20") Integer size) {
+        return R.ok(mobileService.getOrders(keyword, status, startDate, endDate, page, size));
+    }
+
+    @Operation(summary = "订单联想")
+    @GetMapping("/orders/suggest")
+    public R<List<OrderSuggestVO>> suggestOrder(@RequestParam(required = false) String keyword) {
+        return R.ok(mobileService.suggestOrder(keyword));
+    }
+
+    @Operation(summary = "颜色尺码进度明细")
+    @GetMapping("/orders/color-size-progress")
+    public R<ColorSizeProgressVO> getColorSizeProgress(
+            @RequestParam Long orderId,
+            @RequestParam(required = false) String color,
+            @RequestParam(required = false) String size) {
+        return R.ok(mobileService.getColorSizeProgress(orderId, color, size));
     }
 
     @Operation(summary = "员工列表")
@@ -165,8 +204,11 @@ public class MobileAdminController {
 
     @Operation(summary = "报工记录列表")
     @GetMapping("/reports")
-    public R<List<AdminReportVO>> getReports(@RequestParam(required = false) String keyword) {
-        return R.ok(mobileService.getReports(keyword));
+    public R<Map<String, Object>> getReports(
+            @RequestParam(required = false) String keyword,
+            @RequestParam(defaultValue = "1") Integer page,
+            @RequestParam(defaultValue = "20") Integer size) {
+        return R.ok(mobileService.getReports(keyword, page, size));
     }
 
     @Operation(summary = "清除报工")

@@ -173,6 +173,11 @@ export interface BundleDetail {
   status: string; processes: ProcessReportStatus[]
 }
 
+export interface BundleSuggest {
+  id: number; globalBundleNo: string; bundleNo: string
+  orderNo: string; color: string; size: string; qty: number
+}
+
 export interface OrderSearchResult {
   id: number; orderNo: string; customerName: string; totalAmount: number
   deliveryDate: string; status: number; completionRate: number
@@ -180,4 +185,41 @@ export interface OrderSearchResult {
     styleNo: string; color: string; size: string; qty: number
     shippedQty: number; progress: number
   }>
+}
+
+export interface OrderSuggest {
+  id: number; orderNo: string; customerName: string
+  totalAmount: number; deliveryDate: string; status: number
+}
+
+export interface OrderListItem {
+  id: number; orderNo: string; customerName: string
+  styleNo: string; totalAmount: number; totalQty: number
+  deliveryDate: string; status: number; createdAt: string
+}
+
+export interface OrderListPage {
+  records: OrderListItem[]; total: number; hasMore: boolean
+}
+
+export interface ColorSizeProgress {
+  styleNo: string; color: string; size: string
+  totalBundles: number; completionRate: number
+  processes: ColorSizeProcessRow[]
+  bundles: ColorSizeBundleRow[]
+}
+
+export interface ColorSizeProcessRow {
+  processId: number; processName: string
+  completed: number; total: number; rate: number
+}
+
+export interface ColorSizeBundleRow {
+  bundleId: number; globalBundleNo: string; bundleNo: string
+  processes: ColorSizeBundleProcess[]
+}
+
+export interface ColorSizeBundleProcess {
+  processId: number; processName: string
+  status: string; doneBy: string; doneTime: string
 }

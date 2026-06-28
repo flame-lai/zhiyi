@@ -62,7 +62,12 @@
              WHERE op.order_id = b.order_id) AS total_processes,
             (SELECT COUNT(DISTINCT wr.process_id)
              FROM work_report wr
-             WHERE wr.bundle_id = b.id AND wr.status = 1) AS completed_processes,
+             WHERE wr.status = 1
+               AND wr.bundle_id IN (
+                 SELECT b2.id FROM bundle b2
+                 WHERE b2.bundle_no = b.bundle_no
+                   AND b2.order_id = b.order_id
+               )) AS completed_processes,
             b.created_at
         FROM bundle b
         LEFT JOIN `order` o ON b.order_id = o.id AND o.deleted = 0
@@ -113,7 +118,12 @@
              WHERE op.order_id = b.order_id) AS total_processes,
             (SELECT COUNT(DISTINCT wr.process_id)
              FROM work_report wr
-             WHERE wr.bundle_id = b.id AND wr.status = 1) AS completed_processes,
+             WHERE wr.status = 1
+               AND wr.bundle_id IN (
+                 SELECT b2.id FROM bundle b2
+                 WHERE b2.bundle_no = b.bundle_no
+                   AND b2.order_id = b.order_id
+               )) AS completed_processes,
             b.created_at
         FROM bundle b
         LEFT JOIN `order` o ON b.order_id = o.id AND o.deleted = 0
@@ -135,7 +145,12 @@
         LEFT JOIN (
             SELECT wr2.process_id, wr2.employee_id, MAX(wr2.report_time) AS report_time
             FROM work_report wr2
-            WHERE wr2.bundle_id = #{bundleId} AND wr2.status = 1
+            WHERE wr2.status = 1
+              AND wr2.bundle_id IN (
+                SELECT b.id FROM bundle b
+                WHERE b.bundle_no = (SELECT b2.bundle_no FROM bundle b2 WHERE b2.id = #{bundleId})
+                  AND b.order_id = (SELECT b3.order_id FROM bundle b3 WHERE b3.id = #{bundleId})
+              )
             GROUP BY wr2.process_id
         ) wr ON wr.process_id = op.process_id
         LEFT JOIN employee e ON wr.employee_id = e.id

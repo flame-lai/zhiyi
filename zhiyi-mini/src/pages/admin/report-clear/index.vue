@@ -8,15 +8,12 @@
           placeholder="搜索工号/姓名/扎号"
           :value="keyword"
           @input="keyword = $event.detail.value"
-          @confirm="loadList"
+          @confirm="loadList(true)"
         />
         <View class="scan-btn" @tap="handleScan">
-          <View class="scan-icon-mini">
-            <View class="scan-line-h" />
-            <View class="scan-line-v" />
-          </View>
+          <Text class="scan-text">扫码</Text>
         </View>
-        <View class="search-btn" @tap="loadList"><Text class="search-btn-text">搜索</Text></View>
+        <View class="search-btn" @tap="loadList(true)"><Text class="search-btn-text">搜索</Text></View>
       </View>
     </View>
 
@@ -60,6 +57,8 @@
             <Text class="footer-time">{{ item.reportTime }}</Text>
           </View>
         </View>
+        <View v-if="loading && page > 1" class="loading-more"><Text class="loading-more-text">加载中...</Text></View>
+        <View v-if="!hasMore && list.length > 0" class="no-more"><Text class="no-more-text">没有更多了</Text></View>
       </View>
     </View>
 
@@ -86,7 +85,7 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import Taro, { useDidShow } from '@tarojs/taro'
+import Taro, { useDidShow, useReachBottom } from '@tarojs/taro'
 import { View, Text, Input } from '@tarojs/components'
 import { getReports, clearReport } from '../../../api/mobileAdmin'
 import { checkAuthAndRedirect } from '../../../utils/auth'
@@ -99,6 +98,9 @@ definePageConfig({ navigationBarTitleText: '清除报工' })
 const keyword = ref('')
 const loading = ref(false)
 const list = ref<AdminReportRecord[]>([])
+const page = ref(1)
+const hasMore = ref(true)
+const pageSize = 20
 const panelVisible = ref(false)
 const submitting = ref(false)
 const currentItem = ref<AdminReportRecord | null>(null)
@@ -110,7 +112,7 @@ async function handleScan() {
     const code = res.result
     if (!code) return
     keyword.value = code
-    await loadList()
+    await loadList(true)  // reset when scanning
   } catch {}
 }
 
@@ -131,28 +133,45 @@ async function submitClear() {
     await clearReport(currentItem.value.id, clearReason.value.trim())
     Taro.showToast({ title: '已清除', icon: 'success' })
     panelVisible.value = false
-    await loadList()
+    await loadList(true)  // reset after clearing
   } catch {} finally {
     submitting.value = false
   }
 }
 
-async function loadList() {
+async function loadList(reset = false) {
+  if (reset) {
+    page.value = 1
+    hasMore.value = true
+  }
   loading.value = true
   try {
     const kw = keyword.value.trim() || undefined
-    const res = await getReports(kw)
-    list.value = res || []
+    const res = await getReports(kw, page.value, pageSize)
+    const data = res as any
+    if (page.value === 1) {
+      list.value = data?.records || []
+    } else {
+      list.value = [...list.value, ...(data?.records || [])]
+    }
+    hasMore.value = data?.hasMore ?? false
   } catch {
-    list.value = []
+    if (page.value === 1) list.value = []
   } finally {
     loading.value = false
   }
 }
 
+useReachBottom(() => {
+  if (!loading.value && hasMore.value) {
+    page.value++
+    loadList(false)
+  }
+})
+
 useDidShow(() => {
   if (!checkAuthAndRedirect()) return
-  loadList()
+  if (list.value.length === 0) loadList(true)
 })
 </script>
 
@@ -190,40 +209,20 @@ useDidShow(() => {
 }
 
 .scan-btn {
-  width: 64px;
   height: 64px;
-  background: #4A6FA5;
-  border-radius: 10px;
+  padding: 0 24px;
   display: flex;
   align-items: center;
   justify-content: center;
+  background: #f0f0ff;
+  border-radius: 10px;
   flex-shrink: 0;
 }
 
-.scan-icon-mini {
-  width: 36px;
-  height: 36px;
-  position: relative;
-}
-
-.scan-line-h {
-  position: absolute;
-  top: 50%;
-  left: 2px;
-  right: 2px;
-  height: 2px;
-  background: #fff;
-  transform: translateY(-50%);
-}
-
-.scan-line-v {
-  position: absolute;
-  left: 50%;
-  top: 2px;
-  bottom: 2px;
-  width: 2px;
-  background: #fff;
-  transform: translateX(-50%);
+.scan-text {
+  font-size: 26px;
+  color: #4A6FA5;
+  font-weight: 500;
 }
 
 .search-btn {
@@ -405,5 +404,15 @@ useDidShow(() => {
   border-radius: 10px;
   font-size: 28px;
   color: #4A6FA5;
+}
+
+.loading-more, .no-more {
+  padding: 24px 0;
+  text-align: center;
+}
+
+.loading-more-text, .no-more-text {
+  font-size: 24px;
+  color: #9ca3af;
 }
 </style>

@@ -2,13 +2,25 @@
   <View class="bundle-page">
     <!-- Search bar -->
     <View class="search-bar">
-      <Input
-        class="search-input"
-        placeholder="请输入或扫描扎号"
-        :value="keyword"
-        @input="onKeywordInput"
-        @confirm="onSearch"
-      />
+      <View class="search-wrap">
+        <Input
+          class="search-input"
+          placeholder="请输入或扫描扎号"
+          :value="keyword"
+          @input="onKeywordInput"
+          @focus="showSuggest = true"
+          @confirm="onSearch"
+        />
+        <View v-if="showSuggest && suggestions.length > 0" class="suggest-dropdown">
+          <View v-for="item in suggestions" :key="item.id" class="suggest-item" @tap="selectSuggest(item)">
+            <View class="suggest-main">
+              <Text class="suggest-bundle">{{ item.globalBundleNo }}</Text>
+              <Text class="suggest-short">短号 {{ item.bundleNo }}</Text>
+            </View>
+            <Text class="suggest-sub">{{ item.orderNo }} · {{ item.color }}/{{ item.size }} · {{ item.qty }}件</Text>
+          </View>
+        </View>
+      </View>
       <View class="scan-btn" @tap="onScan">
         <Text class="scan-text">扫码</Text>
       </View>
@@ -86,14 +98,14 @@
 
 <script setup lang="ts">
 import { ref } from 'vue'
-import Taro, { useDidShow } from '@tarojs/taro'
+import Taro, { useLoad, useDidShow } from '@tarojs/taro'
 import { View, Text, Input } from '@tarojs/components'
-import { searchBundle } from '../../../api/mobileAdmin'
+import { searchBundle, suggestBundle } from '../../../api/mobileAdmin'
 import { formatDateTime } from '../../../utils/format'
 import { checkAuthAndRedirect } from '../../../utils/auth'
 import EmptyState from '../../../components/EmptyState.vue'
 import StatusTag from '../../../components/StatusTag.vue'
-import type { BundleDetail, ProcessReportStatus } from '../../../api/types'
+import type { BundleDetail, ProcessReportStatus, BundleSuggest } from '../../../api/types'
 
 definePageConfig({
   navigationBarTitleText: '扎号查询',
@@ -102,18 +114,42 @@ definePageConfig({
 const keyword = ref('')
 const loading = ref(false)
 const result = ref<BundleDetail | null>(null)
+const suggestions = ref<BundleSuggest[]>([])
+const showSuggest = ref(false)
+let suggestTimer: ReturnType<typeof setTimeout> | null = null
 
 function onKeywordInput(e: any) {
   keyword.value = e.detail.value
+  if (suggestTimer) clearTimeout(suggestTimer)
+  const val = e.detail.value.trim()
+  if (!val) {
+    suggestions.value = []
+    return
+  }
+  suggestTimer = setTimeout(async () => {
+    try {
+      const res = await suggestBundle(val)
+      suggestions.value = res || []
+    } catch {
+      suggestions.value = []
+    }
+  }, 300)
+}
+
+function selectSuggest(item: BundleSuggest) {
+  keyword.value = item.globalBundleNo
+  suggestions.value = []
+  showSuggest.value = false
+  doSearch(item.globalBundleNo)
 }
 
 function statusText(status: string): string {
-  if (status === 'DONE' || status === 'COMPLETED') return '已完成'
+  if (status === '已完成') return '已完成'
   return '生产中'
 }
 
 function statusType(status: string): 'success' | 'info' {
-  if (status === 'DONE' || status === 'COMPLETED') return 'success'
+  if (status === '已完成') return 'success'
   return 'info'
 }
 
@@ -142,6 +178,8 @@ async function doSearch(code: string) {
     Taro.showToast({ title: '请输入或扫描扎号', icon: 'none' })
     return
   }
+  showSuggest.value = false
+  suggestions.value = []
   loading.value = true
   try {
     const res = await searchBundle(code)
@@ -166,12 +204,22 @@ async function onScan() {
     const code = scanRes.result
     if (code) {
       keyword.value = code
+      showSuggest.value = false
+      suggestions.value = []
       doSearch(code)
     }
   } catch {
     // scan cancelled
   }
 }
+
+useLoad((options: any) => {
+  const code = options?.code
+  if (code) {
+    keyword.value = decodeURIComponent(code)
+    doSearch(keyword.value)
+  }
+})
 
 useDidShow(() => {
   if (!checkAuthAndRedirect()) return
@@ -197,14 +245,67 @@ useDidShow(() => {
   border-bottom: 1px solid #f0f0f0;
 }
 
-.search-input {
+.search-wrap {
   flex: 1;
+  position: relative;
+}
+
+.search-input {
+  width: 100%;
   height: 72px;
   padding: 0 20px;
   background: #f5f7fa;
   border-radius: 10px;
   font-size: 28px;
   color: #4A6FA5;
+  box-sizing: border-box;
+}
+
+.suggest-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  margin-top: 4px;
+  max-height: 360px;
+  overflow-y: auto;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+  z-index: 20;
+}
+
+.suggest-item {
+  padding: 16px 20px;
+  border-bottom: 1px solid #f3f4f6;
+}
+
+.suggest-item:last-child { border-bottom: none; }
+.suggest-item:active { background: #f5f7fa; }
+
+.suggest-main {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.suggest-bundle {
+  font-size: 26px;
+  font-weight: 600;
+  color: #4A6FA5;
+}
+
+.suggest-short {
+  font-size: 22px;
+  color: #9ca3af;
+}
+
+.suggest-sub {
+  display: block;
+  font-size: 22px;
+  color: #6b7280;
+  margin-top: 4px;
 }
 
 .scan-btn {

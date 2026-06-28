@@ -3,6 +3,7 @@ package com.zhiyi.erp.module.admin.service;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
+import com.zhiyi.erp.common.exception.BizException;
 import com.zhiyi.erp.common.tenant.TenantContext;
 import com.zhiyi.erp.module.admin.entity.AnomalyAlert;
 import com.zhiyi.erp.module.admin.mapper.AnomalyAlertMapper;
@@ -33,6 +34,12 @@ public class AnomalyService extends ServiceImpl<AnomalyAlertMapper, AnomalyAlert
     @Transactional
     public void ignore(Long id, String remark) {
         AnomalyAlert alert = getById(id);
+        if (alert == null) {
+            throw new BizException("预警记录不存在");
+        }
+        if (alert.getStatus() != 0) {
+            throw new BizException("该预警已处理，不可重复操作");
+        }
         alert.setStatus(1);
         alert.setHandleType(1);
         alert.setHandleRemark(remark);
@@ -43,6 +50,12 @@ public class AnomalyService extends ServiceImpl<AnomalyAlertMapper, AnomalyAlert
     @Transactional
     public void clearReport(Long id, String reason) {
         AnomalyAlert alert = getById(id);
+        if (alert == null) {
+            throw new BizException("预警记录不存在");
+        }
+        if (alert.getStatus() != 0) {
+            throw new BizException("该预警已处理，不可重复操作");
+        }
         WorkReport report = workReportMapper.selectOne(
                 new LambdaQueryWrapper<WorkReport>()
                         .eq(WorkReport::getBundleId, alert.getBundleId())
@@ -55,6 +68,7 @@ public class AnomalyService extends ServiceImpl<AnomalyAlertMapper, AnomalyAlert
         }
         alert.setStatus(2);
         alert.setHandleType(2);
+        alert.setHandleRemark(reason);
         alert.setHandleTime(LocalDateTime.now());
         updateById(alert);
     }
@@ -62,6 +76,12 @@ public class AnomalyService extends ServiceImpl<AnomalyAlertMapper, AnomalyAlert
     @Transactional
     public void supplement(Long id, Long employeeId, Integer qty) {
         AnomalyAlert alert = getById(id);
+        if (alert == null) {
+            throw new BizException("预警记录不存在");
+        }
+        if (alert.getStatus() != 0) {
+            throw new BizException("该预警已处理，不可重复操作");
+        }
         WorkReport report = new WorkReport();
         report.setFactoryId(TenantContext.get());
         report.setBundleId(alert.getBundleId());

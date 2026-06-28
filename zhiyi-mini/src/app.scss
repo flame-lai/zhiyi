@@ -6,6 +6,12 @@ page {
   line-height: 1.5;
 }
 
+/* 禁用所有元素的点击缩放效果 */
+view, text, image {
+  -webkit-tap-highlight-color: transparent;
+  tap-highlight-color: transparent;
+}
+
 .container {
   padding: 20px;
 }

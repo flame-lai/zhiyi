@@ -1,5 +1,5 @@
 import { get, post, put, del } from '../utils/request'
-import type { DashboardOrderPage, DashboardWorkerPage, WorkerDetail, AnomalyRecord, TimedWageRecord, EmployeeRecord, RoleOption, BundleDetail, OrderSearchResult, AdminReportRecord } from './types'
+import type { DashboardOrderPage, DashboardWorkerPage, WorkerDetail, AnomalyRecord, TimedWageRecord, EmployeeRecord, RoleOption, BundleDetail, BundleSuggest, OrderSearchResult, OrderSuggest, OrderListPage, ColorSizeProgress, AdminReportRecord } from './types'
 
 export function getDashboardOrders(startDate?: string, endDate?: string, orderNo?: string, page = 1, size = 20) {
   return get<DashboardOrderPage>('/mobile/admin/dashboard/orders', { startDate, endDate, orderNo, page, size })
@@ -29,8 +29,11 @@ export function supplementAnomaly(id: number, data: { employeeNo: string; qty: n
   return post<void>(`/mobile/admin/anomalies/${id}/supplement`, data)
 }
 
-export function getTimedWages(yearMonth?: string) {
-  return get<TimedWageRecord[]>('/mobile/admin/timed-wages', { yearMonth })
+export function getTimedWages(params: {
+  yearMonth?: string; startDate?: string; endDate?: string
+  employeeId?: number; page?: number; size?: number
+} = {}) {
+  return get<{ records: TimedWageRecord[]; total: number; hasMore: boolean }>('/mobile/admin/timed-wages', params)
 }
 
 export function createTimedWage(data: {
@@ -53,8 +56,27 @@ export function searchBundle(code: string) {
   return get<BundleDetail>('/mobile/admin/bundles/search', { code })
 }
 
+export function suggestBundle(keyword: string) {
+  return get<BundleSuggest[]>('/mobile/admin/bundles/suggest', { keyword })
+}
+
 export function searchOrder(orderNo: string) {
   return get<OrderSearchResult>('/mobile/admin/orders/search', { orderNo })
+}
+
+export function suggestOrder(keyword: string) {
+  return get<OrderSuggest[]>('/mobile/admin/orders/suggest', { keyword })
+}
+
+export function getOrders(params: {
+  keyword?: string; status?: number; startDate?: string; endDate?: string
+  page?: number; size?: number
+} = {}) {
+  return get<OrderListPage>('/mobile/admin/orders', params)
+}
+
+export function getColorSizeProgress(orderId: number, color?: string, size?: string) {
+  return get<ColorSizeProgress>('/mobile/admin/orders/color-size-progress', { orderId, color, size })
 }
 
 export function getEmployees(keyword?: string, page = 1, size = 20) {
@@ -89,8 +111,10 @@ export function toggleEmployeeStatus(id: number, status: number) {
   return put<void>(`/mobile/admin/employees/${id}/status`, { status })
 }
 
-export function getReports(keyword?: string) {
-  return get<AdminReportRecord[]>('/mobile/admin/reports', { keyword })
+export function getReports(keyword?: string, page = 1, size = 20) {
+  return get<{ records: AdminReportRecord[]; total: number; hasMore: boolean }>(
+    '/mobile/admin/reports', { keyword, page, size }
+  )
 }
 
 export function clearReport(id: number, reason: string) {
