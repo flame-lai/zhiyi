@@ -2,6 +2,9 @@ import request from '../utils/request'
 
 // 生产看板
 export const dashboardApi = {
+  overview: (params?: any) => request.get('/admin/dashboard/overview', { params }),
+  orders: (params: any) => request.get('/admin/dashboard/orders', { params }),
+  workers: (params: any) => request.get('/admin/dashboard/workers', { params }),
   orderDashboard: (orderId?: number) => request.get('/admin/dashboard/order', { params: { orderId } }),
   workerDashboard: (date?: string) => request.get('/admin/dashboard/worker', { params: { date } }),
 }
