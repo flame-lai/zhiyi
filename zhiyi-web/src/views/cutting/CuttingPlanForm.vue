@@ -437,6 +437,7 @@ function onPlanQtyChange(record: any, val: number) {
     record.qtyPerBundle = val
   }
 }
+void onPlanQtyChange
 
 // 订单搜索过滤
 function filterOrderOption(input: string, option: any) {

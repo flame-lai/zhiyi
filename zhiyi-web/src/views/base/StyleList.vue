@@ -325,6 +325,7 @@ async function openProcessModal(record: any) {
     processList.value = []
   }
 }
+void openProcessModal
 
 function addProcessRow() {
   processList.value.push({
@@ -371,6 +372,7 @@ async function openMaterialModal(record: any) {
     materialList.value = []
   }
 }
+void openMaterialModal
 
 function addMaterialRow() {
   materialList.value.push({
