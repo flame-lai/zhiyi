@@ -1,6 +1,7 @@
 package com.zhiyi.erp.module.report.mapper;
 
 import com.baomidou.mybatisplus.core.mapper.BaseMapper;
+import com.zhiyi.erp.module.admin.vo.WagePieceDetailVO;
 import com.zhiyi.erp.module.report.dto.ReportRecordDTO;
 import com.zhiyi.erp.module.report.dto.WageReportDTO;
 import com.zhiyi.erp.module.report.entity.WorkReport;
@@ -8,7 +9,9 @@ import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 
+import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 
 @Mapper
 public interface WorkReportMapper extends BaseMapper<WorkReport> {
@@ -73,4 +76,32 @@ public interface WorkReportMapper extends BaseMapper<WorkReport> {
     long selectReportRecordsCount(@Param("employeeId") Long employeeId,
                                    @Param("startDate") String startDate,
                                    @Param("endDate") String endDate);
+
+    @Select("SELECT o.order_no AS orderNo, b.bundle_no AS bundleNo, p.name AS processName " +
+            "FROM work_report wr " +
+            "LEFT JOIN `order` o ON wr.order_id = o.id AND o.deleted = 0 " +
+            "LEFT JOIN bundle b ON wr.bundle_id = b.id " +
+            "LEFT JOIN process p ON wr.process_id = p.id AND p.deleted = 0 " +
+            "WHERE wr.id = #{id}")
+    Map<String, Object> selectPieceDetailById(@Param("id") Long id);
+
+    @Select("<script>" +
+            "SELECT wr.id, wr.employee_id AS employeeId, wr.report_time AS reportTime, " +
+            "wr.qty, wr.price, wr.amount, " +
+            "o.order_no AS orderNo, b.bundle_no AS bundleNo, p.name AS processName " +
+            "FROM work_report wr " +
+            "LEFT JOIN `order` o ON wr.order_id = o.id AND o.deleted = 0 " +
+            "LEFT JOIN bundle b ON wr.bundle_id = b.id " +
+            "LEFT JOIN process p ON wr.process_id = p.id AND p.deleted = 0 " +
+            "WHERE wr.factory_id = #{factoryId} AND wr.status = 1 " +
+            "AND wr.report_time &gt;= #{startTime} AND wr.report_time &lt; #{endTime} " +
+            "<if test='employeeId != null'>" +
+            "AND wr.employee_id = #{employeeId} " +
+            "</if>" +
+            "ORDER BY wr.employee_id ASC, wr.report_time DESC" +
+            "</script>")
+    List<WagePieceDetailVO> selectPieceDetailsForWageExport(@Param("factoryId") Long factoryId,
+                                                            @Param("startTime") LocalDateTime startTime,
+                                                            @Param("endTime") LocalDateTime endTime,
+                                                            @Param("employeeId") Long employeeId);
 }

@@ -12,6 +12,7 @@ public class WageSummary {
     private Long id;
     private Long factoryId;
     private Long employeeId;
+    @TableField("`year_month`")
     private String yearMonth;
     private BigDecimal pieceWage;
     private BigDecimal timedWage;

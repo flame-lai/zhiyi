@@ -26,8 +26,12 @@ export const timedWageApi = {
 // 工资管理
 export const wageManageApi = {
   list: (params: any) => request.get('/admin/wages', { params }),
-  audit: (id: number) => request.post(`/admin/wages/${id}/audit`),
-  markPaid: (id: number) => request.post(`/admin/wages/${id}/mark-paid`),
+  export: (params: any) => request.get('/admin/wages/export', { params, responseType: 'blob' }),
+  audit: (employeeId: number, yearMonth: string) => request.post('/admin/wages/audit', null, { params: { employeeId, yearMonth } }),
+  markPaid: (employeeId: number, yearMonth: string) => request.post('/admin/wages/mark-paid', null, { params: { employeeId, yearMonth } }),
+  detail: (employeeId: number, yearMonth: string) => request.get('/admin/wages/detail', { params: { employeeId, yearMonth } }),
   getOtherItems: (employeeId: number, yearMonth: string) => request.get('/admin/wages/other-items', { params: { employeeId, yearMonth } }),
   addOtherItem: (data: any) => request.post('/admin/wages/other-items', data),
+  updateOtherItem: (id: number, data: any) => request.put(`/admin/wages/other-items/${id}`, data),
+  deleteOtherItem: (id: number) => request.delete(`/admin/wages/other-items/${id}`),
 }

@@ -12,6 +12,7 @@ public class WageOther {
     private Long id;
     private Long factoryId;
     private Long employeeId;
+    @TableField("`year_month`")
     private String yearMonth;
     private String itemName;
     private BigDecimal amount;
