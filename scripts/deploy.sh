@@ -52,6 +52,10 @@ create_env_if_missing() {
   cat > "${ENV_FILE}" <<EOF
 COMPOSE_PROJECT_NAME=zhiyi-erp
 
+AUTO_GIT_PULL=true
+GIT_REMOTE=origin
+GIT_BRANCH=main
+
 SERVER_NAME=${server_name}
 HTTP_PORT=${HTTP_PORT:-80}
 CLIENT_MAX_BODY_SIZE=${CLIENT_MAX_BODY_SIZE:-50m}
@@ -96,6 +100,33 @@ check_base_tools() {
   compose version >/dev/null
 }
 
+check_git_clean() {
+  local status
+  status="$(git -C "${ROOT_DIR}" status --porcelain)"
+  if [ -n "${status}" ]; then
+    fail "working tree is not clean. Commit, stash, or disable AUTO_GIT_PULL before deploying."
+  fi
+}
+
+pull_code() {
+  local auto_pull
+  auto_pull="$(env_value AUTO_GIT_PULL true)"
+  if [ "${auto_pull}" != "true" ]; then
+    log "skipping git pull because AUTO_GIT_PULL=${auto_pull}"
+    return
+  fi
+
+  local remote branch
+  remote="$(env_value GIT_REMOTE origin)"
+  branch="$(env_value GIT_BRANCH main)"
+
+  need_cmd git
+  check_git_clean
+  log "pulling latest code from ${remote}/${branch}"
+  git -C "${ROOT_DIR}" fetch "${remote}" "${branch}"
+  git -C "${ROOT_DIR}" pull --ff-only "${remote}" "${branch}"
+}
+
 build_backend() {
   log "building backend jar"
   (cd "${ROOT_DIR}/zhiyi-server" && ./mvnw -q -DskipTests clean package)
@@ -129,6 +160,7 @@ up() {
 
 deploy() {
   create_env_if_missing
+  pull_code
   check_base_tools
   need_cmd npm
   build_web
@@ -154,6 +186,7 @@ Usage: scripts/deploy.sh [command]
 
 Commands:
   deploy   Build web/backend/mini and start Docker services. Default.
+  pull     Pull latest code using AUTO_GIT_PULL/GIT_REMOTE/GIT_BRANCH config.
   build    Build web/backend/mini only.
   mini     Build mini program only.
   up       Start Docker services with build.
@@ -170,6 +203,10 @@ command_name="${1:-deploy}"
 case "${command_name}" in
   deploy)
     deploy
+    ;;
+  pull)
+    create_env_if_missing
+    pull_code
     ;;
   build)
     create_env_if_missing

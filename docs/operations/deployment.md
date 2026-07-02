@@ -78,10 +78,11 @@ chmod +x scripts/deploy.sh
 脚本会执行：
 
 1. 如果 `deploy/.env` 不存在，自动生成一份带随机密码的环境文件。
-2. 执行 `zhiyi-web` 的 `npm ci && npm run build`。
-3. 执行 `zhiyi-server` 的 `./mvnw -q -DskipTests clean package`。
-4. 如果 `BUILD_MINI=true`，执行小程序 Taro 构建。
-5. 执行 `docker compose up -d --build`，启动 MySQL、Redis、后端、Nginx。
+2. 默认执行 `git fetch` 和 `git pull --ff-only` 拉取最新代码。
+3. 执行 `zhiyi-web` 的 `npm ci && npm run build`。
+4. 执行 `zhiyi-server` 的 `./mvnw -q -DskipTests clean package`。
+5. 如果 `BUILD_MINI=true`，执行小程序 Taro 构建。
+6. 执行 `docker compose up -d --build`，启动 MySQL、Redis、后端、Nginx。
 
 首次运行后请立即检查并按线上域名调整：
 
@@ -93,6 +94,10 @@ vim deploy/.env
 关键变量：
 
 ```env
+AUTO_GIT_PULL=true
+GIT_REMOTE=origin
+GIT_BRANCH=main
+
 SERVER_NAME=erp.example.com
 HTTP_PORT=80
 
@@ -114,6 +119,9 @@ MINI_API_BASE_URL=https://erp.example.com/api
 ```bash
 # 完整构建并部署，默认命令
 ./scripts/deploy.sh deploy
+
+# 只拉取最新代码，不构建、不重启
+./scripts/deploy.sh pull
 
 # 只构建三端，不启动容器
 ./scripts/deploy.sh build
@@ -372,11 +380,18 @@ server {
 
 ```bash
 cd /opt/zhiyi_erp
-git pull
 ./scripts/deploy.sh
 ```
 
-脚本会重新构建 Web、后端镜像、小程序产物，并滚动替换容器。数据库数据卷不会被删除。
+脚本会先拉取最新代码，再重新构建 Web、后端镜像、小程序产物，并滚动替换容器。数据库数据卷不会被删除。
+
+如果生产服务器上没有 Git 凭据，或你要从当前本地代码直接部署，可以在 `deploy/.env` 中关闭自动拉取：
+
+```env
+AUTO_GIT_PULL=false
+```
+
+自动拉取要求工作区干净；如果服务器上存在未提交改动，脚本会中止，避免覆盖现场修改。
 
 ### 8.2 回滚代码版本
 
