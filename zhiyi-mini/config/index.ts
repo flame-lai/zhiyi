@@ -21,7 +21,9 @@ export default defineConfig({
   sourceRoot: 'src',
   outputRoot: 'dist',
   plugins: ['@tarojs/plugin-framework-vue3', '@tarojs/plugin-platform-weapp'],
-  defineConstants: {},
+  defineConstants: {
+    'process.env.TARO_APP_API_BASE_URL': JSON.stringify(process.env.TARO_APP_API_BASE_URL || ''),
+  },
   copy: {
     patterns: [
       { from: 'src/images', to: 'dist/images' }

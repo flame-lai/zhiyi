@@ -25,6 +25,13 @@ Thumbs.db
 .env.local
 .env.*.local
 
+# Deploy secrets and runtime artifacts
+deploy/backups/
+deploy/nginx/ssl/
+
 # Logs
 *.log
 logs/
+
+.claude/
+.playwright-mcp
