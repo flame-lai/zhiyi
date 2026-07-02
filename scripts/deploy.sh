@@ -158,6 +158,18 @@ up() {
   compose ps
 }
 
+up_backend() {
+  log "starting backend service"
+  compose up -d --build backend
+  compose ps backend
+}
+
+up_web() {
+  log "starting nginx web service"
+  compose up -d --no-deps nginx
+  compose ps nginx
+}
+
 deploy() {
   create_env_if_missing
   pull_code
@@ -168,6 +180,33 @@ deploy() {
   build_mini
   up
   log "deployment finished. Web entry: http://$(env_value SERVER_NAME localhost):$(env_value HTTP_PORT 80)"
+}
+
+deploy_backend() {
+  create_env_if_missing
+  pull_code
+  check_base_tools
+  build_backend
+  up_backend
+  log "backend deployment finished"
+}
+
+deploy_web() {
+  create_env_if_missing
+  pull_code
+  check_base_tools
+  need_cmd npm
+  build_web
+  up_web
+  log "web deployment finished. Web entry: http://$(env_value SERVER_NAME localhost):$(env_value HTTP_PORT 80)"
+}
+
+deploy_mini() {
+  create_env_if_missing
+  pull_code
+  need_cmd npm
+  build_mini
+  log "mini program build finished. Upload zhiyi-mini/dist with WeChat DevTools."
 }
 
 backup_mysql() {
@@ -185,16 +224,22 @@ usage() {
 Usage: scripts/deploy.sh [command]
 
 Commands:
-  deploy   Build web/backend/mini and start Docker services. Default.
-  pull     Pull latest code using AUTO_GIT_PULL/GIT_REMOTE/GIT_BRANCH config.
-  build    Build web/backend/mini only.
-  mini     Build mini program only.
-  up       Start Docker services with build.
-  down     Stop Docker services.
-  restart  Restart Docker services.
-  ps       Show Docker service status.
-  logs     Follow logs. Optional service name: scripts/deploy.sh logs backend
-  backup   Dump MySQL backup to deploy/backups/.
+  deploy          Build web/backend/mini and start Docker services. Default.
+  deploy:web      Pull, build web, and refresh nginx.
+  deploy:backend  Pull, build backend jar/image, and restart backend.
+  deploy:mini     Pull and build mini program dist.
+  pull            Pull latest code using AUTO_GIT_PULL/GIT_REMOTE/GIT_BRANCH config.
+  build           Build web/backend/mini only.
+  build:web       Build web only.
+  build:backend   Build backend only.
+  build:mini      Build mini program only.
+  mini            Alias of build:mini.
+  up              Start Docker services with build.
+  down            Stop Docker services.
+  restart         Restart Docker services.
+  ps              Show Docker service status.
+  logs            Follow logs. Optional service name: scripts/deploy.sh logs backend
+  backup          Dump MySQL backup to deploy/backups/.
 EOF
 }
 
@@ -203,6 +248,15 @@ command_name="${1:-deploy}"
 case "${command_name}" in
   deploy)
     deploy
+    ;;
+  deploy:web|web)
+    deploy_web
+    ;;
+  deploy:backend|backend)
+    deploy_backend
+    ;;
+  deploy:mini)
+    deploy_mini
     ;;
   pull)
     create_env_if_missing
@@ -215,7 +269,16 @@ case "${command_name}" in
     build_backend
     build_mini
     ;;
-  mini)
+  build:web)
+    create_env_if_missing
+    need_cmd npm
+    build_web
+    ;;
+  build:backend)
+    create_env_if_missing
+    build_backend
+    ;;
+  build:mini|mini)
     create_env_if_missing
     need_cmd npm
     build_mini

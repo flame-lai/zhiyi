@@ -120,14 +120,25 @@ MINI_API_BASE_URL=https://erp.example.com/api
 # 完整构建并部署，默认命令
 ./scripts/deploy.sh deploy
 
+# 只部署 Web 管理端：拉代码、构建 zhiyi-web、刷新 Nginx
+./scripts/deploy.sh deploy:web
+
+# 只部署后端：拉代码、构建 jar 和后端镜像、重启 backend 容器
+./scripts/deploy.sh deploy:backend
+
+# 只构建小程序：拉代码、构建 zhiyi-mini/dist，之后用微信开发者工具上传
+./scripts/deploy.sh deploy:mini
+
 # 只拉取最新代码，不构建、不重启
 ./scripts/deploy.sh pull
 
 # 只构建三端，不启动容器
 ./scripts/deploy.sh build
 
-# 只构建微信小程序
-./scripts/deploy.sh mini
+# 分端构建，不启动容器
+./scripts/deploy.sh build:web
+./scripts/deploy.sh build:backend
+./scripts/deploy.sh build:mini
 
 # 启动或重建 Docker 服务
 ./scripts/deploy.sh up
@@ -164,6 +175,14 @@ cd zhiyi-server
 ```text
 zhiyi-server/target/zhiyi-server-1.0.0.jar
 ```
+
+只更新后端服务时执行：
+
+```bash
+./scripts/deploy.sh deploy:backend
+```
+
+该命令会拉取最新代码、构建后端 jar、重建后端 Docker 镜像并重启 `backend` 容器。Web、Nginx 和小程序不会重建。
 
 ### 4.2 Docker 运行方式
 
@@ -257,6 +276,14 @@ zhiyi-web/dist/
 ../zhiyi-web/dist:/usr/share/nginx/html:ro
 ```
 
+只更新 Web 管理端时执行：
+
+```bash
+./scripts/deploy.sh deploy:web
+```
+
+该命令会拉取最新代码、构建 `zhiyi-web/dist`，并刷新 `nginx` 容器。后端、MySQL、Redis 不会重建。
+
 ### 5.2 API 访问方式
 
 Web 请求封装在 `zhiyi-web/src/utils/request.ts`，生产环境使用相对路径：
@@ -333,6 +360,14 @@ zhiyi-mini/dist/
 - 当前本机环境直接运行 `npm run build:weapp` 可能触发 Taro 构建前检查卡住，脚本统一使用 `--no-check`。
 - 如果不想在服务器上构建小程序，可以在 `deploy/.env` 设置 `BUILD_MINI=false`。
 
+只更新小程序时执行：
+
+```bash
+./scripts/deploy.sh deploy:mini
+```
+
+该命令只生成 `zhiyi-mini/dist/`，不会启动或重启 Docker 服务。
+
 ### 6.3 上传发布
 
 1. 打开微信开发者工具。
@@ -384,6 +419,19 @@ cd /opt/zhiyi_erp
 ```
 
 脚本会先拉取最新代码，再重新构建 Web、后端镜像、小程序产物，并滚动替换容器。数据库数据卷不会被删除。
+
+如果只更新某一端，优先使用分端命令：
+
+```bash
+# 只更新 Web 管理端
+./scripts/deploy.sh deploy:web
+
+# 只更新后端服务
+./scripts/deploy.sh deploy:backend
+
+# 只更新小程序构建产物
+./scripts/deploy.sh deploy:mini
+```
 
 如果生产服务器上没有 Git 凭据，或你要从当前本地代码直接部署，可以在 `deploy/.env` 中关闭自动拉取：
 
