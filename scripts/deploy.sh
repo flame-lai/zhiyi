@@ -141,8 +141,15 @@ pull_code() {
 }
 
 build_backend() {
+  local maven_settings="${MAVEN_SETTINGS:-${DEPLOY_DIR}/maven/settings.xml}"
+  local maven_args=(-B -ntp)
+  if [ -f "${maven_settings}" ]; then
+    maven_args+=(--settings "${maven_settings}")
+  fi
+  maven_args+=(-DskipTests clean package)
+
   log "building backend jar"
-  (cd "${ROOT_DIR}/zhiyi-server" && ./mvnw -q -DskipTests clean package)
+  (cd "${ROOT_DIR}/zhiyi-server" && ./mvnw "${maven_args[@]}")
 }
 
 build_web() {
