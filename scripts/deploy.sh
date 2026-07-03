@@ -21,10 +21,17 @@ need_cmd() {
 }
 
 compose() {
+  local compose_args=()
+  local data_services
+  data_services="$(env_value DATA_SERVICES container)"
+  if [ "${data_services}" = "container" ]; then
+    compose_args+=(--profile data)
+  fi
+
   if docker compose version >/dev/null 2>&1; then
-    docker compose --env-file "${ENV_FILE}" -f "${COMPOSE_FILE}" "$@"
+    docker compose --env-file "${ENV_FILE}" -f "${COMPOSE_FILE}" "${compose_args[@]}" "$@"
   elif command -v docker-compose >/dev/null 2>&1; then
-    docker-compose --env-file "${ENV_FILE}" -f "${COMPOSE_FILE}" "$@"
+    docker-compose --env-file "${ENV_FILE}" -f "${COMPOSE_FILE}" "${compose_args[@]}" "$@"
   else
     fail "missing docker compose plugin or docker-compose"
   fi
@@ -60,11 +67,17 @@ SERVER_NAME=${server_name}
 HTTP_PORT=${HTTP_PORT:-80}
 CLIENT_MAX_BODY_SIZE=${CLIENT_MAX_BODY_SIZE:-50m}
 
+DATA_SERVICES=${DATA_SERVICES:-container}
+
+MYSQL_HOST=${MYSQL_HOST:-mysql}
+MYSQL_PORT=${MYSQL_PORT:-3306}
 MYSQL_ROOT_PASSWORD=$(random_secret)
 MYSQL_DATABASE=zhiyi_erp
 MYSQL_USER=zhiyi
 MYSQL_PASSWORD=$(random_secret)
 
+REDIS_HOST=${REDIS_HOST:-redis}
+REDIS_PORT=${REDIS_PORT:-6379}
 REDIS_PASSWORD=$(random_secret)
 
 JAVA_OPTS=-Xms512m -Xmx1024m -XX:+UseG1GC

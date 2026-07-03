@@ -19,8 +19,8 @@ Nginx 容器
         v
 Spring Boot 后端容器
         |
-        +-- MySQL 8 容器
-        +-- Redis 7 容器
+        +-- MySQL 8 / Redis 7
+            可使用 Compose 容器，也可连接宿主机已有服务
 ```
 
 本项目按单个 Git 仓库部署，仓库根目录同时包含 `zhiyi-server`、`zhiyi-web`、`zhiyi-mini`、`sql`、`deploy` 和 `scripts`。仓库内新增的生产部署文件：
@@ -82,7 +82,7 @@ chmod +x scripts/deploy.sh
 3. 执行 `zhiyi-web` 的 `npm ci && npm run build`。
 4. 执行 `zhiyi-server` 的 `./mvnw -q -DskipTests clean package`。
 5. 如果 `BUILD_MINI=true`，执行小程序 Taro 构建。
-6. 执行 `docker compose up -d --build`，启动 MySQL、Redis、后端、Nginx。
+6. 执行 `docker compose up -d --build`，启动后端、Nginx，以及按 `DATA_SERVICES` 配置决定是否启动 MySQL、Redis 容器。
 
 首次运行后请立即检查并按线上域名调整：
 
@@ -101,11 +101,16 @@ GIT_BRANCH=main
 SERVER_NAME=erp.example.com
 HTTP_PORT=80
 
+DATA_SERVICES=container
+MYSQL_HOST=mysql
+MYSQL_PORT=3306
 MYSQL_ROOT_PASSWORD=请改成强密码
 MYSQL_DATABASE=zhiyi_erp
 MYSQL_USER=zhiyi
 MYSQL_PASSWORD=请改成强密码
 
+REDIS_HOST=redis
+REDIS_PORT=6379
 REDIS_PASSWORD=请改成强密码
 
 JAVA_OPTS=-Xms512m -Xmx1024m -XX:+UseG1GC
@@ -114,7 +119,47 @@ BUILD_MINI=true
 MINI_API_BASE_URL=https://erp.example.com/api
 ```
 
-### 3.2 常用脚本命令
+### 3.2 MySQL/Redis 部署模式
+
+默认模式是数据库和 Redis 也由 Docker Compose 启动：
+
+```env
+DATA_SERVICES=container
+MYSQL_HOST=mysql
+MYSQL_PORT=3306
+REDIS_HOST=redis
+REDIS_PORT=6379
+```
+
+如果 MySQL 和 Redis 已经安装在宿主机上，改成：
+
+```env
+DATA_SERVICES=host
+MYSQL_HOST=host.docker.internal
+MYSQL_PORT=3306
+MYSQL_DATABASE=zhiyi_erp
+MYSQL_USER=zhiyi
+MYSQL_PASSWORD=你的宿主机MySQL密码
+
+REDIS_HOST=host.docker.internal
+REDIS_PORT=6379
+REDIS_PASSWORD=你的宿主机Redis密码
+```
+
+Linux Docker 中，后端容器已经通过 `host.docker.internal:host-gateway` 映射访问宿主机。宿主机 MySQL 和 Redis 需要允许本机 Docker 网桥访问：
+
+```bash
+# MySQL 至少不能只监听 127.0.0.1；建议监听 0.0.0.0 或宿主机内网 IP，并用防火墙限制来源。
+bind-address = 0.0.0.0
+
+# Redis 同理，生产环境必须设置 requirepass，并用防火墙限制来源。
+bind 0.0.0.0
+requirepass 你的宿主机Redis密码
+```
+
+安全组不要向公网开放 `3306` 和 `6379`。如果必须开放，也只能限制为可信内网 IP。
+
+### 3.3 常用脚本命令
 
 ```bash
 # 完整构建并部署，默认命令
