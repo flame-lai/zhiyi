@@ -64,6 +64,11 @@
             <Text class="info-label">状态</Text>
             <Text class="info-value">{{ statusText(result.status) }}</Text>
           </View>
+          <View class="card-actions">
+            <View class="supplement-btn" @tap="goSupplement">
+              <Text class="supplement-btn-text">补录报工</Text>
+            </View>
+          </View>
         </View>
 
         <!-- Process list -->
@@ -211,6 +216,11 @@ async function onScan() {
   } catch {
     // scan cancelled
   }
+}
+
+function goSupplement() {
+  if (!result.value) return
+  Taro.navigateTo({ url: '/pages/admin/report-supplement/index?code=' + encodeURIComponent(result.value.globalBundleNo) })
 }
 
 useLoad((options: any) => {
@@ -405,6 +415,31 @@ useDidShow(() => {
   flex: 1;
   font-size: 26px;
   color: #4A6FA5;
+}
+
+.card-actions {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #f3f4f6;
+}
+
+.supplement-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 0;
+  background: #4A6FA5;
+  border-radius: 8px;
+}
+
+.supplement-btn:active {
+  opacity: 0.8;
+}
+
+.supplement-btn-text {
+  font-size: 26px;
+  color: #fff;
+  font-weight: 500;
 }
 
 .section-title {

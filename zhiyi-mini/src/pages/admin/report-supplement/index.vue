@@ -181,7 +181,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import Taro, { useDidShow } from '@tarojs/taro'
+import Taro, { useDidShow, useLoad } from '@tarojs/taro'
 import { View, Text, Input, Button } from '@tarojs/components'
 import { resolveScan } from '../../../api/mobileReport'
 import { supplementReport, getEmployees } from '../../../api/mobileAdmin'
@@ -424,6 +424,14 @@ function resetAll() {
 function goBack() {
   Taro.navigateBack()
 }
+
+useLoad((options: any) => {
+  const code = options?.code
+  if (code) {
+    scanCode.value = decodeURIComponent(code)
+    resolveCode(decodeURIComponent(code))
+  }
+})
 
 useDidShow(() => {
   if (!checkAuthAndRedirect()) return
