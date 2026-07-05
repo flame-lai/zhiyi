@@ -18,6 +18,10 @@ public interface EmployeeMapper extends BaseMapper<Employee> {
     @Select("SELECT * FROM employee WHERE deleted = 0 AND login_account = #{account} LIMIT 1")
     Employee selectByLoginAccount(String account);
 
+    /** 统计指定 login_account 的记录数（包含已删除），用于唯一性校验 */
+    @Select("SELECT COUNT(*) FROM employee WHERE factory_id = #{factoryId} AND login_account = #{loginAccount}")
+    long countByLoginAccountIncludingDeleted(@Param("factoryId") Long factoryId, @Param("loginAccount") String loginAccount);
+
     @Select("<script>" +
             "SELECT e.id, e.factory_id as factoryId, e.employee_no as employeeNo, " +
             "e.name, e.phone, e.role_id as roleId, r.name as roleName, " +

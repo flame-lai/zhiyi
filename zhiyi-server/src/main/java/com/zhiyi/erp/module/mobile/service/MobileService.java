@@ -51,6 +51,7 @@ import com.zhiyi.erp.module.system.service.MenuService;
 import com.zhiyi.erp.common.util.EmployeeNoGenerator;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
@@ -107,6 +108,9 @@ public class MobileService {
 
     @Autowired
     private TimedWageMapper timedWageMapper;
+
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
 
     @Autowired
     private CustomerMapper customerMapper;
@@ -1553,6 +1557,20 @@ public class MobileService {
     @Transactional
     public void createEmployee(EmployeeRequest req) {
         Long factoryId = TenantContext.get();
+
+        // 唯一性校验（包含已删除记录），绕过 @TableLogic 过滤
+        String loginAccount = req.getLoginAccount() != null && !req.getLoginAccount().isEmpty()
+                ? req.getLoginAccount() : null;
+        if (loginAccount != null) {
+            Long count = jdbcTemplate.queryForObject(
+                    "SELECT COUNT(*) FROM employee WHERE factory_id = ? AND login_account = ?",
+                    Long.class, factoryId, loginAccount
+            );
+            if (count != null && count > 0) {
+                throw new BizException("登录账号已存在：" + loginAccount);
+            }
+        }
+
         Employee employee = new Employee();
         employee.setFactoryId(factoryId);
         employee.setName(req.getName());
@@ -1564,8 +1582,19 @@ public class MobileService {
         // Generate employee number
         employee.setEmployeeNo(employeeNoGenerator.generate(factoryId));
         // Login account defaults to employeeNo
-        employee.setLoginAccount(req.getLoginAccount() != null && !req.getLoginAccount().isEmpty()
-                ? req.getLoginAccount() : employee.getEmployeeNo());
+        employee.setLoginAccount(loginAccount != null ? loginAccount : employee.getEmployeeNo());
+
+        // 如果没指定 loginAccount（默认等于工号），也要验重
+        if (loginAccount == null) {
+            Long count = jdbcTemplate.queryForObject(
+                    "SELECT COUNT(*) FROM employee WHERE factory_id = ? AND login_account = ?",
+                    Long.class, factoryId, employee.getLoginAccount()
+            );
+            if (count != null && count > 0) {
+                throw new BizException("登录账号已存在：" + employee.getLoginAccount());
+            }
+        }
+
         // Default password
         employee.setLoginPassword(BCrypt.hashpw(
                 req.getLoginPassword() != null && !req.getLoginPassword().isEmpty()
@@ -1580,6 +1609,19 @@ public class MobileService {
         if (employee == null) {
             throw new BizException("员工不存在");
         }
+
+        // 唯一性校验（排除自身，包含已删除记录）
+        if (req.getLoginAccount() != null && !req.getLoginAccount().isEmpty()
+                && !req.getLoginAccount().equals(employee.getLoginAccount())) {
+            Long count = jdbcTemplate.queryForObject(
+                    "SELECT COUNT(*) FROM employee WHERE factory_id = ? AND login_account = ?",
+                    Long.class, employee.getFactoryId(), req.getLoginAccount()
+            );
+            if (count != null && count > 0) {
+                throw new BizException("登录账号已存在：" + req.getLoginAccount());
+            }
+        }
+
         employee.setName(req.getName());
         employee.setPhone(req.getPhone());
         employee.setRoleId(req.getRoleId());
@@ -1595,6 +1637,30 @@ public class MobileService {
 
     @Transactional
     public void deleteEmployee(Long id) {
+        Employee employee = employeeMapper.selectById(id);
+        if (employee == null) {
+            throw new BizException("员工不存在");
+        }
+
+        // 有报工记录的不允许删除
+        Long reportCount = workReportMapper.selectCount(
+                new LambdaQueryWrapper<WorkReport>()
+                        .eq(WorkReport::getEmployeeId, employee.getId())
+                        .eq(WorkReport::getStatus, 1)
+        );
+        if (reportCount > 0) {
+            throw new BizException("该员工有报工记录，无法删除");
+        }
+
+        // 有计时工资记录的不允许删除
+        Long timedCount = timedWageMapper.selectCount(
+                new LambdaQueryWrapper<TimedWage>()
+                        .eq(TimedWage::getEmployeeId, employee.getId())
+        );
+        if (timedCount > 0) {
+            throw new BizException("该员工有计时工资记录，无法删除");
+        }
+
         employeeMapper.deleteById(id);
     }
 
