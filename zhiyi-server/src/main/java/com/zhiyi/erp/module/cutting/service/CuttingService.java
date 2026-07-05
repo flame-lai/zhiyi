@@ -262,6 +262,7 @@ public class CuttingService extends ServiceImpl<CuttingPlanMapper, CuttingPlan> 
         // 获取裁床计划信息（获取床次）
         CuttingPlan cuttingPlan = cuttingPlanMapper.selectById(cuttingPlanId);
         Integer bedNo = cuttingPlan != null ? cuttingPlan.getBedNo() : null;
+        String barcode = cuttingPlan != null ? cuttingPlan.getBarcode() : null;
 
         // 转换为BundleDetailDTO
         List<BundleDetailDTO> result = new ArrayList<>();
@@ -280,6 +281,7 @@ public class CuttingService extends ServiceImpl<CuttingPlanMapper, CuttingPlan> 
             dto.setFabric(bundle.getFabric());
             dto.setPart(bundle.getPart());
             dto.setBedNo(bedNo);
+            dto.setBarcode(barcode);
             dto.setBundleNo(bundle.getBundleNo());
             dto.setGlobalBundleNo(bundle.getGlobalBundleNo());
             dto.setQty(bundle.getQty());
