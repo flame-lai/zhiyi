@@ -9,10 +9,21 @@
     <div class="print-container">
       <div class="print-options">
         <a-space>
-          <a-button type="primary" @click="handlePrintAll">批量打印全部</a-button>
-          <a-button @click="handlePrintSelected" :disabled="selectedBundles.length === 0">
-            打印选中 ({{ selectedBundles.length }})
+          <a-button type="primary" :loading="tscPrinting" @click="handleTscPrintAll">
+            TSC打印全部
           </a-button>
+          <a-button
+            :loading="tscPrinting"
+            @click="handleTscPrintSelected"
+            :disabled="selectedBundles.length === 0"
+          >
+            TSC打印选中 ({{ selectedBundles.length }})
+          </a-button>
+          <a-button @click="handlePrintSelected" :disabled="selectedBundles.length === 0">
+            浏览器打印选中
+          </a-button>
+          <a-button @click="handlePrintAll">浏览器打印全部</a-button>
+          <a-button @click="openSettings">打印设置</a-button>
         </a-space>
       </div>
 
@@ -58,7 +69,7 @@
               <table class="preview-tbl">
                 <tr>
                   <td class="pv-key">尺码</td>
-                  <td class="pv-val">{{ bundle.size }}</td>
+                  <td class="pv-val preview-size-value">{{ bundle.size }}</td>
                 </tr>
                 <tr>
                   <td class="pv-key">扎号</td>
@@ -83,12 +94,61 @@
       </div>
     </div>
   </a-modal>
+
+  <a-modal
+    v-model:open="settingsVisible"
+    title="TSC 打印设置"
+    ok-text="保存"
+    cancel-text="取消"
+    @ok="saveSettings"
+  >
+    <a-form layout="vertical">
+      <a-form-item label="PrintServer WebSocket 地址">
+        <a-input
+          v-model:value="settingsForm.endpoint"
+          placeholder="ws://127.0.0.1:8888"
+        />
+      </a-form-item>
+      <a-form-item label="连接方式">
+        <a-select v-model:value="settingsForm.connectionMode">
+          <a-select-option value="usb">USB 自动连接</a-select-option>
+          <a-select-option value="driver">Windows 驱动</a-select-option>
+          <a-select-option value="network">网络打印机</a-select-option>
+        </a-select>
+      </a-form-item>
+      <a-form-item v-if="settingsForm.connectionMode === 'driver'" label="Windows 驱动名称">
+        <a-input v-model:value="settingsForm.printerName" placeholder="TSC TTP-244 Pro" />
+      </a-form-item>
+      <template v-if="settingsForm.connectionMode === 'network'">
+        <a-form-item label="打印机 IP">
+          <a-input v-model:value="settingsForm.networkHost" placeholder="192.168.1.50" />
+        </a-form-item>
+        <a-form-item label="打印机端口">
+          <a-input v-model:value="settingsForm.networkPort" placeholder="9100" />
+        </a-form-item>
+      </template>
+      <a-form-item label="文字字体">
+        <a-input v-model:value="settingsForm.textFont" placeholder="TSS24.BF2" />
+      </a-form-item>
+      <a-form-item label="编码">
+        <a-input v-model:value="settingsForm.codepage" placeholder="UTF-8" />
+      </a-form-item>
+    </a-form>
+  </a-modal>
 </template>
 
 <script setup lang="ts">
 import { ref, watch, nextTick } from 'vue'
+import { message } from 'ant-design-vue'
 import JsBarcode from 'jsbarcode'
 import QRCode from 'qrcode'
+import {
+  loadTscPrintSettings,
+  printBundlesToTsc,
+  saveTscPrintSettings,
+  type TscConnectionMode,
+  type TscPrintSettings,
+} from '../utils/tscPrinter'
 
 interface BundleData {
   id: number
@@ -118,6 +178,9 @@ const emit = defineEmits<{
 const visible = ref(props.visible)
 const selectedBundles = ref<number[]>([])
 const qrCodeUrls = ref<Record<number, string>>({})
+const tscPrinting = ref(false)
+const settingsVisible = ref(false)
+const settingsForm = ref<TscPrintSettings>(loadTscPrintSettings())
 
 watch(() => props.visible, (val) => {
   visible.value = val
@@ -185,6 +248,47 @@ function handlePrintSelected() {
   printBundles(selected)
 }
 
+function handleTscPrintAll() {
+  printTscBundles(props.bundles)
+}
+
+function handleTscPrintSelected() {
+  const selected = props.bundles.filter(b => selectedBundles.value.includes(b.id))
+  printTscBundles(selected)
+}
+
+async function printTscBundles(bundlesToPrint: BundleData[]) {
+  tscPrinting.value = true
+  try {
+    await printBundlesToTsc(bundlesToPrint, props.cuttingBarcode, loadTscPrintSettings())
+    message.success(`已发送 ${bundlesToPrint.length} 张菲仔到 TSC 打印服务`)
+  } catch (error) {
+    const err = error instanceof Error ? error.message : 'TSC 打印失败'
+    message.error(err)
+  } finally {
+    tscPrinting.value = false
+  }
+}
+
+function openSettings() {
+  settingsForm.value = loadTscPrintSettings()
+  settingsVisible.value = true
+}
+
+function saveSettings() {
+  saveTscPrintSettings({
+    ...settingsForm.value,
+    connectionMode: normalizeConnectionMode(settingsForm.value.connectionMode),
+  })
+  settingsVisible.value = false
+  message.success('TSC 打印设置已保存')
+}
+
+function normalizeConnectionMode(mode: TscConnectionMode): TscConnectionMode {
+  if (mode === 'driver' || mode === 'network') return mode
+  return 'usb'
+}
+
 async function printBundles(bundlesToPrint: BundleData[]) {
   const qrCodeUrls: Record<number, string> = {}
   for (const bundle of bundlesToPrint) {
@@ -222,13 +326,13 @@ async function printBundles(bundlesToPrint: BundleData[]) {
         html, body {
           width: 50mm;
           font-family: "SimSun", "宋体", sans-serif;
-          font-size: 10px;
-          line-height: 1.3;
+          font-size: 12px;
+          line-height: 1.15;
         }
         .label-page {
           width: 50mm;
           height: 80mm;
-          padding: 2mm;
+          padding: 1.5mm;
           border: 1px solid #333;
           page-break-after: always;
           page-break-inside: avoid;
@@ -242,17 +346,17 @@ async function printBundles(bundlesToPrint: BundleData[]) {
         }
         /* 顶部穿孔区 */
         .p-hole-zone {
-          height: 18mm;
+          height: 20mm;
           display: flex;
           align-items: center;
           justify-content: center;
           flex-shrink: 0;
           border-bottom: 1px dashed #ccc;
-          margin-bottom: 1mm;
+          margin-bottom: 0.6mm;
         }
         .p-hole {
-          width: 5mm;
-          height: 5mm;
+          width: 4.5mm;
+          height: 4.5mm;
           border: 1px solid #999;
           border-radius: 50%;
         }
@@ -261,18 +365,18 @@ async function printBundles(bundlesToPrint: BundleData[]) {
           display: flex;
           flex-direction: column;
           align-items: center;
-          margin-bottom: 1.5mm;
+          margin-bottom: 0.8mm;
           flex-shrink: 0;
         }
         .p-barcode svg {
           width: 42mm;
-          height: 8mm;
+          height: 7mm;
         }
         .p-barcode-text {
-          font-size: 10px;
+          font-size: 12px;
           font-weight: bold;
-          margin-top: 0.5mm;
-          letter-spacing: 0.5px;
+          margin-top: 0.3mm;
+          letter-spacing: 0;
         }
         /* 统一表格 */
         .p-tbl {
@@ -282,12 +386,12 @@ async function printBundles(bundlesToPrint: BundleData[]) {
         }
         .p-tbl td {
           border: 1px solid #333;
-          padding: 0.5mm 1mm;
-          font-size: 9px;
-          line-height: 1.3;
+          padding: 0.35mm 0.8mm;
+          font-size: 12px;
+          line-height: 1.08;
         }
         .p-key {
-          width: 22%;
+          width: 21%;
           font-weight: bold;
           white-space: nowrap;
           background-color: #f5f5f5;
@@ -300,7 +404,7 @@ async function printBundles(bundlesToPrint: BundleData[]) {
         }
         /* 底部区域 */
         .p-bottom {
-          margin-top: auto;
+          margin-top: 3mm;
           position: relative;
           flex-shrink: 0;
           overflow: hidden;
@@ -312,16 +416,22 @@ async function printBundles(bundlesToPrint: BundleData[]) {
         .p-qr {
           position: absolute;
           right: 2mm;
-          bottom: 5mm;
-          width: 18mm;
-          height: 18mm;
+          bottom: 5.5mm;
+          width: 20mm;
+          height: 20mm;
+        }
+        .p-size-value {
+          font-size: 16px;
+          font-weight: 700;
         }
         .p-bundle-no {
+          position: absolute;
+          left: 1.5mm;
+          right: 1.5mm;
+          bottom: 0.8mm;
           text-align: center;
-          font-size: 9px;
+          font-size: 12px;
           font-weight: bold;
-          padding-top: 1mm;
-          flex-shrink: 0;
         }
       </style>
     </head>
@@ -333,49 +443,49 @@ async function printBundles(bundlesToPrint: BundleData[]) {
       <div class="label-page">
         <div class="p-hole-zone"><div class="p-hole"></div></div>
         <div class="p-barcode">
-          <svg class="print-barcode" data-value="${props.cuttingBarcode}"></svg>
-          <div class="p-barcode-text">${props.cuttingBarcode}</div>
+          <svg class="print-barcode" data-value="${escapeHtml(props.cuttingBarcode)}"></svg>
+          <div class="p-barcode-text">${escapeHtml(props.cuttingBarcode)}</div>
         </div>
         <table class="p-tbl">
           <tr>
             <td class="p-key">部位</td>
-            <td class="p-val p-val-bold">${bundle.part}</td>
+            <td class="p-val p-val-bold">${escapeHtml(bundle.part)}</td>
           </tr>
           <tr>
             <td class="p-key">订单号</td>
-            <td class="p-val">${bundle.orderNo}</td>
+            <td class="p-val">${escapeHtml(bundle.orderNo)}</td>
           </tr>
           <tr>
             <td class="p-key">款号</td>
-            <td class="p-val">${bundle.styleCode}</td>
+            <td class="p-val">${escapeHtml(bundle.styleCode)}</td>
           </tr>
           <tr>
             <td class="p-key">颜色</td>
-            <td class="p-val">${bundle.color}</td>
+            <td class="p-val">${escapeHtml(bundle.color)}</td>
           </tr>
         </table>
         <div class="p-bottom">
           <table class="p-tbl">
             <tr>
               <td class="p-key">尺码</td>
-              <td class="p-val">${bundle.size}</td>
+              <td class="p-val p-size-value">${escapeHtml(bundle.size)}</td>
             </tr>
             <tr>
               <td class="p-key">扎号</td>
-              <td class="p-val">${bundle.bundleNo}</td>
+              <td class="p-val">${escapeHtml(bundle.bundleNo)}</td>
             </tr>
             <tr>
               <td class="p-key">数量</td>
-              <td class="p-val">${bundle.qty}</td>
+              <td class="p-val">${escapeHtml(String(bundle.qty))}</td>
             </tr>
             <tr>
               <td class="p-key">床号</td>
-              <td class="p-val">${bundle.bedNo || ''}</td>
+              <td class="p-val">${escapeHtml(bundle.bedNo ? String(bundle.bedNo) : '')}</td>
             </tr>
           </table>
         </div>
-        <img class="p-qr" src="${qrCodeUrls[bundle.id] || ''}" />
-        <div class="p-bundle-no">${bundle.globalBundleNo}</div>
+        <img class="p-qr" src="${escapeHtml(qrCodeUrls[bundle.id] || '')}" />
+        <div class="p-bundle-no">${escapeHtml(bundle.globalBundleNo)}</div>
       </div>
     `
   })
@@ -399,6 +509,15 @@ async function printBundles(bundlesToPrint: BundleData[]) {
 
   printWindow.document.write(html)
   printWindow.document.close()
+}
+
+function escapeHtml(value: unknown) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
 }
 
 function handleClose() {
@@ -445,10 +564,10 @@ function handleClose() {
 .bundle-label {
   width: 200px;
   height: 320px;
-  padding: 8px;
+  padding: 6px;
   border: 1px solid #333;
-  font-size: 10px;
-  line-height: 1.35;
+  font-size: 12px;
+  line-height: 1.15;
   display: flex;
   flex-direction: column;
   position: relative;
@@ -457,18 +576,18 @@ function handleClose() {
 
 /* 穿孔区 */
 .preview-hole-zone {
-  height: 60px;
+  height: 80px;
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
   border-bottom: 1px dashed #ccc;
-  margin-bottom: 6px;
+  margin-bottom: 4px;
 }
 
 .preview-hole {
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
   border: 1px solid #999;
   border-radius: 50%;
 }
@@ -478,20 +597,20 @@ function handleClose() {
   display: flex;
   flex-direction: column;
   align-items: center;
-  margin-bottom: 6px;
+  margin-bottom: 4px;
   flex-shrink: 0;
 }
 
 .preview-barcode svg {
   width: 150px;
-  height: 32px;
+  height: 28px;
 }
 
 .preview-barcode-text {
-  font-size: 11px;
+  font-size: 13px;
   font-weight: bold;
-  margin-top: 2px;
-  letter-spacing: 0.5px;
+  margin-top: 1px;
+  letter-spacing: 0;
 }
 
 /* 统一表格 */
@@ -503,13 +622,13 @@ function handleClose() {
 
 .preview-tbl td {
   border: 1px solid #333;
-  padding: 3px 6px;
-  font-size: 10px;
-  line-height: 1.35;
+  padding: 2px 5px;
+  font-size: 12px;
+  line-height: 1.08;
 }
 
 .pv-key {
-  width: 22%;
+  width: 21%;
   font-weight: bold;
   white-space: nowrap;
   background-color: #f5f5f5;
@@ -525,7 +644,7 @@ function handleClose() {
 
 /* 底部区域 */
 .preview-bottom {
-  margin-top: auto;
+  margin-top: 12px;
   flex-shrink: 0;
 }
 
@@ -538,14 +657,22 @@ function handleClose() {
   position: absolute;
   right: 8px;
   bottom: 22px;
-  width: 68px;
-  height: 68px;
+  width: 80px;
+  height: 80px;
+}
+
+.preview-size-value {
+  font-size: 16px;
+  font-weight: 700;
 }
 
 .preview-bundle-no {
+  position: absolute;
+  left: 6px;
+  right: 6px;
+  bottom: 3px;
   text-align: center;
-  font-size: 10px;
+  font-size: 12px;
   font-weight: bold;
-  flex-shrink: 0;
 }
 </style>
