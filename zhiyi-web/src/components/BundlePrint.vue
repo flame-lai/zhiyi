@@ -127,8 +127,8 @@
           <a-input v-model:value="settingsForm.networkPort" placeholder="9100" />
         </a-form-item>
       </template>
-      <a-form-item label="文字字体">
-        <a-input v-model:value="settingsForm.textFont" placeholder="TSS24.BF2" />
+      <a-form-item label="Windows 字体">
+        <a-input v-model:value="settingsForm.windowsFont" placeholder="SimSun" />
       </a-form-item>
       <a-form-item label="编码">
         <a-input v-model:value="settingsForm.codepage" placeholder="UTF-8" />
@@ -373,7 +373,7 @@ async function printBundles(bundlesToPrint: BundleData[]) {
           height: 7mm;
         }
         .p-barcode-text {
-          font-size: 12px;
+          font-size: 13px;
           font-weight: bold;
           margin-top: 0.3mm;
           letter-spacing: 0;
@@ -386,9 +386,9 @@ async function printBundles(bundlesToPrint: BundleData[]) {
         }
         .p-tbl td {
           border: 1px solid #333;
-          padding: 0.35mm 0.8mm;
-          font-size: 12px;
-          line-height: 1.08;
+          padding: 0.25mm 0.8mm;
+          font-size: 14px;
+          line-height: 1.03;
         }
         .p-key {
           width: 21%;
@@ -404,7 +404,7 @@ async function printBundles(bundlesToPrint: BundleData[]) {
         }
         /* 底部区域 */
         .p-bottom {
-          margin-top: 3mm;
+          margin-top: 1mm;
           position: relative;
           flex-shrink: 0;
           overflow: hidden;
@@ -421,7 +421,6 @@ async function printBundles(bundlesToPrint: BundleData[]) {
           height: 20mm;
         }
         .p-size-value {
-          font-size: 16px;
           font-weight: 700;
         }
         .p-bundle-no {
@@ -607,7 +606,7 @@ function handleClose() {
 }
 
 .preview-barcode-text {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: bold;
   margin-top: 1px;
   letter-spacing: 0;
@@ -622,9 +621,9 @@ function handleClose() {
 
 .preview-tbl td {
   border: 1px solid #333;
-  padding: 2px 5px;
-  font-size: 12px;
-  line-height: 1.08;
+  padding: 1px 5px;
+  font-size: 14px;
+  line-height: 1.03;
 }
 
 .pv-key {
@@ -644,7 +643,7 @@ function handleClose() {
 
 /* 底部区域 */
 .preview-bottom {
-  margin-top: 12px;
+  margin-top: 4px;
   flex-shrink: 0;
 }
 
@@ -662,7 +661,6 @@ function handleClose() {
 }
 
 .preview-size-value {
-  font-size: 16px;
   font-weight: 700;
 }
 

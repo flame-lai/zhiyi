@@ -21,6 +21,7 @@ export interface TscPrintSettings {
   printerName: string
   networkHost: string
   networkPort: string
+  windowsFont: string
   textFont: string
   codepage: string
 }
@@ -33,6 +34,7 @@ export const DEFAULT_TSC_PRINT_SETTINGS: TscPrintSettings = {
   printerName: import.meta.env.VITE_TSC_PRINTER_NAME || '',
   networkHost: import.meta.env.VITE_TSC_NETWORK_HOST || '',
   networkPort: import.meta.env.VITE_TSC_NETWORK_PORT || '9100',
+  windowsFont: import.meta.env.VITE_TSC_WINDOWS_FONT || 'SimSun',
   textFont: import.meta.env.VITE_TSC_TEXT_FONT || 'TSS24.BF2',
   codepage: import.meta.env.VITE_TSC_CODEPAGE || 'UTF-8',
 }
@@ -81,8 +83,8 @@ export async function printBundlesToTsc(
     throw new Error('请先配置 TSC PrintServer WebSocket 地址')
   }
 
-  const command = buildBundleBatchTspl(bundles, cuttingBarcode, normalizedSettings)
-  await sendTsplByWebSocket(command, normalizedSettings)
+  const functions = buildBundleBatchFunctions(bundles, cuttingBarcode, normalizedSettings)
+  await sendFunctionsByWebSocket(functions, normalizedSettings)
 }
 
 export function buildBundleBatchTspl(
@@ -129,40 +131,123 @@ export function buildBundleTspl(
     text(120, 370, textFont, value(bundle.styleCode)),
     text(24, 410, textFont, '颜色'),
     text(120, 410, textFont, value(bundle.color)),
-    line(16, 474, 168),
-    line(16, 514, 168),
-    line(16, 554, 168),
-    line(16, 594, 168),
-    line(16, 634, 168),
-    vLine(86, 474, 160),
-    text(24, 482, textFont, '尺码'),
-    text(104, 478, '3', value(bundle.size), 2, 2),
-    text(24, 522, textFont, '扎号'),
-    text(104, 522, textFont, value(bundle.bundleNo)),
-    text(24, 562, textFont, '数量'),
-    text(104, 562, textFont, String(bundle.qty ?? '')),
-    text(24, 602, textFont, '床号'),
-    text(104, 602, textFont, bundle.bedNo == null ? '' : String(bundle.bedNo)),
-    qrcode(labelWidth - 172, 472, value(bundle.globalBundleNo || bundle.bundleNo)),
+    line(16, 454, 168),
+    line(16, 492, 168),
+    line(16, 530, 168),
+    line(16, 568, 168),
+    line(16, 606, 168),
+    vLine(86, 454, 152),
+    text(24, 462, textFont, '尺码'),
+    text(104, 462, textFont, value(bundle.size)),
+    text(24, 500, textFont, '扎号'),
+    text(104, 500, textFont, value(bundle.bundleNo)),
+    text(24, 538, textFont, '数量'),
+    text(104, 538, textFont, String(bundle.qty ?? '')),
+    text(24, 576, textFont, '床号'),
+    text(104, 576, textFont, bundle.bedNo == null ? '' : String(bundle.bedNo)),
+    qrcode(labelWidth - 195, 450, value(bundle.globalBundleNo || bundle.bundleNo)),
     text(52, 616, '3', value(bundle.globalBundleNo || bundle.bundleNo), 1, 1),
     'PRINT 1,1',
   ].join('\r\n')
 }
 
-async function sendTsplByWebSocket(command: string, settings: TscPrintSettings) {
+function buildBundleBatchFunctions(
+  bundles: TscBundleData[],
+  cuttingBarcode: string,
+  settings: Pick<TscPrintSettings, 'windowsFont'>,
+): TscFunction[] {
+  return bundles.flatMap((bundle) => buildBundleFunctions(bundle, cuttingBarcode, settings))
+}
+
+function buildBundleFunctions(
+  bundle: TscBundleData,
+  cuttingBarcode: string,
+  settings: Pick<TscPrintSettings, 'windowsFont'>,
+): TscFunction[] {
+  const globalBundleNo = value(bundle.globalBundleNo || bundle.bundleNo)
+  const windowsFontName = settings.windowsFont || DEFAULT_TSC_PRINT_SETTINGS.windowsFont
+
+  return [
+    { setup: '50,80,4,8,0,2,0' },
+    { clearbuffer: '' },
+    raw('BOX 188,48,212,72,2'),
+    raw('BAR 198,54,4,12'),
+    { barcode: `30,182,"128",52,0,0,2,2,"${escapeTscFunctionText(cuttingBarcode)}"` },
+    windowsFont(92, 246, 30, cuttingBarcode, 2, 'Arial'),
+    raw('BAR 16,282,368,2'),
+    raw('BAR 16,322,368,2'),
+    raw('BAR 16,362,368,2'),
+    raw('BAR 16,402,368,2'),
+    raw('BAR 16,442,368,2'),
+    raw('BAR 104,282,2,160'),
+    windowsFont(24, 288, 30, '部位', 2, windowsFontName),
+    windowsFont(120, 288, 30, value(bundle.part), 2, windowsFontName),
+    windowsFont(24, 328, 30, '订单号', 2, windowsFontName),
+    windowsFont(120, 328, 30, value(bundle.orderNo), 0, 'Arial'),
+    windowsFont(24, 368, 30, '款号', 2, windowsFontName),
+    windowsFont(120, 368, 30, value(bundle.styleCode), 0, 'Arial'),
+    windowsFont(24, 408, 30, '颜色', 2, windowsFontName),
+    windowsFont(120, 408, 30, value(bundle.color), 0, windowsFontName),
+    raw('BAR 16,454,168,2'),
+    raw('BAR 16,492,168,2'),
+    raw('BAR 16,530,168,2'),
+    raw('BAR 16,568,168,2'),
+    raw('BAR 16,606,168,2'),
+    raw('BAR 86,454,2,152'),
+    windowsFont(24, 460, 32, '尺码', 2, windowsFontName),
+    windowsFont(104, 460, 32, value(bundle.size), 2, 'Arial'),
+    windowsFont(24, 498, 32, '扎号', 2, windowsFontName),
+    windowsFont(104, 498, 32, value(bundle.bundleNo), 0, 'Arial'),
+    windowsFont(24, 536, 32, '数量', 2, windowsFontName),
+    windowsFont(104, 536, 32, String(bundle.qty ?? ''), 0, 'Arial'),
+    windowsFont(24, 574, 32, '床号', 2, windowsFontName),
+    windowsFont(104, 574, 32, bundle.bedNo == null ? '' : String(bundle.bedNo), 0, 'Arial'),
+    raw(qrcode(205, 450, globalBundleNo)),
+    windowsFont(52, 616, 26, globalBundleNo, 2, 'Arial'),
+    { printlabel: '1,1' },
+  ]
+}
+
+async function sendFunctionsByWebSocket(functions: TscFunction[], settings: TscPrintSettings) {
   const payload = {
     functions_inorder: [
       buildOpenPortFunction(settings),
-      ...command
-        .split(/\r?\n/)
-        .map((lineText) => lineText.trim())
-        .filter(Boolean)
-        .map((lineText) => ({ sendcommand_crlf: lineText })),
+      ...functions,
       { closeport: '' },
     ],
   }
 
   await websocketRequest(settings.endpoint, payload)
+}
+
+function raw(command: string): TscFunction {
+  return { sendcommand_crlf: command }
+}
+
+function windowsFont(
+  x: number,
+  y: number,
+  height: number,
+  content: string,
+  style = 0,
+  font = 'SimSun',
+): TscFunction {
+  return {
+    windowsfont: [
+      x,
+      y,
+      height,
+      0,
+      style,
+      0,
+      font,
+      escapeTscFunctionText(content),
+    ].join(','),
+  }
+}
+
+function escapeTscFunctionText(input: string) {
+  return input.replace(/,/g, '，').replace(/\r?\n/g, ' ')
 }
 
 function websocketRequest(endpoint: string, payload: unknown) {
@@ -243,6 +328,7 @@ function normalizeSettings(settings: TscPrintSettings): TscPrintSettings {
     printerName: settings.printerName?.trim() || '',
     networkHost: settings.networkHost?.trim() || '',
     networkPort: settings.networkPort?.trim() || '9100',
+    windowsFont: settings.windowsFont?.trim() || DEFAULT_TSC_PRINT_SETTINGS.windowsFont,
     textFont: settings.textFont?.trim() || DEFAULT_TSC_PRINT_SETTINGS.textFont,
     codepage: settings.codepage?.trim() || DEFAULT_TSC_PRINT_SETTINGS.codepage,
   }
@@ -285,7 +371,7 @@ function barcode(x: number, y: number, content: string) {
 }
 
 function qrcode(x: number, y: number, content: string) {
-  return `QRCODE ${x},${y},L,5,A,0,"${escapeTsplText(content)}"`
+  return `QRCODE ${x},${y},L,6,A,0,"${escapeTsplText(content)}"`
 }
 
 function line(x: number, y: number, width: number) {

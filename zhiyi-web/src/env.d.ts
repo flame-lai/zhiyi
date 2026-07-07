@@ -6,6 +6,7 @@ interface ImportMetaEnv {
   readonly VITE_TSC_PRINTER_NAME?: string
   readonly VITE_TSC_NETWORK_HOST?: string
   readonly VITE_TSC_NETWORK_PORT?: string
+  readonly VITE_TSC_WINDOWS_FONT?: string
   readonly VITE_TSC_TEXT_FONT?: string
   readonly VITE_TSC_CODEPAGE?: string
 }
