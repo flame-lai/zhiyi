@@ -170,6 +170,7 @@ function buildBundleFunctions(
   return [
     { setup: '50,80,4,8,0,2,0' },
     { clearbuffer: '' },
+    raw('DIRECTION 1'),
     raw('BOX 188,48,212,72,2'),
     raw('BAR 198,54,4,12'),
     { barcode: `30,182,"128",52,0,0,2,2,"${escapeTscFunctionText(cuttingBarcode)}"` },
@@ -371,7 +372,7 @@ function barcode(x: number, y: number, content: string) {
 }
 
 function qrcode(x: number, y: number, content: string) {
-  return `QRCODE ${x},${y},L,6,A,0,"${escapeTsplText(content)}"`
+  return `QRCODE ${x},${y},H,6,A,0,M2,S7,"${escapeTsplText(content)}"`
 }
 
 function line(x: number, y: number, width: number) {

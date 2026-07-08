@@ -200,8 +200,8 @@ async function generateAllBarcodes() {
     try {
       const dataUrl = await QRCode.toDataURL(bundle.globalBundleNo || 'UNKNOWN', {
         width: 120,
-        margin: 1,
-        errorCorrectionLevel: 'M'
+        margin: 2,
+        errorCorrectionLevel: 'H'
       })
       urls[bundle.id] = dataUrl
     } catch (e) {
@@ -295,8 +295,8 @@ async function printBundles(bundlesToPrint: BundleData[]) {
     try {
       const dataUrl = await QRCode.toDataURL(bundle.globalBundleNo || 'UNKNOWN', {
         width: 200,
-        margin: 1,
-        errorCorrectionLevel: 'M'
+        margin: 2,
+        errorCorrectionLevel: 'H'
       })
       qrCodeUrls[bundle.id] = dataUrl
     } catch (e) {
@@ -416,9 +416,9 @@ async function printBundles(bundlesToPrint: BundleData[]) {
         .p-qr {
           position: absolute;
           right: 2mm;
-          bottom: 5.5mm;
-          width: 20mm;
-          height: 20mm;
+          top: 54mm;
+          width: 21mm;
+          height: 21mm;
         }
         .p-size-value {
           font-weight: 700;
@@ -655,9 +655,9 @@ function handleClose() {
 .preview-qr {
   position: absolute;
   right: 8px;
-  bottom: 22px;
-  width: 80px;
-  height: 80px;
+  top: 216px;
+  width: 84px;
+  height: 84px;
 }
 
 .preview-size-value {
