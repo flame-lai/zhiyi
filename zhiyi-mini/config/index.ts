@@ -32,6 +32,7 @@ export default defineConfig({
   },
   framework: 'vue3',
   mini: {
+    enableSourceMap: false,
     postcss: {
       pxtransform: { enable: true, config: {} },
       url: { enable: true, config: { limit: 1024 } },

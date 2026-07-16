@@ -3,33 +3,58 @@
     v-model:open="visible"
     title="打印菲仔"
     :footer="null"
-    width="800px"
+    width="1200px"
     @cancel="handleClose"
   >
     <div class="print-container">
       <div class="print-options">
-        <a-space>
-          <a-button type="primary" :loading="tscPrinting" @click="handleTscPrintAll">
-            TSC打印全部
-          </a-button>
-          <a-button
-            :loading="tscPrinting"
-            @click="handleTscPrintSelected"
-            :disabled="selectedBundles.length === 0"
-          >
-            TSC打印选中 ({{ selectedBundles.length }})
-          </a-button>
-          <a-button @click="handlePrintSelected" :disabled="selectedBundles.length === 0">
-            浏览器打印选中
-          </a-button>
-          <a-button @click="handlePrintAll">浏览器打印全部</a-button>
-          <a-button @click="openSettings">打印设置</a-button>
-        </a-space>
+        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
+          <a-space>
+            <a-button type="primary" :loading="tscPrinting" @click="handleTscPrintAll">
+              TSC打印全部
+            </a-button>
+            <a-button
+              :loading="tscPrinting"
+              @click="handleTscPrintSelected"
+              :disabled="selectedBundles.length === 0"
+            >
+              TSC打印选中 ({{ selectedBundles.length }})
+            </a-button>
+            <a-button @click="handlePrintSelected" :disabled="selectedBundles.length === 0">
+              浏览器打印选中
+            </a-button>
+            <a-button @click="handlePrintAll">浏览器打印全部</a-button>
+            <a-button @click="openSettings">打印设置</a-button>
+          </a-space>
+
+          <a-space class="range-selector">
+            <span>选择范围：第</span>
+            <a-input-number
+              v-model:value="fromPage"
+              :min="1"
+              :max="bundles.length"
+              size="small"
+              style="width: 70px;"
+            />
+            <span>至</span>
+            <a-input-number
+              v-model:value="toPage"
+              :min="1"
+              :max="bundles.length"
+              size="small"
+              style="width: 70px;"
+            />
+            <span>张</span>
+            <a-button size="small" type="primary" @click="applyRangeSelection">
+              确定
+            </a-button>
+          </a-space>
+        </div>
       </div>
 
       <div class="bundle-preview">
         <div
-          v-for="bundle in bundles"
+          v-for="(bundle, index) in bundles"
           :key="bundle.id"
           class="bundle-item"
           :class="{ selected: selectedBundles.includes(bundle.id) }"
@@ -37,7 +62,7 @@
         >
           <div class="bundle-label">
             <!-- 顶部穿孔区 -->
-            <div class="preview-hole-zone"><div class="preview-hole"></div></div>
+            <div class="preview-hole-zone"><div class="preview-hole" title="菲仔纸穿孔区（示意）"></div></div>
             <!-- 顶部条形码 -->
             <div class="preview-barcode">
               <svg :id="'barcode-cutting-' + bundle.id"></svg>
@@ -51,16 +76,16 @@
                 <td class="pv-val pv-val-bold">{{ bundle.part }}</td>
               </tr>
               <tr>
-                <td class="pv-key">订单号</td>
-                <td class="pv-val">{{ bundle.orderNo }}</td>
+                <td class="pv-key">单号</td>
+                <td class="pv-val pv-val-regular">{{ bundle.orderNo }}</td>
               </tr>
               <tr>
                 <td class="pv-key">款号</td>
-                <td class="pv-val">{{ bundle.styleCode }}</td>
+                <td class="pv-val pv-val-regular">{{ bundle.styleCode }}</td>
               </tr>
               <tr>
                 <td class="pv-key">颜色</td>
-                <td class="pv-val">{{ bundle.color }}</td>
+                <td class="pv-val pv-val-regular">{{ bundle.color }}</td>
               </tr>
             </table>
 
@@ -89,6 +114,11 @@
             <img v-if="qrCodeUrls[bundle.id]" :src="qrCodeUrls[bundle.id]" class="preview-qr" />
             <!-- 底部扎号码 -->
             <div class="preview-bundle-no">{{ bundle.globalBundleNo }}</div>
+          </div>
+          <!-- 标签下方页码与勾选标识 -->
+          <div class="bundle-item-index">
+            <a-checkbox :checked="selectedBundles.includes(bundle.id)" style="pointer-events: none;" />
+            <span class="index-text">第 {{ index + 1 }} 张</span>
           </div>
         </div>
       </div>
@@ -182,10 +212,15 @@ const tscPrinting = ref(false)
 const settingsVisible = ref(false)
 const settingsForm = ref<TscPrintSettings>(loadTscPrintSettings())
 
+const fromPage = ref<number>(1)
+const toPage = ref<number>(1)
+
 watch(() => props.visible, (val) => {
   visible.value = val
   if (val) {
     selectedBundles.value = props.bundles.map(b => b.id)
+    fromPage.value = 1
+    toPage.value = props.bundles.length
     nextTick(() => generateAllBarcodes())
   }
 })
@@ -193,6 +228,26 @@ watch(() => props.visible, (val) => {
 watch(visible, (val) => {
   emit('update:visible', val)
 })
+
+function applyRangeSelection() {
+  if (fromPage.value === null || toPage.value === null) {
+    message.warning('请输入有效的范围')
+    return
+  }
+  const from = Math.max(1, fromPage.value)
+  const to = Math.min(props.bundles.length, toPage.value)
+  if (from > to) {
+    message.warning('起始页码不能大于结束页码')
+    return
+  }
+
+  // 只选中该索引范围内的标签
+  selectedBundles.value = props.bundles
+    .slice(from - 1, to)
+    .map(b => b.id)
+
+  message.success(`已选中第 ${from} 到第 ${to} 张菲仔，共 ${to - from + 1} 张`)
+}
 
 async function generateAllBarcodes() {
   const urls: Record<number, string> = {}
@@ -374,7 +429,7 @@ async function printBundles(bundlesToPrint: BundleData[]) {
         }
         .p-barcode-text {
           font-size: 13px;
-          font-weight: bold;
+          font-weight: normal;
           margin-top: 0.3mm;
           letter-spacing: 0;
         }
@@ -386,21 +441,25 @@ async function printBundles(bundlesToPrint: BundleData[]) {
         }
         .p-tbl td {
           border: 1px solid #333;
-          padding: 0.25mm 0.8mm;
+          padding: 0.35mm 0.8mm;
           font-size: 14px;
-          line-height: 1.03;
+          line-height: 1.08;
         }
         .p-key {
           width: 21%;
-          font-weight: bold;
+          font-weight: normal;
           white-space: nowrap;
           background-color: #f5f5f5;
         }
         .p-val {
           width: auto;
+          font-weight: bold;
         }
         .p-val-bold {
           font-weight: bold;
+        }
+        .p-val-regular {
+          font-weight: normal;
         }
         /* 底部区域 */
         .p-bottom {
@@ -416,7 +475,7 @@ async function printBundles(bundlesToPrint: BundleData[]) {
         .p-qr {
           position: absolute;
           right: 2mm;
-          top: 54mm;
+          top: 52mm;
           width: 21mm;
           height: 21mm;
         }
@@ -427,10 +486,10 @@ async function printBundles(bundlesToPrint: BundleData[]) {
           position: absolute;
           left: 1.5mm;
           right: 1.5mm;
-          bottom: 0.8mm;
+          bottom: 2mm;
           text-align: center;
           font-size: 12px;
-          font-weight: bold;
+          font-weight: normal;
         }
       </style>
     </head>
@@ -451,16 +510,16 @@ async function printBundles(bundlesToPrint: BundleData[]) {
             <td class="p-val p-val-bold">${escapeHtml(bundle.part)}</td>
           </tr>
           <tr>
-            <td class="p-key">订单号</td>
-            <td class="p-val">${escapeHtml(bundle.orderNo)}</td>
+            <td class="p-key">单号</td>
+            <td class="p-val p-val-regular">${escapeHtml(bundle.orderNo)}</td>
           </tr>
           <tr>
             <td class="p-key">款号</td>
-            <td class="p-val">${escapeHtml(bundle.styleCode)}</td>
+            <td class="p-val p-val-regular">${escapeHtml(bundle.styleCode)}</td>
           </tr>
           <tr>
             <td class="p-key">颜色</td>
-            <td class="p-val">${escapeHtml(bundle.color)}</td>
+            <td class="p-val p-val-regular">${escapeHtml(bundle.color)}</td>
           </tr>
         </table>
         <div class="p-bottom">
@@ -526,7 +585,7 @@ function handleClose() {
 
 <style scoped>
 .print-container {
-  max-height: 600px;
+  max-height: 75vh;
   overflow-y: auto;
 }
 
@@ -534,6 +593,13 @@ function handleClose() {
   margin-bottom: 16px;
   padding-bottom: 16px;
   border-bottom: 1px solid #f0f0f0;
+}
+
+.range-selector {
+  border: 1px solid #f0f0f0;
+  padding: 4px 12px;
+  border-radius: 6px;
+  background-color: #fafafa;
 }
 
 .bundle-preview {
@@ -607,7 +673,7 @@ function handleClose() {
 
 .preview-barcode-text {
   font-size: 14px;
-  font-weight: bold;
+  font-weight: normal;
   margin-top: 1px;
   letter-spacing: 0;
 }
@@ -621,24 +687,29 @@ function handleClose() {
 
 .preview-tbl td {
   border: 1px solid #333;
-  padding: 1px 5px;
+  padding: 2px 5px;
   font-size: 14px;
-  line-height: 1.03;
+  line-height: 1.08;
 }
 
 .pv-key {
   width: 21%;
-  font-weight: bold;
+  font-weight: normal;
   white-space: nowrap;
   background-color: #f5f5f5;
 }
 
 .pv-val {
   width: auto;
+  font-weight: bold;
 }
 
 .pv-val-bold {
   font-weight: bold;
+}
+
+.pv-val-regular {
+  font-weight: normal;
 }
 
 /* 底部区域 */
@@ -655,7 +726,7 @@ function handleClose() {
 .preview-qr {
   position: absolute;
   right: 8px;
-  top: 216px;
+  top: 208px;
   width: 84px;
   height: 84px;
 }
@@ -668,9 +739,25 @@ function handleClose() {
   position: absolute;
   left: 6px;
   right: 6px;
-  bottom: 3px;
+  bottom: 8px;
   text-align: center;
   font-size: 12px;
-  font-weight: bold;
+  font-weight: normal;
+}
+
+.bundle-item-index {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 8px;
+  padding: 4px 0 2px;
+  border-top: 1px dashed #f0f0f0;
+  color: #666;
+}
+
+.index-text {
+  font-size: 13px;
+  font-weight: 500;
 }
 </style>
