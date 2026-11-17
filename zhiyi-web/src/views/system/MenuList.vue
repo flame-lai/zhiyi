@@ -1,45 +1,46 @@
 <template>
   <a-card>
-    <!-- 操作栏 -->
-    <div style="margin-bottom: 16px; display: flex; justify-content: flex-end">
-      <a-button type="primary" @click="handleAdd()">新增菜单</a-button>
-    </div>
+    <a-tabs v-model:activeKey="activeTab">
+      <a-tab-pane v-for="tab in platformTabs" :key="tab.key" :tab="tab.label">
+        <!-- 操作栏 -->
+        <div style="margin-bottom: 16px; display: flex; justify-content: flex-end">
+          <a-button type="primary" @click="handleAdd()">新增菜单</a-button>
+        </div>
 
-    <!-- 数据表格（树形） -->
-    <a-table
-      :columns="columns"
-      :data-source="tableData"
-      :loading="loading"
-      :pagination="false"
-      row-key="id"
-      size="middle"
-      default-expand-all-rows
-    >
-      <template #bodyCell="{ column, record }">
-        <template v-if="column.dataIndex === 'platform'">
-          <a-tag :color="record.platform === 'web' ? 'blue' : 'green'">
-            {{ record.platform === 'web' ? 'Web端' : '移动端' }}
-          </a-tag>
-        </template>
-        <template v-if="column.dataIndex === 'type'">
-          <a-tag :color="record.type === 1 ? 'blue' : 'green'">
-            {{ record.type === 1 ? '目录' : '菜单' }}
-          </a-tag>
-        </template>
-        <template v-if="column.dataIndex === 'action'">
-          <a-space>
-            <a-button type="link" size="small" @click="handleAdd(record.id)">新增子菜单</a-button>
-            <a-button type="link" size="small" @click="handleEdit(record)">编辑</a-button>
-            <a-popconfirm
-              title="确认删除该菜单？"
-              @confirm="handleDelete(record)"
-            >
-              <a-button type="link" size="small" danger>删除</a-button>
-            </a-popconfirm>
-          </a-space>
-        </template>
-      </template>
-    </a-table>
+        <!-- 数据表格（树形） -->
+        <a-table
+          v-if="tab.data.length > 0"
+          :columns="columns"
+          :data-source="tab.data"
+          :loading="loading"
+          :pagination="false"
+          row-key="id"
+          size="middle"
+          default-expand-all-rows
+        >
+          <template #bodyCell="{ column, record }">
+            <template v-if="column.dataIndex === 'type'">
+              <a-tag :color="record.type === 1 ? 'blue' : 'green'">
+                {{ record.type === 1 ? '目录' : '菜单' }}
+              </a-tag>
+            </template>
+            <template v-if="column.dataIndex === 'action'">
+              <a-space>
+                <a-button type="link" size="small" @click="handleAdd(record.id)">新增子菜单</a-button>
+                <a-button type="link" size="small" @click="handleEdit(record)">编辑</a-button>
+                <a-popconfirm
+                  title="确认删除该菜单？"
+                  @confirm="handleDelete(record)"
+                >
+                  <a-button type="link" size="small" danger>删除</a-button>
+                </a-popconfirm>
+              </a-space>
+            </template>
+          </template>
+        </a-table>
+        <a-empty v-else :description="`暂无${tab.label}`" />
+      </a-tab-pane>
+    </a-tabs>
 
     <!-- 新增/编辑弹窗 -->
     <a-modal
@@ -56,8 +57,17 @@
         :label-col="{ span: 6 }"
         :wrapper-col="{ span: 16 }"
       >
-        <a-form-item label="所属平台" name="platform">
-          <a-select v-model:value="formData.platform" placeholder="请选择平台">
+        <a-form-item
+          label="所属平台"
+          name="platform"
+          :extra="platformLocked ? '该菜单存在子菜单，不可切换平台' : ''"
+        >
+          <a-select
+            v-model:value="formData.platform"
+            placeholder="请选择平台"
+            :disabled="platformLocked"
+            @change="handlePlatformChange"
+          >
             <a-select-option value="web">Web端</a-select-option>
             <a-select-option value="mobile">移动端</a-select-option>
           </a-select>
@@ -101,10 +111,18 @@ import { message } from 'ant-design-vue'
 import type { FormInstance } from 'ant-design-vue'
 import { menuApi } from '../../api/system'
 
+// 当前平台 Tab
+const activeTab = ref('web')
+
+// 平台 Tab 配置与数据
+const platformTabs = computed(() => [
+  { key: 'web', label: 'Web端菜单', data: filterByPlatform(tableData.value, 'web') },
+  { key: 'mobile', label: '移动端菜单', data: filterByPlatform(tableData.value, 'mobile') },
+])
+
 // 表格列定义
 const columns = [
   { title: '菜单名称', dataIndex: 'name', width: 180 },
-  { title: '所属平台', dataIndex: 'platform', width: 100, align: 'center' as const },
   { title: '路由路径', dataIndex: 'path', width: 180 },
   { title: '图标', dataIndex: 'icon', width: 120 },
   { title: '排序', dataIndex: 'sort', width: 80, align: 'center' as const },
@@ -137,6 +155,13 @@ const rules = {
   name: [{ required: true, message: '请输入菜单名称', trigger: 'blur' }],
 }
 
+// 存在子菜单时锁定所属平台，避免父子菜单跨平台
+const platformLocked = computed(() => {
+  if (!isEdit.value || !formData.id) return false
+  const current = findMenuById(tableData.value, formData.id)
+  return !!current?.children?.length
+})
+
 // 上级菜单树数据（过滤当前平台）
 const parentTreeData = computed(() => {
   const filtered = filterByPlatform(tableData.value, formData.platform)
@@ -162,6 +187,15 @@ function filterTreeNode(tree: any[], excludeId: number): any[] {
       ...item,
       children: item.children ? filterTreeNode(item.children, excludeId) : [],
     }))
+}
+
+// 切换平台后清空不属于新平台的上级菜单
+function handlePlatformChange(platform: string) {
+  if (!formData.parentId) return
+  const parent = findMenuById(tableData.value, formData.parentId)
+  if (parent && parent.platform !== platform) {
+    formData.parentId = 0
+  }
 }
 
 // 加载菜单列表
@@ -213,7 +247,7 @@ function handleEdit(record: any) {
     icon: record.icon,
     sort: record.sort,
     type: record.type,
-    platform: record.platform || 'web',
+    platform: record.platform || activeTab.value,
   })
   modalVisible.value = true
 }
@@ -259,7 +293,7 @@ function resetForm() {
     icon: '',
     sort: 0,
     type: 1,
-    platform: 'web',
+    platform: activeTab.value,
   })
   formRef.value?.resetFields()
 }
