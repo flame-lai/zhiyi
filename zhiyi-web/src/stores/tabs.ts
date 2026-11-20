@@ -52,6 +52,13 @@ export const useTabStore = defineStore('tabs', () => {
     activeTab.value = ''
   }
 
+  function closeOtherTabs(path: string) {
+    const target = tabs.value.find(t => t.path === path)
+    if (!target) return
+    tabs.value = [target]
+    activeTab.value = target.path
+  }
+
   return {
     tabs,
     activeTab,
@@ -59,5 +66,6 @@ export const useTabStore = defineStore('tabs', () => {
     removeTab,
     setActiveTab,
     clearTabs,
+    closeOtherTabs,
   }
 })

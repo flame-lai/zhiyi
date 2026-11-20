@@ -73,6 +73,24 @@
             />
           </div>
         </div>
+        <div class="tab-actions">
+          <a-dropdown :disabled="tabStore.tabs.length < 2">
+            <span
+              class="tab-action-trigger"
+              :class="{ disabled: tabStore.tabs.length < 2 }"
+            >
+              <DownOutlined />
+            </span>
+            <template #overlay>
+              <a-menu @click="handleTabAction">
+                <a-menu-item key="close-others" :disabled="tabStore.tabs.length < 2">
+                  <CloseOutlined />
+                  <span style="margin-left: 8px">关闭其他</span>
+                </a-menu-item>
+              </a-menu>
+            </template>
+          </a-dropdown>
+        </div>
       </div>
 
       <a-layout-content class="content">
@@ -105,6 +123,7 @@ import {
   UserOutlined,
   LogoutOutlined,
   CloseOutlined,
+  DownOutlined,
 } from '@ant-design/icons-vue'
 
 // 图标映射
@@ -220,6 +239,18 @@ function closeTab(path: string) {
   if (tabStore.activeTab) {
     router.push(tabStore.activeTab)
   }
+}
+
+function handleTabAction({ key }: { key: string }) {
+  if (key === 'close-others') {
+    handleCloseOthers()
+  }
+}
+
+function handleCloseOthers() {
+  if (tabStore.tabs.length < 2) return
+  const keepPath = tabStore.activeTab || route.path
+  tabStore.closeOtherTabs(keepPath)
 }
 
 function handleUserMenu({ key }: { key: string }) {
@@ -352,6 +383,37 @@ function handleUserMenu({ key }: { key: string }) {
   gap: 4px;
   overflow-x: auto;
   white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+}
+
+.tab-actions {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  margin-left: 8px;
+}
+
+.tab-action-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  color: #666;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.tab-action-trigger:hover:not(.disabled) {
+  color: #4A6FA5;
+  background: rgba(74, 111, 165, 0.1);
+}
+
+.tab-action-trigger.disabled {
+  color: #ccc;
+  cursor: not-allowed;
 }
 
 .tab-item {
