@@ -31,7 +31,8 @@ public interface EmployeeMapper extends BaseMapper<Employee> {
             "LEFT JOIN role r ON e.role_id = r.id " +
             "WHERE e.deleted = 0 AND e.factory_id = #{factoryId} " +
             "<if test='keyword != null and keyword != \"\"'>" +
-            "AND (e.name LIKE CONCAT('%', #{keyword}, '%') OR e.employee_no LIKE CONCAT('%', #{keyword}, '%'))" +
+            "AND (e.name LIKE CONCAT('%', #{keyword}, '%') OR e.employee_no LIKE CONCAT('%', #{keyword}, '%') " +
+            "OR e.phone LIKE CONCAT('%', #{keyword}, '%'))" +
             "</if>" +
             "ORDER BY e.status DESC, e.created_at DESC" +
             "</script>")

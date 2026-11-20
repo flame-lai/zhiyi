@@ -4,7 +4,7 @@
     <div style="margin-bottom: 16px; display: flex; justify-content: space-between">
       <a-input-search
         v-model:value="keyword"
-        placeholder="搜索工号/姓名"
+        placeholder="搜索工号/姓名/手机号"
         style="width: 300px"
         @search="handleSearch"
         allowClear
