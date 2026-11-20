@@ -224,7 +224,7 @@ satoken: <your_token>
 |------|------|------|--------|------|
 | page | Integer | 否 | 1 | 页码 |
 | size | Integer | 否 | 10 | 每页条数 |
-| keyword | String | 否 | - | 搜索关键词（姓名、工号等） |
+| keyword | String | 否 | - | 搜索关键词（姓名、工号、手机号，包含匹配） |
 
 **响应示例**：
 
