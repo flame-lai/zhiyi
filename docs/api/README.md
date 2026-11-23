@@ -1831,10 +1831,57 @@ satoken: <your_token>
 
 #### 4.3.2 ShipmentController - 出货管理
 
+##### 分页查询出货记录
+
+- **GET** `/api/shipments/page`
+- **认证**：需要
+
+**查询参数**：
+
+| 参数 | 类型 | 必填 | 默认 | 说明 |
+|------|------|------|------|------|
+| page | Integer | 否 | 1 | 页码，从 1 开始 |
+| size | Integer | 否 | 10 | 每页条数 |
+| orderId | Long | 否 | 无 | 订单 ID，精确匹配；不传表示不过滤 |
+
+**响应示例**：
+
+```json
+{
+  "code": 200,
+  "message": "success",
+  "data": {
+    "records": [
+      {
+        "id": 1,
+        "factoryId": 1,
+        "orderId": 1,
+        "orderItemId": 1,
+        "qty": 200,
+        "shipmentDate": "2024-01-15",
+        "remark": "第一批出货",
+        "createdAt": "2024-01-15T10:00:00",
+        "createdBy": 1
+      }
+    ],
+    "total": 1,
+    "size": 10,
+    "current": 1,
+    "pages": 1
+  }
+}
+```
+
+> 无匹配记录时 `records` 为 `[]`、`total` 为 `0`，仍返回 `code=200`。结果按出货日期倒序，同日按 `id` 倒序，受当前工厂租户隔离约束。
+
+---
+
 ##### 查询订单出货记录
 
 - **GET** `/api/shipments`
 - **认证**：需要
+
+> 该接口供订单详情页使用，`orderId` 必填且返回数组；Web 出货列表的分页查询请使用 `/api/shipments/page`。
 
 **查询参数**：
 
@@ -4309,6 +4356,7 @@ satoken: <your_token>
 | order | POST | /api/orders/{id}/confirm | 确认订单 |
 | order | POST | /api/orders/{id}/settle | 结算订单 |
 | order | GET | /api/shipments | 查询出货记录 |
+| order | GET | /api/shipments/page | 分页查询出货记录 |
 | order | POST | /api/shipments | 创建出货记录 |
 | order | DELETE | /api/shipments/{id} | 删除出货记录 |
 | cutting | GET | /api/cutting/plans | 分页查询裁床计划 |

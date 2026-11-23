@@ -1,5 +1,6 @@
 package com.zhiyi.erp.module.order.controller;
 
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.zhiyi.erp.common.result.R;
 import com.zhiyi.erp.module.order.entity.Shipment;
 import com.zhiyi.erp.module.order.service.ShipmentService;
@@ -21,6 +22,15 @@ public class ShipmentController {
     @GetMapping
     public R<List<Shipment>> list(@Parameter(description = "订单ID") @RequestParam Long orderId) {
         return R.ok(shipmentService.listByOrder(orderId));
+    }
+
+    @Operation(summary = "分页查询出货记录")
+    @GetMapping("/page")
+    public R<Page<Shipment>> page(
+            @Parameter(description = "页码") @RequestParam(defaultValue = "1") Integer page,
+            @Parameter(description = "每页条数") @RequestParam(defaultValue = "10") Integer size,
+            @Parameter(description = "订单ID") @RequestParam(required = false) Long orderId) {
+        return R.ok(shipmentService.pageShipments(new Page<>(page, size), orderId));
     }
 
     @Operation(summary = "创建出货记录")
