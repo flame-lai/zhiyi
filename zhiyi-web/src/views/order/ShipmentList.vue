@@ -2,7 +2,17 @@
   <div>
     <a-card title="出货记录">
       <!-- 操作按钮 -->
-      <div style="margin-bottom: 16px">
+      <div style="margin-bottom: 16px; display: flex; gap: 16px; flex-wrap: wrap">
+        <a-input-number
+          v-model:value="searchForm.orderId"
+          placeholder="请输入订单ID"
+          style="width: 200px"
+          :min="1"
+          :precision="0"
+          @pressEnter="handleSearch"
+        />
+        <a-button type="primary" @click="handleSearch">查询</a-button>
+        <a-button @click="handleReset">重置</a-button>
         <a-button type="primary" @click="handleAdd">新增出货</a-button>
       </div>
 
@@ -95,6 +105,11 @@ const pagination = reactive({
   showTotal: (total) => `共 ${total} 条`
 })
 
+// 搜索条件
+const searchForm = reactive({
+  orderId: undefined
+})
+
 // 表格列定义
 const columns = [
   { title: '订单ID', dataIndex: 'orderId', width: 120 },
@@ -126,17 +141,37 @@ const loadData = async () => {
   loading.value = true
   try {
     const params = {
-      current: pagination.current,
-      pageSize: pagination.pageSize
+      page: pagination.current,
+      size: pagination.pageSize
+    }
+    if (searchForm.orderId != null) {
+      params.orderId = searchForm.orderId
     }
     const res = await shipmentApi.getList(params)
-    dataSource.value = res.data.records
-    pagination.total = res.data.total
+    dataSource.value = res.data?.records || []
+    pagination.total = res.data?.total || 0
   } catch (error) {
     console.error('加载出货列表失败:', error)
   } finally {
     loading.value = false
   }
+}
+
+// 查询
+const handleSearch = () => {
+  const { orderId } = searchForm
+  if (orderId != null && (!Number.isInteger(orderId) || orderId < 1)) {
+    message.warning('请输入正确的订单ID')
+    return
+  }
+  pagination.current = 1
+  loadData()
+}
+
+// 重置
+const handleReset = () => {
+  searchForm.orderId = undefined
+  handleSearch()
 }
 
 // 表格分页变化

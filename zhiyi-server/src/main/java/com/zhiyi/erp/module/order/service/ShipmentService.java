@@ -1,6 +1,7 @@
 package com.zhiyi.erp.module.order.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.zhiyi.erp.common.tenant.TenantContext;
 import com.zhiyi.erp.module.order.entity.Order;
@@ -22,6 +23,16 @@ public class ShipmentService extends ServiceImpl<ShipmentMapper, Shipment> {
         return list(new LambdaQueryWrapper<Shipment>()
                 .eq(Shipment::getOrderId, orderId)
                 .orderByDesc(Shipment::getShipmentDate));
+    }
+
+    public Page<Shipment> pageShipments(Page<Shipment> page, Long orderId) {
+        LambdaQueryWrapper<Shipment> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(Shipment::getFactoryId, TenantContext.get());
+        if (orderId != null) {
+            wrapper.eq(Shipment::getOrderId, orderId);
+        }
+        wrapper.orderByDesc(Shipment::getShipmentDate).orderByDesc(Shipment::getId);
+        return page(page, wrapper);
     }
 
     public void createShipment(Shipment shipment) {
