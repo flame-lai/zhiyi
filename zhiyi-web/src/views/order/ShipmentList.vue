@@ -2,7 +2,16 @@
   <div>
     <a-card title="出货记录">
       <!-- 操作按钮 -->
-      <div style="margin-bottom: 16px">
+      <div style="margin-bottom: 16px; display: flex; gap: 16px; flex-wrap: wrap; align-items: center">
+        <a-range-picker
+          v-model:value="searchForm.dateRange"
+          format="YYYY-MM-DD"
+          value-format="YYYY-MM-DD"
+          :placeholder="['开始日期', '结束日期']"
+          style="width: 280px"
+        />
+        <a-button type="primary" @click="handleSearch">查询</a-button>
+        <a-button @click="handleReset">重置</a-button>
         <a-button type="primary" @click="handleAdd">新增出货</a-button>
       </div>
 
@@ -87,6 +96,9 @@ import { shipmentApi } from '../../api/order'
 // 表格相关
 const loading = ref(false)
 const dataSource = ref([])
+const searchForm = reactive({
+  dateRange: []
+})
 const pagination = reactive({
   current: 1,
   pageSize: 10,
@@ -126,17 +138,33 @@ const loadData = async () => {
   loading.value = true
   try {
     const params = {
-      current: pagination.current,
-      pageSize: pagination.pageSize
+      page: pagination.current,
+      size: pagination.pageSize
+    }
+    if (searchForm.dateRange && searchForm.dateRange.length === 2) {
+      params.startDate = searchForm.dateRange[0]
+      params.endDate = searchForm.dateRange[1]
     }
     const res = await shipmentApi.getList(params)
-    dataSource.value = res.data.records
-    pagination.total = res.data.total
+    dataSource.value = res.data?.records || []
+    pagination.total = res.data?.total || 0
   } catch (error) {
     console.error('加载出货列表失败:', error)
   } finally {
     loading.value = false
   }
+}
+
+// 查询
+const handleSearch = () => {
+  pagination.current = 1
+  loadData()
+}
+
+// 重置筛选
+const handleReset = () => {
+  searchForm.dateRange = []
+  handleSearch()
 }
 
 // 表格分页变化
