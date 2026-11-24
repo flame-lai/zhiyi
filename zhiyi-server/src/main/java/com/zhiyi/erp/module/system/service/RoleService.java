@@ -42,13 +42,26 @@ public class RoleService extends ServiceImpl<RoleMapper, Role> {
     }
 
     public List<Role> listAll() {
-        return list(new LambdaQueryWrapper<Role>()
-                .eq(Role::getFactoryId, TenantContext.get())
-                .orderByAsc(Role::getSort));
+        return listAll(null);
+    }
+
+    public List<Role> listAll(String keyword) {
+        LambdaQueryWrapper<Role> wrapper = new LambdaQueryWrapper<Role>()
+                .eq(Role::getFactoryId, TenantContext.get());
+        String normalizedKeyword = keyword == null ? null : keyword.trim();
+        if (normalizedKeyword != null && !normalizedKeyword.isEmpty()) {
+            wrapper.like(Role::getName, normalizedKeyword);
+        }
+        wrapper.orderByAsc(Role::getSort);
+        return list(wrapper);
     }
 
     public List<Map<String, Object>> listWithEmployeeCount() {
-        List<Role> roles = listAll();
+        return listWithEmployeeCount(null);
+    }
+
+    public List<Map<String, Object>> listWithEmployeeCount(String keyword) {
+        List<Role> roles = listAll(keyword);
         List<Map<String, Object>> result = new ArrayList<>();
         for (Role role : roles) {
             Map<String, Object> item = new HashMap<>();

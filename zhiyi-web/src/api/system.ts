@@ -13,7 +13,7 @@ export const employeeApi = {
 
 // 角色管理
 export const roleApi = {
-  list: () => request.get('/system/roles'),
+  list: (params?: any) => request.get('/system/roles', { params }),
   getById: (id: number) => request.get(`/system/roles/${id}`),
   create: (data: any) => request.post('/system/roles', data),
   update: (id: number, data: any) => request.put(`/system/roles/${id}`, data),
