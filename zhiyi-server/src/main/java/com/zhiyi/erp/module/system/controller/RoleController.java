@@ -22,8 +22,10 @@ public class RoleController {
 
     @Operation(summary = "查询所有角色")
     @GetMapping
-    public R<List<Map<String, Object>>> list() {
-        return R.ok(roleService.listWithEmployeeCount());
+    public R<List<Map<String, Object>>> list(
+            @Parameter(description = "角色名称关键词")
+            @RequestParam(required = false) String keyword) {
+        return R.ok(roleService.listWithEmployeeCount(keyword));
     }
 
     @Operation(summary = "根据ID查询角色详情")

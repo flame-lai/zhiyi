@@ -1,7 +1,14 @@
 <template>
   <a-card>
     <!-- 操作栏 -->
-    <div style="margin-bottom: 16px; display: flex; justify-content: flex-end">
+    <div style="margin-bottom: 16px; display: flex; justify-content: space-between">
+      <a-input-search
+        v-model:value="keyword"
+        placeholder="搜索角色名称"
+        style="width: 300px"
+        @search="handleSearch"
+        allowClear
+      />
       <a-button type="primary" @click="handleAdd">新增角色</a-button>
     </div>
 
@@ -112,6 +119,7 @@ const columns = [
 // 表格数据
 const loading = ref(false)
 const tableData = ref<any[]>([])
+const keyword = ref('')
 
 // 表单弹窗
 const formModalVisible = ref(false)
@@ -141,13 +149,18 @@ const currentRoleId = ref<number>(0)
 async function loadData() {
   loading.value = true
   try {
-    const res: any = await roleApi.list()
+    const res: any = await roleApi.list({ keyword: keyword.value })
     tableData.value = res.data || []
   } catch {
     // handled by interceptor
   } finally {
     loading.value = false
   }
+}
+
+// 搜索
+function handleSearch() {
+  loadData()
 }
 
 // 新增
@@ -262,6 +275,7 @@ async function handleMenuSubmit() {
     await roleApi.assignMenus(currentRoleId.value, checkedMenuKeys.value as number[])
     message.success('权限配置成功')
     menuModalVisible.value = false
+    loadData()
   } catch {
     // handled by interceptor
   } finally {
