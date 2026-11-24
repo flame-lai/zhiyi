@@ -20,6 +20,7 @@ export const orderApi = {
 // 出货管理
 export const shipmentApi = {
   list: (orderId: number) => request.get('/shipments', { params: { orderId } }),
+  getList: (params: any) => request.get('/shipments/page', { params }),
   create: (data: any) => request.post('/shipments', data),
   delete: (id: number) => request.delete(`/shipments/${id}`),
 }

@@ -3,6 +3,7 @@ package com.zhiyi.erp.module.order.controller;
 import com.zhiyi.erp.common.result.R;
 import com.zhiyi.erp.module.order.entity.Shipment;
 import com.zhiyi.erp.module.order.service.ShipmentService;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -21,6 +22,16 @@ public class ShipmentController {
     @GetMapping
     public R<List<Shipment>> list(@Parameter(description = "订单ID") @RequestParam Long orderId) {
         return R.ok(shipmentService.listByOrder(orderId));
+    }
+
+    @Operation(summary = "分页查询出货记录")
+    @GetMapping("/page")
+    public R<Page<Shipment>> page(
+            @Parameter(description = "页码") @RequestParam(defaultValue = "1") Integer page,
+            @Parameter(description = "每页条数") @RequestParam(defaultValue = "10") Integer size,
+            @Parameter(description = "开始出货日期") @RequestParam(required = false) String startDate,
+            @Parameter(description = "结束出货日期") @RequestParam(required = false) String endDate) {
+        return R.ok(shipmentService.pageByDate(new Page<>(page, size), startDate, endDate));
     }
 
     @Operation(summary = "创建出货记录")

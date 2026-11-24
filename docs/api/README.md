@@ -1866,6 +1866,53 @@ satoken: <your_token>
 
 ---
 
+##### 分页查询出货记录
+
+- **GET** `/api/shipments/page`
+- **认证**：需要
+- **说明**：独立出货管理页使用；按出货日期闭区间过滤后分页，仅返回当前工厂记录。
+
+**查询参数**：
+
+| 参数 | 类型 | 必填 | 默认值 | 说明 |
+|------|------|------|--------|------|
+| page | Integer | 否 | 1 | 页码，从 1 开始 |
+| size | Integer | 否 | 10 | 每页条数 |
+| startDate | String | 否 | 无 | 开始出货日期，`YYYY-MM-DD`，包含该日 |
+| endDate | String | 否 | 无 | 结束出货日期，`YYYY-MM-DD`，包含该日 |
+
+**响应示例**：
+
+```json
+{
+  "code": 200,
+  "message": "success",
+  "data": {
+    "records": [
+      {
+        "id": 2,
+        "factoryId": 1,
+        "orderId": 10,
+        "orderItemId": 20,
+        "qty": 50,
+        "shipmentDate": "2026-11-20",
+        "remark": "第二批",
+        "createdAt": "2026-11-20T10:00:00",
+        "createdBy": 1
+      }
+    ],
+    "total": 1,
+    "size": 10,
+    "current": 1,
+    "pages": 1
+  }
+}
+```
+
+日期格式非法时返回 `code=400`，提示日期格式必须为 `YYYY-MM-DD`。
+
+---
+
 ##### 创建出货记录
 
 - **POST** `/api/shipments`
@@ -4308,7 +4355,8 @@ satoken: <your_token>
 | order | POST | /api/orders/{id}/materials | 保存订单物料清单 |
 | order | POST | /api/orders/{id}/confirm | 确认订单 |
 | order | POST | /api/orders/{id}/settle | 结算订单 |
-| order | GET | /api/shipments | 查询出货记录 |
+| order | GET | /api/shipments | 查询订单出货记录（数组） |
+| order | GET | /api/shipments/page | 分页查询出货记录（日期筛选） |
 | order | POST | /api/shipments | 创建出货记录 |
 | order | DELETE | /api/shipments/{id} | 删除出货记录 |
 | cutting | GET | /api/cutting/plans | 分页查询裁床计划 |
